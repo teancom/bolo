@@ -1,0 +1,113 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use POSIX qw/isprint/;
+
+sub usage
+{
+	my $s = shift || '';
+	die "${s}USAGE: $0 (bolo|nsca) <code> <name> <summary>\n";
+}
+
+sub status
+{
+	local $_ = shift @_;
+	return 0 if m/^ok(ay)?$/i;
+	return 1 if m/^warn(ing)?$/i;
+	return 2 if m/^crit(ical)?$/i;
+	return 3 if m/^unk(n(own)?)?$/i;
+	usage("bad status code '$_'\n");
+}
+
+sub sanitize
+{
+	join('', map {
+		$_ == 0
+			? '\0'
+			: $_ > 0x1f && $_ < 0x7f
+				? chr($_) : sprintf("\\x%02x", $_)
+	} unpack("C*", $_[0]));
+}
+
+my @CRC32 = ();
+for (my $i = 0; $i < 256; $i++) {
+	my $crc = $i;
+	for (my $j = 8; $j > 0; $j--) {
+		if ($crc & 1) {
+			$crc = ($crc >> 1) ^ 0xedb88320;
+		} else {
+			$crc >>= 1;
+		}
+		$CRC32[$i] = $crc;
+	}
+}
+
+sub crc32
+{
+	my $crc = 0xffffffff;
+	$crc = (($crc >> 8) & 0x00ffffff) ^ $CRC32[($crc ^ $_) & 0xff]
+		for unpack("C*", $_[0]);
+}
+
+my $type = shift @ARGV or usage;
+my $code = shift @ARGV or usage;
+my $name = shift @ARGV or usage;
+my $summary = join(' ', @ARGV) or usage;
+my $status = status($code);
+my $timestamp = time;
+
+if ($type eq 'bolo') {
+	# a BOLO native packet looks like this:
+	#
+	#   [   version   ]  8 bits
+	#   [    status   ]  8 bits
+	#   [---RESERVED--] 16 bits
+	#   [    length   ] 32 bits
+	#   [  timestamp  ] 32 bits
+	#   [      ...    ] (rest)   (length - 10) * 8 bits
+	#
+
+	my $version = 1;
+	my $length  = length("$name\0$summary\0")+12;
+	print "/* v=$version, ts=$timestamp, len=$length, status=$status\n";
+	print "   name    '$name'\n";
+	print "   summary '$summary' */\n";
+	print '"';
+	print sanitize(pack("CCnNNZ*Z*",
+		$version, $status, 0, $length, $timestamp,
+		$name, $summary));
+	print "\";\n";
+
+} elsif ($type eq 'nsca') {
+	# an NSCA packet looks like this:
+	#
+	#   [    crc32    ]   32 bits
+	#   [  timestamp  ]   32 bits
+	#   [   version   ]   16 bits
+	#   [    status   ]   16 bits
+	#
+	#   [     host    ]   64 octets / null-padded
+	#   [   service   ]  128 octets / null-padded
+	#   [    summary   ] 4096 octets / null-padded
+
+	my $version = 1;
+	my $crc32 = 0;
+	my ($host, $service) = split '/', $name, 2;
+	$service or usage("NSCA packets must have a '/' in the <name> parameter\n");
+	my $raw = pack("NNnnZ64Z128Z4096",
+		$crc32, $timestamp, $version, $status,
+		$host, $service, $summary);
+	$crc32 = crc32($raw);
+
+	print "/* v=$version, ts=$timestamp, status=$status, crc32=$crc32\n";
+	print "   host    '$host'\n";
+	print "   service '$service'\n";
+	print "   summary '$summary' */\n";
+	print '"'.sanitize(pack("NNnn", $crc32, $timestamp, $version, $status))."\"\n";
+	print '"'.sanitize(pack("Z64", $host))."\"\n";
+	print '"'.sanitize(pack("Z128", $service))."\"\n";
+	print '"'.sanitize(pack("Z4096", $summary))."\"\n";
+} else {
+	usage "Invalid packet type '$type'\n";
+}

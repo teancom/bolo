@@ -33,6 +33,7 @@ local
 .commit
 
 bolo
+t/00-packets
 
 .deps
 config.log
