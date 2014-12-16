@@ -41,4 +41,8 @@
 
      CHECKFRESH            OK
 
+
+     *                     ERROR
+                           <MESSAGE>
+
 # vim:et
