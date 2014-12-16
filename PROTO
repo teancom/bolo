@@ -1,18 +1,31 @@
 
+                       ########   #######  ##        #######
+                       ##     ## ##     ## ##       ##     ##
+                       ##     ## ##     ## ##       ##     ##
+                       ########  ##     ## ##       ##     ##
+                       ##     ## ##     ## ##       ##     ##
+                       ##     ## ##     ## ##       ##     ##
+                       ########   #######  ########  #######
 
+                       --------------------------------------
+                       a simple, performant monitoring system
+                       --------------------------------------
 
-    ------------------.                                        .------------------
-                      |           .-----------------.          |
-         listener     | [UPDATE]  |    db manager   |  [STAT]  |    controller
-       tcp://*:2998   |---------->|   inproc://db   |<---------|   tcp://*:2999
-                      |           '-----------------'  [DUMP]  |
-    ------------------'                    ^                   '------------------
-                                           |
-                                           |  [CHECKFRESH]
-                                           |
-                                  .-----------------.
-                                  |    scheduler    |
-                                  '-----------------'
+   Architecture:
+
+   ------------------.                                         .------------------
+                     |           .-----------------.           |
+        listener     | [UPDATE]  |    db manager   |  [STATE]  |    controller
+      tcp://*:2998   |---------->|   inproc://db   |<----------|   tcp://*:2999
+                     |           '-----------------'  [DUMP]   |
+   ------------------'                    ^                    '------------------
+                                          |
+                                          |  [CHECKFRESH]
+                                          |  [SAVESTATE]
+                                          |
+                                 .-----------------.
+                                 |    scheduler    |
+                                 '-----------------'
 
    Threads:
      1. listener   - Handles inbound NLMA/NSCA submission
@@ -23,26 +36,52 @@
 
    PDUs:
 
-     UPDATE                OK
-     <STATE-NAME>
-     <NUMERIC-CODE>
-     <SUMMARY MSG>
+     ---------------------------------------------------------------------------
 
+     UPDATE                OK                ; update the named state, with a
+     <STATE-NAME>                            ; new status code and summary
+     <NUMERIC-CODE>                          ; message, in response to data
+     <SUMMARY MSG>                           ; submitted by monitored systems.
 
-     STAT                  STAT
-     <STATE-NAME>          <STATE-NAME>
+     ---------------------------------------------------------------------------
+
+     STATE                 STATE             ; retrieve a single stat, by name
+     <STATE-NAME>          <STATE-NAME>      ; from the current database
                            <NUMERIC-CODE>
                            <SUMMARY MSG>
 
+     ---------------------------------------------------------------------------
 
-     DUMP                  OK
-     <KEY>
+     DUMP                  OK                ; dumps all stats in a YAML file,
+     <KEY>                                   ; <KEY> is a randomized string of
+                                             ; up to 16 characters (truncated)
+                                             ;
+     ---------------------------------------------------------------------------
 
+     CHECKFRESH            OK                ; prompts the db manager to assess
+                                             ; freshness of all tracked states
 
-     CHECKFRESH            OK
+     ---------------------------------------------------------------------------
 
+     SAVESTATE             OK                ; prompts the db manager to write
+                                             ; current state to a binary file
+                                             ; that it can re-read on next boot
 
-     *                     ERROR
-                           <MESSAGE>
+     ---------------------------------------------------------------------------
+
+     *                     ERROR             ; error reply, with friendly error
+                           <MESSAGE>         ; message text
+
+     ---------------------------------------------------------------------------
+
+  Dump YAML format:
+
+    ---
+    name1:
+      freshness: 300
+      onstale:   WARNING
+      stalemsg:  "no results in over 5 minutes"
+    name2:
+      # etc.
 
 # vim:et
