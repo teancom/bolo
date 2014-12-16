@@ -10,6 +10,20 @@
 #define UNKNOWN  3
 #define PENDING  4
 
+#define MAX_NSCA_HOSTNAME 64
+#define MAX_NSCA_SERVICE  128
+#define MAX_NSCA_OUTPUT   4096
+
+typedef struct {
+	int16_t   version;
+	uint32_t  crc32;
+	uint32_t  timestamp;
+	int16_t   return_code;
+	char      host[MAX_NSCA_HOSTNAME];
+	char      service[MAX_NSCA_SERVICE];
+	char      output[MAX_NSCA_OUTPUT];
+} nsca_t;
+
 typedef struct {
 	char     *name;
 	type_t   *type;
