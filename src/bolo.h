@@ -10,6 +10,8 @@
 #define UNKNOWN  3
 #define PENDING  4
 
+#define NSCA_PACKET_LEN 12 + 64 + 128 + 4096
+
 typedef struct {
 	uint32_t timestamp;   /* time of original submission                  */
 	char    *name;        /* name of the state, heap-allocated            */
