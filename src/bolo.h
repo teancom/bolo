@@ -12,6 +12,12 @@
 
 #define NSCA_PACKET_LEN 12 + 64 + 128 + 4096
 
+#define DEFAULT_NSCA_PORT 5667
+#define DEFAULT_BOLO_ENDPOINT "tcp://*:2998"
+#define DEFAULT_STAT_ENDPOINT "tcp://*:2999"
+
+#define DB_MANAGER_ENDPOINT "inproc://db"
+
 typedef struct {
 	uint32_t timestamp;   /* time of original submission                  */
 	char    *name;        /* name of the state, heap-allocated            */
@@ -43,6 +49,13 @@ typedef struct {
 	char   *config;
 	char   *file;
 } db_t;
+
+typedef struct {
+	void   *zmq;
+	int     nsca_socket;
+	void   *bolo_zocket;
+	void   *stat_zocket;
+} server_t;
 
 /* threads */
 void* nsca_listener(void *u);
