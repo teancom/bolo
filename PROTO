@@ -78,10 +78,16 @@
 
     ---
     name1:
-      freshness: 300
-      onstale:   WARNING
-      stalemsg:  "no results in over 5 minutes"
+      status:    OK
+      message:   Everything is awesome
+      last_seen: 1234567890
+      fresh:     yes
     name2:
+      status:    WARNING
+      message:   No results from external source in over 15 minutes
+      last_seen: 1234567890
+      fresh:     no
+    name3:
       # etc.
 
 # vim:et
