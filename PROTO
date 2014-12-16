@@ -1,0 +1,44 @@
+
+
+
+    ------------------.                                        .------------------
+                      |           .-----------------.          |
+         listener     | [UPDATE]  |    db manager   |  [STAT]  |    controller
+       tcp://*:2998   |---------->|   inproc://db   |<---------|   tcp://*:2999
+                      |           '-----------------'  [DUMP]  |
+    ------------------'                    ^                   '------------------
+                                           |
+                                           |  [CHECKFRESH]
+                                           |
+                                  .-----------------.
+                                  |    scheduler    |
+                                  '-----------------'
+
+   Threads:
+     1. listener   - Handles inbound NLMA/NSCA submission
+     2. controller - Handles inbound control messages, like STAT/DUMP
+     3. db manager - Manages the internal database
+     4. scheulder  - Issues timed commands to the db manager
+
+
+   PDUs:
+
+     UPDATE                OK
+     <STATE-NAME>
+     <NUMERIC-CODE>
+     <SUMMARY MSG>
+
+
+     STAT                  STAT
+     <STATE-NAME>          <STATE-NAME>
+                           <NUMERIC-CODE>
+                           <SUMMARY MSG>
+
+
+     DUMP                  OK
+     <KEY>
+
+
+     CHECKFRESH            OK
+
+# vim:et
