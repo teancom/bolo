@@ -10,19 +10,20 @@
 #define UNKNOWN  3
 #define PENDING  4
 
-#define MAX_NSCA_HOSTNAME 64
-#define MAX_NSCA_SERVICE  128
-#define MAX_NSCA_OUTPUT   4096
+typedef struct {
+	uint32_t timestamp;   /* time of original submission                  */
+	char    *name;        /* name of the state, heap-allocated            */
+	char    *summary;     /* summary of the state, heap-allocated         */
+	uint8_t  status;      /* numeric status (OK|WARNING|CRITICAL|UNKNOWN) */
+
+	void    *_packet;     /* (internal use)                               */
+} result_t;
 
 typedef struct {
-	int16_t   version;
-	uint32_t  crc32;
-	uint32_t  timestamp;
-	int16_t   return_code;
-	char      host[MAX_NSCA_HOSTNAME];
-	char      service[MAX_NSCA_SERVICE];
-	char      output[MAX_NSCA_OUTPUT];
-} nsca_t;
+	uint16_t  freshness;
+	uint8_t   stale_status;
+	char     *stale_summary;
+} type_t;
 
 typedef struct {
 	char     *name;
@@ -34,18 +35,24 @@ typedef struct {
 } state_t;
 
 typedef struct {
-	uint16_t  freshness;
-	uint8_t   stale_status;
-	char     *stale_summary;
-} type_t;
-
-typedef struct {
 	hash_t  states;
 	hash_t  problems;
 	hash_t  types;
 	char   *config;
 	char   *file;
 } db_t;
+
+/* threads */
+void* nsca_listener(void *u);
+void* bolo_listener(void *u);
+void* stat_listener(void *u);
+void* db_manager(void *u);
+void* scheduler(void *u);
+
+/* packet/result handling */
+result_t* nsca_result(uint8_t *buf, size_t len);
+result_t* bolo_result(uint8_t *buf, size_t len);
+void result_free(result_t *r);
 
 db_t db_open(const char *config);
 int db_write(db_t *db);
