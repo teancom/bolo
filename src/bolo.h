@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <vigor.h>
 
+#define PACKED __attribute__((packed))
+
 #define OK       0
 #define WARNING  1
 #define CRITICAL 2
@@ -26,13 +28,6 @@ typedef struct {
 	uint32_t  timestamp;   /* time of original submission                    */
 	char      payload[];   /* host + output, as null-terminated strings      */
 } bolo_t;
-
-typedef struct {
-	uint32_t timestamp;   /* time of original submission                  */
-	char    *name;        /* name of the state, heap-allocated            */
-	char    *summary;     /* summary of the state, heap-allocated         */
-	uint8_t  status;      /* numeric status (OK|WARNING|CRITICAL|UNKNOWN) */
-} result_t;
 
 typedef struct {
 	uint16_t  freshness;

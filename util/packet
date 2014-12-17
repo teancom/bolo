@@ -48,6 +48,7 @@ sub crc32
 	my $crc = 0xffffffff;
 	$crc = (($crc >> 8) & 0x00ffffff) ^ $CRC32[($crc ^ $_) & 0xff]
 		for unpack("C*", $_[0]);
+	return $crc;
 }
 
 my $type = shift @ARGV or usage;
@@ -82,9 +83,9 @@ if ($type eq 'bolo') {
 } elsif ($type eq 'nsca') {
 	# an NSCA packet looks like this:
 	#
+	#   [   version   ]   16 bits
 	#   [    crc32    ]   32 bits
 	#   [  timestamp  ]   32 bits
-	#   [   version   ]   16 bits
 	#   [    status   ]   16 bits
 	#
 	#   [     host    ]   64 octets / null-padded
@@ -95,19 +96,20 @@ if ($type eq 'bolo') {
 	my $crc32 = 0;
 	my ($host, $service) = split '/', $name, 2;
 	$service or usage("NSCA packets must have a '/' in the <name> parameter\n");
-	my $raw = pack("NNnnZ64Z128Z4096",
-		$crc32, $timestamp, $version, $status,
+	my $raw = pack("nNNnZ64Z128Z4096",
+		$version, $crc32, $timestamp, $status,
 		$host, $service, $summary);
 	$crc32 = crc32($raw);
 
-	print "/* v=$version, ts=$timestamp, status=$status, crc32=$crc32\n";
-	print "   host    '$host'\n";
-	print "   service '$service'\n";
-	print "   summary '$summary' */\n";
-	print '"'.sanitize(pack("NNnn", $crc32, $timestamp, $version, $status))."\"\n";
-	print '"'.sanitize(pack("Z64", $host))."\"\n";
-	print '"'.sanitize(pack("Z128", $service))."\"\n";
-	print '"'.sanitize(pack("Z4096", $summary))."\"\n";
+	print "\t\t/* v=$version, ts=$timestamp,\n";
+	print "\t\t   status=$status, crc32=$crc32\n";
+	print "\t\t   host    '$host'\n";
+	print "\t\t   service '$service'\n";
+	print "\t\t   summary '$summary' */\n";
+	print "\t\t\"".sanitize(pack("nNNn", $version, $crc32, $timestamp, $status))."\"\n";
+	print "\t\t\"".sanitize(pack("Z64", $host))."\"\n";
+	print "\t\t\"".sanitize(pack("Z128", $service))."\"\n";
+	print "\t\t\"".sanitize(pack("Z4096", $summary)).";\"\n";
 } else {
 	usage "Invalid packet type '$type'\n";
 }

@@ -16,12 +16,15 @@ sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
 CTAP_TESTS  =
+CTAP_TESTS += t/00-nsca
 
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
+t_00_nsca_SOURCES = $(TEST_SRC) t/00-nsca.c
+t_00_nsca_LDADD   = -lpthread -lzmq
 
 
 

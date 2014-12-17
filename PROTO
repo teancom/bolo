@@ -40,7 +40,7 @@
      ---------------------------------------------------------------------------
 
      UPDATE                OK                ; update the named state, with a
-     <TIEMSTAMP>                             ; new status code and summary
+     <TIMESTAMP>                             ; new status code and summary
      <STATE-NAME>                            ; message, in response to data
      <NUMERIC-CODE>                          ; submitted by monitored systems.
      <SUMMARY MSG>

@@ -33,7 +33,7 @@ local
 .commit
 
 bolo
-t/00-packets
+t/00-nsca
 
 .deps
 config.log
