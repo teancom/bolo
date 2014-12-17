@@ -10,21 +10,28 @@
 #define UNKNOWN  3
 #define PENDING  4
 
-#define NSCA_PACKET_LEN 12 + 64 + 128 + 4096
-
 #define DEFAULT_NSCA_PORT 5667
 #define DEFAULT_BOLO_ENDPOINT "tcp://*:2998"
 #define DEFAULT_STAT_ENDPOINT "tcp://*:2999"
 
 #define DB_MANAGER_ENDPOINT "inproc://db"
 
+#define MIN_BOLO_LEN 12+2
+
+typedef struct {
+	uint8_t   version;     /* version of the BOLO packet format in use       */
+	uint8_t   status;      /* numeric status (OK|WARNING|CRITICAL|UNKNOWN)   */
+	uint16_t  _RESERVED_1;
+	uint32_t  length;      /* length of entire packet, including 'version'   */
+	uint32_t  timestamp;   /* time of original submission                    */
+	char      payload[];   /* host + output, as null-terminated strings      */
+} bolo_t;
+
 typedef struct {
 	uint32_t timestamp;   /* time of original submission                  */
 	char    *name;        /* name of the state, heap-allocated            */
 	char    *summary;     /* summary of the state, heap-allocated         */
 	uint8_t  status;      /* numeric status (OK|WARNING|CRITICAL|UNKNOWN) */
-
-	void    *_packet;     /* (internal use)                               */
 } result_t;
 
 typedef struct {
@@ -65,7 +72,6 @@ void* db_manager(void *u);
 void* scheduler(void *u);
 
 /* packet/result handling */
-result_t* nsca_result(const char *buf, size_t len);
 result_t* bolo_result(const char *buf, size_t len);
 void result_free(result_t *r);
 

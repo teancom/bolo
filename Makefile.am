@@ -10,20 +10,18 @@ AM_CFLAGS += @GCOV_CFLAGS@
 
 CORE_SRC  =
 CORE_SRC += src/bolo.h
-CORE_SRC += src/wire.c
+CORE_SRC += src/nsca.c
 
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
 CTAP_TESTS  =
-CTAP_TESTS += t/00-packets
 
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
-t_00_packets_SOURCES = $(TEST_SRC) t/00-packets.c
 
 
 
