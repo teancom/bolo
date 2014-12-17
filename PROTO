@@ -40,14 +40,17 @@
      ---------------------------------------------------------------------------
 
      UPDATE                OK                ; update the named state, with a
-     <STATE-NAME>                            ; new status code and summary
-     <NUMERIC-CODE>                          ; message, in response to data
-     <SUMMARY MSG>                           ; submitted by monitored systems.
+     <TIEMSTAMP>                             ; new status code and summary
+     <STATE-NAME>                            ; message, in response to data
+     <NUMERIC-CODE>                          ; submitted by monitored systems.
+     <SUMMARY MSG>
 
      ---------------------------------------------------------------------------
 
      STATE                 STATE             ; retrieve a single stat, by name
      <STATE-NAME>          <STATE-NAME>      ; from the current database
+                           <LAST-SEEN>
+                           <FRESH>
                            <NUMERIC-CODE>
                            <SUMMARY MSG>
 
