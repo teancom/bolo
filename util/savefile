@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML::XS qw/Load/;
+
+my %STATES = (
+	OK       => 0,
+	WARNING  => 1,
+	CRITICAL => 2,
+	UNKNOWN  => 3,
+);
+
+-t STDIN and die "USAGE: $0 <yaml >binfile\n";
+my $data = Load(do { local $/; <> }) or die "USAGE: $0 <yaml >binfile\n";
+
+my $n = scalar(keys %$data);
+my $time = time;
+
+print pack("A4nnlN",
+	"BOLO", # magic     u32 / A4
+	1,      # version   u16 / n
+	0,      # flags     u16 / n
+	$time,  # timestamp i32 / l
+	$n);    # count     u32 / N
+
+for my $name (keys %$data) {
+	local $_ = $data->{$name};
+
+	my $len = 12 + length($name)+1 + length($_->{message})+1;
+	my $code = $STATES{$_->{status}} || 3; # UNKNOWN
+	my $stale = $_->{fresh} eq 'yes' ? 0 : 1;
+	print pack("nlCCZ*Z*",
+		$len,            # len       u16 / n
+		$_->{last_seen}, # last_seen i32 / l
+		$code,           # status     u8 / C
+		$stale,          # stale      u8 / C
+		$name,           # name            Z*
+		$_->{message});  # summary         Z*
+}
+print "\0\0";

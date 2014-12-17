@@ -6,11 +6,118 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+#include <arpa/inet.h>
+
+typedef struct PACKED {
+	uint32_t  magic;
+	uint16_t  version;
+	uint16_t  flags;
+	 int32_t  timestamp;
+	uint32_t  count;
+} binf_header_t;
+
+typedef struct PACKED {
+	uint16_t  len;
+	 int32_t  last_seen;
+	 uint8_t  status;
+	 uint8_t  stale;
+} binf_record_t;
 
 static inline const char *statstr(uint8_t s)
 {
 	static const char *names[] = { "OK", "WARNING", "CRITICAL", "UNKNOWN" };
 	return names[s > 3 ? 3 : s];
+}
+
+void save_state(db_t *db, const char *file)
+{
+	binf_header_t header;
+	binf_record_t record;
+	char *k; state_t *v;
+
+	int fd = open(file, O_WRONLY|O_CREAT|O_EXCL, 0440);
+	assert(fd >= 0);
+
+	memcpy(&header.magic, "BOLO", 4);
+	header.version   = 1;
+	header.flags     = 0;
+	header.timestamp = time_s();
+
+	/* FIXME: need a hash_len(&h) in libvigor */
+	header.count = 0;
+	for_each_key_value(&db->states, k, v)
+		header.count++;
+
+	write(fd, &header, sizeof(header));
+	for_each_key_value(&db->states, k, v) {
+		size_t l_name    = strlen(v->name)    + 1;
+		size_t l_summary = strlen(v->summary) + 1;
+		record.len       = sizeof(binf_record_t) + l_name + l_summary;
+		record.last_seen = v->last_seen;
+		record.status    = v->status;
+		record.stale     = v->stale;
+
+		write(fd, &record,    sizeof(record));
+		write(fd, v->name,    l_name);
+		write(fd, v->summary, l_summary);
+	}
+	close(fd);
+}
+
+int read_state(db_t *db, const char *file)
+{
+	binf_header_t header;
+	binf_record_t record;
+	ssize_t n;
+
+	int fd = open(file, O_RDONLY);
+	assert(fd >= 0);
+
+	n = read(fd, &header, sizeof(header));
+	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0)
+		goto fail;
+
+	header.version   = ntohs(header.version);
+	header.flags     = ntohs(header.flags);
+	header.timestamp = ntohl(header.timestamp);
+	header.count     = ntohl(header.count);
+
+	while (header.count-- > 0) {
+		n = read(fd, &record, sizeof(record));
+		if (n < 2)
+			goto fail;
+
+		record.len       = ntohs(record.len);
+		record.last_seen = ntohl(record.last_seen);
+		if (record.len == 0 || record.len < sizeof(binf_record_t))
+			goto fail;
+
+		size_t rest = record.len - sizeof(binf_record_t);
+		char *strings = calloc(rest, sizeof(char));
+		n = read(fd, &strings, rest);
+		if (n != rest) {
+			free(strings);
+			goto fail;
+		}
+
+		state_t *s = calloc(1, sizeof(state_t));
+		s->name      = strdup(strings);
+		s->summary   = strdup(strings + strlen(s->name) + 1);
+		s->last_seen = record.last_seen;
+		s->status    = record.status;
+		s->stale     = record.stale;
+		s->type      = NULL; /* FIXME */
+		free(strings);
+
+		hash_set(&db->states, s->name, s);
+	}
+
+	close(fd);
+	return 0;
+
+fail:
+	close(fd);
+	return -1;
 }
 
 void dump(db_t *db, const char *file)
@@ -27,17 +134,17 @@ void dump(db_t *db, const char *file)
 	char *k; state_t *state;
 	for_each_key_value(&db->states, k, state) {
 		fprintf(io, "%s:\n", state->name);
-		fprintf(io, "  status:    %s\n",  statstr(state->status));
-		fprintf(io, "  message:   %s\n",  state->summary);
-		fprintf(io, "  last_seen: %li\n", state->last_seen);
-		fprintf(io, "  fresh:     %s\n",  state->stale ? "no" : "yes");
+		fprintf(io, "  status:    %s\n", statstr(state->status));
+		fprintf(io, "  message:   %s\n", state->summary);
+		fprintf(io, "  last_seen: %i\n", state->last_seen);
+		fprintf(io, "  fresh:     %s\n", state->stale ? "no" : "yes");
 	}
 
 	fclose(io);
 	close(fd);
 }
 
-void update(db_t *db, int64_t ts, const char *name, uint8_t code, const char *msg)
+void update(db_t *db, int32_t ts, const char *name, uint8_t code, const char *msg)
 {
 	assert(name);
 	assert(msg);

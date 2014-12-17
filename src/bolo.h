@@ -38,8 +38,8 @@ typedef struct {
 typedef struct {
 	char     *name;
 	type_t   *type;
-	int64_t   last_seen;
-	int64_t   expiry;
+	int32_t   last_seen;
+	int32_t   expiry;
 	uint8_t   status;
 	char     *summary;
 	uint8_t   stale;
@@ -60,6 +60,7 @@ typedef struct {
 	void   *stat_zocket;
 
 	char   *dumpfile_fmt;
+	char   *savefile;
 
 	struct {
 		uint16_t freshness;
@@ -67,31 +68,11 @@ typedef struct {
 	} interval;
 } server_t;
 
-typedef struct PACKED {
-	uint32_t  magic;
-	uint16_t  version;
-	uint16_t  flags;
-	 int64_t  timestamp;
-	uint32_t  count;
-} binf_header_t;
-
-typedef struct PACKED {
-	uint16_t  len;
-	 int64_t  last_seen;
-	 uint8_t  status;
-	 uint8_t  stale;
-	    char  payload[];
-} binf_record_t;
-
 /* threads */
 void* nsca_listener(void *u);
 void* bolo_listener(void *u);
 void* stat_listener(void *u);
 void* db_manager(void *u);
 void* scheduler(void *u);
-
-db_t db_open(const char *config);
-int db_write(db_t *db);
-int db_close(db_t *db);
 
 #endif

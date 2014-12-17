@@ -32,13 +32,12 @@ TESTS {
 
 	mkdir("t/tmp", 0755);
 	svr.dumpfile_fmt = "t/tmp/dump.%s";
+	svr.savefile = "t/tmp/save";
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-
 	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
 		"failed to spin up db manager thread");
-
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock db manager test socket");
 	CHECK(zmq_connect(z, DB_MANAGER_ENDPOINT) == 0,
