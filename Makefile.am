@@ -19,14 +19,17 @@ bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/00-nsca
+CTAP_TESTS += t/01-dbman
 
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
-t_00_nsca_SOURCES = $(TEST_SRC) t/00-nsca.c
-t_00_nsca_LDADD   = -lpthread -lzmq
+t_00_nsca_SOURCES  = $(TEST_SRC) t/00-nsca.c
+t_00_nsca_LDADD    = -lpthread -lzmq
+t_01_dbman_SOURCES = $(TEST_SRC) t/01-dbman.c
+t_01_dbman_LDADD   = -lpthread -lzmq
 
 
 

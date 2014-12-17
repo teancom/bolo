@@ -33,7 +33,9 @@ local
 .commit
 
 bolo
+t/tmp
 t/00-nsca
+t/01-dbman
 
 .deps
 config.log

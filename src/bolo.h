@@ -42,6 +42,7 @@ typedef struct {
 	int64_t   expiry;
 	uint8_t   status;
 	char     *summary;
+	uint8_t   stale;
 } state_t;
 
 typedef struct {
@@ -57,6 +58,8 @@ typedef struct {
 	int     nsca_socket;
 	void   *bolo_zocket;
 	void   *stat_zocket;
+
+	char   *dumpfile_fmt;
 
 	struct {
 		uint16_t freshness;
