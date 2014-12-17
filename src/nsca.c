@@ -46,17 +46,13 @@ static void client_free(void *_c)
 	free(c);
 }
 
-static void die(const char *m)
-{
-	perror(m);
-	abort();
-}
-
 static void inline fdflags(int fd, int flags)
 {
 	int orig = fcntl(fd, F_GETFL, 0);
-	if (orig < 0 || fcntl(fd, F_SETFL, orig|flags) < 0)
-		die("fcntl");
+	assert(orig >= 0);
+
+	int rc = fcntl(fd, F_SETFL, orig|flags);
+	assert(rc == 0);
 }
 
 void* nsca_listener(void *u)
@@ -95,7 +91,7 @@ void* nsca_listener(void *u)
 			if (events[n].data.fd == s->nsca_socket) {
 				/* new inbound connection */
 				connfd = accept(s->nsca_socket, NULL, NULL);
-				if (connfd < 0) die("accept");
+				assert(connfd >= 0);
 				fdflags(connfd, O_NONBLOCK);
 
 				ev.events = EPOLLIN | EPOLLET;
@@ -114,7 +110,7 @@ void* nsca_listener(void *u)
 			} else {
 				char *id = string("%04x", events[n].data.fd);
 				client_t *c = cache_get(clients, id);
-				if (!c) die("cache_get");
+				assert(c != NULL);
 
 				/* read what's left from the client */
 				ssize_t n = read(c->fd, &c->packet + c->bytes,
