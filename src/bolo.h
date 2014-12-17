@@ -66,10 +66,6 @@ void* stat_listener(void *u);
 void* db_manager(void *u);
 void* scheduler(void *u);
 
-/* packet/result handling */
-result_t* bolo_result(const char *buf, size_t len);
-void result_free(result_t *r);
-
 db_t db_open(const char *config);
 int db_write(db_t *db);
 int db_close(db_t *db);

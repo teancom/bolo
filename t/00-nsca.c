@@ -6,6 +6,9 @@
 #include <zmq.h>
 #include <pthread.h>
 
+/* FIXME: move this into ctap proper */
+#define CHECK(x,msg) if (!(x)) BAIL_OUT(msg)
+
 TESTS {
 	server_t s;
 	int rc;
@@ -14,43 +17,34 @@ TESTS {
 	pthread_t tid;
 
 	s.nsca_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (s.nsca_socket < 0)
-		BAIL_OUT("failed to get a test NSCA listener socket");
+	CHECK(s.nsca_socket >= 0, "failed to get a test NSCA listener socket");
 
-	addr.sin_family      = AF_INET;
-	addr.sin_port        = htons(5667);
+	addr.sin_family = AF_INET;
+	addr.sin_port   = htons(5667);
 	rc = inet_pton(addr.sin_family, "127.0.0.1", &addr.sin_addr);
-	if (rc != 1)
-		BAIL_OUT("failed to parse '127.0.0.1' via inet_pton (AF_INET)");
+	CHECK(rc == 1, "failed to parse '127.0.0.1' via inet_pton (AF_INET)");
 
 	int v = 1;
 	rc = setsockopt(s.nsca_socket, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
-	if (rc != 0)
-		BAIL_OUT("failed to set SO_REUSEADDR on test NSCA socket");
+	CHECK(rc == 0, "failed to set SO_REUSEADDR on test NSCA socket");
 
 	rc = bind(s.nsca_socket, (struct sockaddr*)&addr, sizeof(addr));
-	if (rc != 0)
-		BAIL_OUT("failed to bind test NSCA socket to localhost:5667");
+	CHECK(rc == 0, "failed to bind test NSCA socket to localhost:5667");
 
 	rc = listen(s.nsca_socket, 64);
-	if (rc != 0)
-		BAIL_OUT("failed to listen on test NSCA socket (localhost:5667");
+	CHECK(rc == 0, "failed to listen on test NSCA socket (localhost:5667");
 
 	s.zmq = zmq_ctx_new();
-	if (!s.zmq)
-		BAIL_OUT("failed to create a new 0MQ context");
+	CHECK(s.zmq, "failed to create a new 0MQ context");
 
 	dbman = zmq_socket(s.zmq, ZMQ_ROUTER);
-	if (!dbman)
-		BAIL_OUT("failed to create mock db manager test socket");
+	CHECK(dbman, "failed to create mock db manager test socket");
 
 	rc = zmq_bind(dbman, DB_MANAGER_ENDPOINT);
-	if (rc != 0)
-		BAIL_OUT("failed to bind mock db manager test socket to endpoint");
+	CHECK(rc == 0, "failed to bind mock db manager test socket to endpoint");
 
 	rc = pthread_create(&tid, NULL, nsca_listener, &s);
-	if (rc != 0)
-		BAIL_OUT("failed to spin up nsca listener thread");
+	CHECK(rc == 0, "failed to spin up nsca listener thread");
 
 	/* ----------------------------- */
 
@@ -87,8 +81,7 @@ TESTS {
 	a = pdu_reply(q, "OK", 0);
 	pdu_free(q);
 	rc = pdu_send_and_free(a, dbman);
-	if (rc != 0)
-		BAIL_OUT("failed to send OK reply to our UPDATE");
+	CHECK(rc == 0, "failed to send OK reply to our UPDATE");
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
