@@ -94,4 +94,22 @@
     name3:
       # etc.
 
+  Save (binary) file format:
+
+    [magic:u32]      "BOLO"
+    [version:u16]    (ASCII)
+    [flags:u16]
+    [timestamp:i64]
+    [count:u32]
+
+    [len:u16]        \
+    [lastseen:i64]    \
+    [status:u8]        \___ one record
+    [stale:u8]         /    per state
+    [name:*]\0        /
+    [summary:*]\0    /
+
+    \0\0             <----- NUL trailer, EOF
+                            (or, an empty 'len')
+
 # vim:et

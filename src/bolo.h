@@ -67,6 +67,22 @@ typedef struct {
 	} interval;
 } server_t;
 
+typedef struct PACKED {
+	uint32_t  magic;
+	uint16_t  version;
+	uint16_t  flags;
+	 int64_t  timestamp;
+	uint32_t  count;
+} binf_header_t;
+
+typedef struct PACKED {
+	uint16_t  len;
+	 int64_t  last_seen;
+	 uint8_t  status;
+	 uint8_t  stale;
+	    char  payload[];
+} binf_record_t;
+
 /* threads */
 void* nsca_listener(void *u);
 void* bolo_listener(void *u);
