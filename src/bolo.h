@@ -57,6 +57,11 @@ typedef struct {
 	int     nsca_socket;
 	void   *bolo_zocket;
 	void   *stat_zocket;
+
+	struct {
+		uint16_t freshness;
+		uint16_t savestate;
+	} interval;
 } server_t;
 
 /* threads */
