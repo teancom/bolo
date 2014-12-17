@@ -10,6 +10,7 @@ AM_CFLAGS += @GCOV_CFLAGS@
 
 CORE_SRC  =
 CORE_SRC += src/bolo.h
+CORE_SRC += src/dbman.c
 CORE_SRC += src/nsca.c
 
 sbin_PROGRAMS = bolo
