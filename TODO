@@ -1,0 +1,11 @@
+TODO
+
+- types
+- config file handling
+- bolo listener
+- stat listener
+- freshness checking
+- error handling -- check EVERYTHING
+- memleak profiling
+- memory usage analysis
+- perf testing
