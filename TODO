@@ -1,7 +1,6 @@
 TODO
 
 - types
-- config file handling
 - bolo listener
 - stat listener
 - freshness checking
