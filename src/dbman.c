@@ -12,13 +12,13 @@ typedef struct PACKED {
 	uint32_t  magic;
 	uint16_t  version;
 	uint16_t  flags;
-	 int32_t  timestamp;
+	uint32_t  timestamp;
 	uint32_t  count;
 } binf_header_t;
 
 typedef struct PACKED {
 	uint16_t  len;
-	 int32_t  last_seen;
+	uint32_t  last_seen;
 	 uint8_t  status;
 	 uint8_t  stale;
 } binf_record_t;
@@ -35,25 +35,26 @@ void save_state(db_t *db, const char *file)
 	binf_record_t record;
 	char *k; state_t *v;
 
-	int fd = open(file, O_WRONLY|O_CREAT|O_EXCL, 0440);
+	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0440);
 	assert(fd >= 0);
 
 	memcpy(&header.magic, "BOLO", 4);
-	header.version   = 1;
+	header.version   = htons(1);
 	header.flags     = 0;
-	header.timestamp = time_s();
+	header.timestamp = htonl((uint32_t)time_s());
 
 	/* FIXME: need a hash_len(&h) in libvigor */
 	header.count = 0;
 	for_each_key_value(&db->states, k, v)
 		header.count++;
+	header.count = htonl(header.count);
 
 	write(fd, &header, sizeof(header));
 	for_each_key_value(&db->states, k, v) {
 		size_t l_name    = strlen(v->name)    + 1;
 		size_t l_summary = strlen(v->summary) + 1;
-		record.len       = sizeof(binf_record_t) + l_name + l_summary;
-		record.last_seen = v->last_seen;
+		record.len       = htons(sizeof(binf_record_t) + l_name + l_summary);
+		record.last_seen = htonl(v->last_seen);
 		record.status    = v->status;
 		record.stale     = v->stale;
 
@@ -71,10 +72,14 @@ int read_state(db_t *db, const char *file)
 	ssize_t n;
 
 	int fd = open(file, O_RDONLY);
-	assert(fd >= 0);
+	if (fd < 0)
+		return -1;
 
 	n = read(fd, &header, sizeof(header));
 	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0)
+		goto fail;
+
+	if (n != sizeof(header))
 		goto fail;
 
 	header.version   = ntohs(header.version);
@@ -82,9 +87,12 @@ int read_state(db_t *db, const char *file)
 	header.timestamp = ntohl(header.timestamp);
 	header.count     = ntohl(header.count);
 
+	if (header.version != 1)
+		goto fail;
+
 	while (header.count-- > 0) {
 		n = read(fd, &record, sizeof(record));
-		if (n < 2)
+		if (n != sizeof(record))
 			goto fail;
 
 		record.len       = ntohs(record.len);
@@ -94,7 +102,7 @@ int read_state(db_t *db, const char *file)
 
 		size_t rest = record.len - sizeof(binf_record_t);
 		char *strings = calloc(rest, sizeof(char));
-		n = read(fd, &strings, rest);
+		n = read(fd, strings, rest);
 		if (n != rest) {
 			free(strings);
 			goto fail;
@@ -144,7 +152,7 @@ void dump(db_t *db, const char *file)
 	close(fd);
 }
 
-void update(db_t *db, int32_t ts, const char *name, uint8_t code, const char *msg)
+void update(db_t *db, uint32_t ts, const char *name, uint8_t code, const char *msg)
 {
 	assert(name);
 	assert(msg);
@@ -169,7 +177,6 @@ void update(db_t *db, int32_t ts, const char *name, uint8_t code, const char *ms
 
 void* db_manager(void *u)
 {
-	db_t db;
 	int rc;
 	server_t *s = (server_t*)u;
 
@@ -177,6 +184,10 @@ void* db_manager(void *u)
 	assert(z);
 	rc = zmq_bind(z, DB_MANAGER_ENDPOINT);
 	assert(rc == 0);
+
+	db_t db;
+	memset(&db, 0, sizeof(db));
+	rc = read_state(&db, s->savefile);
 
 	pdu_t *q, *a;
 	while ((q = pdu_recv(z)) != NULL) {
@@ -220,7 +231,8 @@ void* db_manager(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Not Implemented");
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
-			a = pdu_reply(q, "ERROR", 1, "Not Implemented");
+			save_state(&db, s->savefile);
+			a = pdu_reply(q, "OK", 0);
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");

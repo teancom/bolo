@@ -4,6 +4,19 @@ use strict;
 use warnings;
 use YAML::XS qw/Load/;
 
+sub sanitize
+{
+	local $_ = join('', map {
+		$_ < 8
+			? '\\'.$_
+			: $_ > 0x1f && $_ < 0x7f
+				? chr($_) : sprintf("\\x%02x", $_)
+	} unpack("C*", $_[0]));
+	s/(\\x[a-f0-9]{2})([a-fA-F0-9])/$1""$2/;
+	s/(\\0)([0-7])/$1""$2/;
+	return $_;
+}
+
 my %STATES = (
 	OK       => 0,
 	WARNING  => 1,
@@ -17,25 +30,31 @@ my $data = Load(do { local $/; <> }) or die "USAGE: $0 <yaml >binfile\n";
 my $n = scalar(keys %$data);
 my $time = time;
 
-print pack("A4nnlN",
+my $total = 16;
+print "\t\t\"".sanitize(pack("A4nnNN",
 	"BOLO", # magic     u32 / A4
 	1,      # version   u16 / n
 	0,      # flags     u16 / n
-	$time,  # timestamp i32 / l
-	$n);    # count     u32 / N
+	$time,  # timestamp u32 / N
+	$n      # count     u32 / N
+))."\"\n";
 
 for my $name (keys %$data) {
 	local $_ = $data->{$name};
 
-	my $len = 12 + length($name)+1 + length($_->{message})+1;
+	my $len = 8 + length($name)+1 + length($_->{message})+1;
+	$total += $len;
+
 	my $code = $STATES{$_->{status}} || 3; # UNKNOWN
 	my $stale = $_->{fresh} eq 'yes' ? 0 : 1;
-	print pack("nlCCZ*Z*",
+	print "\t\t\"".sanitize(pack("nNCCZ*Z*",
 		$len,            # len       u16 / n
-		$_->{last_seen}, # last_seen i32 / l
+		$_->{last_seen}, # last_seen u32 / N
 		$code,           # status     u8 / C
 		$stale,          # stale      u8 / C
 		$name,           # name            Z*
-		$_->{message});  # summary         Z*
+		$_->{message}    # summary         Z*
+	))."\"\n";
 }
-print "\0\0";
+$total += 2;
+print "\t\t\"\\0\\0\", $total);\n";
