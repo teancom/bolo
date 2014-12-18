@@ -37,6 +37,9 @@ t/tmp
 t/00-nsca
 t/01-dbman
 t/02-sched
+t/03-bolo
+t/04-stat
+t/05-config
 t/fail*-db
 
 .deps

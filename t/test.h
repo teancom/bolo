@@ -118,6 +118,9 @@ static void write_file(const char *file, const char *contents, size_t n)
 	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 	CHECK(fd >= 0, "failed to open test savefile for writing");
 
+	if (contents && n == 0)
+		n = strlen(contents);
+
 	write(fd, contents, n);
 	close(fd);
 }

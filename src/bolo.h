@@ -31,8 +31,8 @@ typedef struct {
 
 typedef struct {
 	uint16_t  freshness;
-	uint8_t   stale_status;
-	char     *stale_summary;
+	uint8_t   status;
+	char     *summary;
 } type_t;
 
 typedef struct {
@@ -60,11 +60,25 @@ typedef struct {
 	char   *savefile;
 
 	struct {
+		uint16_t  nsca_port;
+		char     *bolo_endpoint;
+		char     *stat_endpoint;
+
+		char     *log_level;
+		char     *log_facility;
+
+		char     *savefile;
+		char     *dumpfiles;
+	} config;
+
+	struct {
 		uint16_t tick; /* ms */
 		uint16_t freshness;
 		uint16_t savestate;
 	} interval;
 } server_t;
+
+int configure(const char *path, server_t *s, db_t *d);
 
 /* threads */
 void* nsca_listener(void *u);
