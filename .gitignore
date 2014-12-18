@@ -36,6 +36,7 @@ bolo
 t/tmp
 t/00-nsca
 t/01-dbman
+t/fail*-db
 
 .deps
 config.log

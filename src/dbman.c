@@ -35,7 +35,7 @@ void save_state(db_t *db, const char *file)
 	binf_record_t record;
 	char *k; state_t *v;
 
-	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0440);
+	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0640);
 	assert(fd >= 0);
 
 	memcpy(&header.magic, "BOLO", 4);
@@ -242,5 +242,5 @@ void* db_manager(void *u)
 		pdu_free(q);
 	}
 
-	return NULL;
+	return NULL; /* LCOV_EXCL_LINE */
 }

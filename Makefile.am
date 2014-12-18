@@ -8,6 +8,8 @@ AM_CFLAGS += -Wall
 AM_CFLAGS += -g
 AM_CFLAGS += @GCOV_CFLAGS@
 
+LDADD = -lpthread -lzmq
+
 CORE_SRC  =
 CORE_SRC += src/bolo.h
 CORE_SRC += src/dbman.c
@@ -21,18 +23,27 @@ CTAP_TESTS  =
 CTAP_TESTS += t/00-nsca
 CTAP_TESTS += t/01-dbman
 
+CTAP_TESTS += t/fail01-db
+CTAP_TESTS += t/fail02-db
+CTAP_TESTS += t/fail03-db
+CTAP_TESTS += t/fail04-db
+CTAP_TESTS += t/fail05-db
+CTAP_TESTS += t/fail06-db
+
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
 t_00_nsca_SOURCES  = $(TEST_SRC) t/00-nsca.c
-t_00_nsca_LDADD    = -lpthread -lzmq
 t_01_dbman_SOURCES = $(TEST_SRC) t/01-dbman.c
-t_01_dbman_LDADD   = -lpthread -lzmq
 
-
-
+t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
+t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c
+t_fail03_db_SOURCES = $(TEST_SRC) t/fail03-db.c
+t_fail04_db_SOURCES = $(TEST_SRC) t/fail04-db.c
+t_fail05_db_SOURCES = $(TEST_SRC) t/fail05-db.c
+t_fail06_db_SOURCES = $(TEST_SRC) t/fail06-db.c
 
 .PHONY: coverage-clean coverage-report coverage clean-local-cov
 clean-local: clean-local-gcda
