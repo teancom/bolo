@@ -1,13 +1,4 @@
 #include "test.h"
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/ip.h>
-#include <arpa/inet.h>
-#include <zmq.h>
-#include <pthread.h>
-
-/* FIXME: move this into ctap proper */
-#define CHECK(x,msg) if (!(x)) BAIL_OUT(msg)
 
 TESTS {
 	server_t s;
