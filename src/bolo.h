@@ -63,6 +63,7 @@ typedef struct {
 	char   *savefile;
 
 	struct {
+		uint16_t tick; /* ms */
 		uint16_t freshness;
 		uint16_t savestate;
 	} interval;
