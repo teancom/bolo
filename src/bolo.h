@@ -47,10 +47,7 @@ typedef struct {
 
 typedef struct {
 	hash_t  states;
-	hash_t  problems;
 	hash_t  types;
-	char   *config;
-	char   *file;
 } db_t;
 
 typedef struct {
