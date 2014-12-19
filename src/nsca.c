@@ -92,6 +92,7 @@ void* nsca_listener(void *u)
 	epfd = epoll_create1(0);
 	assert(epfd >= 0);
 
+	memset(&ev, 0, sizeof(ev));
 	ev.events = EPOLLIN;
 	ev.data.fd = sockfd;
 	if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) != 0)

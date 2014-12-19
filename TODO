@@ -1,5 +1,9 @@
 TODO
 
+- send_bolo util
+- daemonization
+- bolo --option  --handling
+- logging
 - error handling -- check EVERYTHING
 - memleak profiling
 - memory usage analysis

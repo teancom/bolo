@@ -24,6 +24,7 @@
 
 typedef struct {
 	FILE *io;
+	int   lineno;
 	int   token;
 	char  tval[LINE_BUF_SIZE];
 	char  line[LINE_BUF_SIZE];
@@ -38,6 +39,7 @@ static int lex(parser_t *p)
 getline:
 		if (!fgets(p->raw, LINE_BUF_SIZE, p->io))
 			return 0;
+		p->lineno++;
 
 		a = p->raw;
 		while (*a && isspace(*a)) a++;
@@ -77,7 +79,7 @@ getline:
 		return 1;
 	}
 
-	if (isalnum(*b)) {
+	if (isalnum(*b) || *b == '/') {
 		b++;
 		while (*b && (isalnum(*b) || ispunct(*b)))
 			b++;
@@ -139,6 +141,7 @@ getline:
 		return 1;
 	}
 
+	fprintf(stderr, "failed to parse token:\n%s", p->line);
 	return 0;
 }
 
@@ -150,10 +153,11 @@ int configure(const char *path, server_t *s)
 	p.io = fopen(path, "r");
 	if (!p.io) return -1;
 
-#define NEXT if (!lex(&p)) goto bail
-#define SERVER_STRING(x) NEXT; if (p.token != T_STRING) goto esyntax; \
+#define NEXT if (!lex(&p)) { fprintf(stderr, "Unexpected end of configuration file (at line %i)\n", p.lineno); goto bail; }
+#define ERROR(s) fprintf(stderr, "%s (at line %i)\n", s, p.lineno); goto esyntax
+#define SERVER_STRING(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	free(x); x = strdup(p.tval)
-#define SERVER_NUMBER(x) NEXT; if (p.token != T_STRING) goto esyntax; \
+#define SERVER_NUMBER(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	x = atoi(p.tval)
 
 	const char *default_type = NULL;
@@ -175,23 +179,23 @@ int configure(const char *path, server_t *s)
 			break;
 
 		case T_KEYWORD_USE:
-			NEXT; if (p.token != T_TYPENAME) goto esyntax;
+			NEXT; if (p.token != T_TYPENAME) { ERROR("Expected a type name for `use TYPENAME` construct"); }
 			default_type = strdup(p.tval);
 			break;
 
 		case T_KEYWORD_TYPE:
-			NEXT; if (p.token != T_TYPENAME) goto esyntax;
+			NEXT; if (p.token != T_TYPENAME) { ERROR("Expected a type name for `type TYPENAME { ... }` construct"); }
 			type = calloc(1, sizeof(type_t));
 			type->freshness = 300;
 			type->status    = WARNING;
 			hash_set(&s->db.types, p.tval, type);
 
-			NEXT; if (p.token != T_OPEN_BRACE) goto esyntax;
+			NEXT; if (p.token != T_OPEN_BRACE) { ERROR("Expected open curly brace ({) in type definition"); }
 			for (;;) {
 				NEXT; if (p.token == T_CLOSE_BRACE) break;
 				switch (p.token) {
 					case T_KEYWORD_FRESHNESS:
-						NEXT; if (p.token != T_STRING) goto esyntax;
+						NEXT; if (p.token != T_STRING) { ERROR("Expected numeric value for `freshness` directive"); }
 						type->freshness = atoi(p.tval);
 						break;
 
@@ -199,12 +203,12 @@ int configure(const char *path, server_t *s)
 						     if (strcmp(p.tval, "warning")  == 0) type->status = WARNING;
 						else if (strcmp(p.tval, "critical") == 0) type->status = CRITICAL;
 						else if (strcmp(p.tval, "unknown")  == 0) type->status = UNKNOWN;
-						else goto esyntax;
-						NEXT; if (p.token != T_STRING) goto esyntax;
+						else { ERROR("Unknown type attribute"); }
+						NEXT; if (p.token != T_STRING) { ERROR("Expected string message in type definition"); }
 						type->summary = strdup(p.tval);
 						break;
 
-					default: goto esyntax;
+					default: ERROR("Unexpected token in type definition");
 				}
 			}
 
@@ -234,7 +238,7 @@ int configure(const char *path, server_t *s)
 
 			}
 
-			if (p.token != T_STRING) goto esyntax;
+			if (p.token != T_STRING) { ERROR("Expected string value for `state` declaration"); }
 
 			if (!type) {
 				fprintf(stderr, "ERROR: failed to determine type for %s\n", p.tval);
@@ -243,14 +247,15 @@ int configure(const char *path, server_t *s)
 
 			state = calloc(1, sizeof(state_t));
 			hash_set(&s->db.states, p.tval, state);
-			state->type   = type;
-			state->status = PENDING;
-			state->expiry = type->freshness + time_s();
+			state->type    = type;
+			state->status  = PENDING;
+			state->expiry  = type->freshness + time_s();
+			state->summary = strdup("(state is pending results)");
 
 			break;
 
 		default:
-			goto esyntax;
+			ERROR("Unexpected token at top-level");
 		}
 	}
 

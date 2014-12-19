@@ -12,6 +12,7 @@
 #define UNKNOWN  3
 #define PENDING  4
 
+#define DEFAULT_CONFIG_FILE   "/etc/bolo.conf"
 #define DEFAULT_NSCA_PORT 5667
 #define DEFAULT_BOLO_ENDPOINT "tcp://*:2998"
 #define DEFAULT_STAT_ENDPOINT "tcp://*:2999"

@@ -16,7 +16,7 @@ TESTS {
 			"\n"
 			"# file paths\n"
 			"savefile  t/tmp/save\n"
-			"dumpfiles t/tmp/dump.\%s\n"
+			"dumpfiles /tmp/dump.\%s\n"
 			"\n"
 			"type :test {\n"
 			"  freshness 300\n"
@@ -48,7 +48,7 @@ TESTS {
 		is(svr.config.log_level,     "critical",       "log level set");
 		is(svr.config.log_facility,  "daemon",         "log facility set");
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
-		is(svr.config.dumpfiles,     "t/tmp/dump.\%s", "dumpfiles set");
+		is(svr.config.dumpfiles,     "/tmp/dump.\%s",  "dumpfiles set");
 
 		type_t *t;
 		t = hash_get(&svr.db.types, ":test");
