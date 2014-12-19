@@ -189,9 +189,9 @@ TESTS {
 	*(uint32_t*)(s+16+30+2) = htonl(time);
 
 	binfile_is("t/tmp/save", s, 83,
-		"save file (binary)");
+		"save file (binary)"); free(s);
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
-	zmq_close(z);
+	pthread_join(tid, NULL);
 }

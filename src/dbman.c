@@ -227,6 +227,7 @@ void* db_manager(void *u)
 				pdu_extendf(a, "%s",  statstr(state->status));
 				pdu_extendf(a, "%s",  state->summary);
 			}
+			free(name);
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
 			char *key  = pdu_string(q, 1);
