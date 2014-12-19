@@ -52,12 +52,6 @@ typedef struct {
 
 typedef struct {
 	void   *zmq;
-	int     nsca_socket;
-	void   *bolo_zocket;
-	void   *stat_zocket;
-
-	char   *dumpfile_fmt;
-	char   *savefile;
 
 	struct {
 		uint16_t  nsca_port;

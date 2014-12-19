@@ -187,7 +187,7 @@ void* db_manager(void *u)
 
 	db_t db;
 	memset(&db, 0, sizeof(db));
-	rc = read_state(&db, s->savefile);
+	rc = read_state(&db, s->config.savefile);
 
 	pdu_t *q, *a;
 	while ((q = pdu_recv(z)) != NULL) {
@@ -220,7 +220,7 @@ void* db_manager(void *u)
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
 			char *key  = pdu_string(q, 1);
-			char *file = string(s->dumpfile_fmt, key);
+			char *file = string(s->config.dumpfiles, key);
 			free(key);
 
 			dump(&db, file);
@@ -231,7 +231,7 @@ void* db_manager(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Not Implemented");
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
-			save_state(&db, s->savefile);
+			save_state(&db, s->config.savefile);
 			a = pdu_reply(q, "OK", 0);
 
 		} else {

@@ -7,8 +7,8 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
-	svr.dumpfile_fmt = "t/tmp/dump.%s";
-	write_file(svr.savefile = "t/tmp/save",
+	svr.config.dumpfiles = "t/tmp/dump.%s";
+	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\x1\0\0T\x92""e\xe0\0\0\0\2"
 		"\0%T\x92=[\2\0test.stat", 33); /* SHORT record payload. OH NOES!! */
 

@@ -7,8 +7,8 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
-	svr.dumpfile_fmt = "t/tmp/dump.%s";
-	write_file(svr.savefile = "t/tmp/save",
+	svr.config.dumpfiles = "t/tmp/dump.%s";
+	write_file(svr.config.savefile = "t/tmp/save",
 		"FAILURE", 7);
 
 	CHECK(svr.zmq = zmq_ctx_new(),

@@ -7,8 +7,8 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
-	svr.dumpfile_fmt = "t/tmp/dump.%s";
-	unlink(svr.savefile = "t/tmp/save");
+	svr.config.dumpfiles = "t/tmp/dump.%s";
+	unlink(svr.config.savefile = "t/tmp/save");
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

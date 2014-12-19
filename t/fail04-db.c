@@ -7,8 +7,8 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
-	svr.dumpfile_fmt = "t/tmp/dump.%s";
-	write_file(svr.savefile = "t/tmp/save",
+	svr.config.dumpfiles = "t/tmp/dump.%s";
+	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\1\0\0", 8); /* TRUNCATED!  OOPS! */
 
 	CHECK(svr.zmq = zmq_ctx_new(),

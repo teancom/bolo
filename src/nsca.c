@@ -58,14 +58,32 @@ static void inline fdflags(int fd, int flags)
 void* nsca_listener(void *u)
 {
 	struct epoll_event ev, events[EPOLL_MAX_FD];
-	int n, nfds, epfd, connfd;
+	int rc, n, nfds, epfd, connfd;
 	server_t *s;
 	void *db;
 
 	s = (server_t*)u;
 	assert(s);
-	assert(s->nsca_socket >= 0);
-	fdflags(s->nsca_socket, O_NONBLOCK);
+
+	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	assert(sockfd >= 0);
+
+	struct sockaddr_in addr;
+	addr.sin_family = AF_INET;
+	addr.sin_port   = htons(s->config.nsca_port);
+	addr.sin_addr.s_addr = INADDR_ANY;
+
+	n = 1;
+	rc = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n));
+	assert(rc == 0);
+
+	rc = bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));
+	assert(rc == 0);
+
+	rc = listen(sockfd, 64);
+	assert(rc == 0);
+
+	fdflags(sockfd, O_NONBLOCK);
 
 	db = zmq_socket(s->zmq, ZMQ_DEALER);
 	assert(db);
@@ -75,8 +93,8 @@ void* nsca_listener(void *u)
 	assert(epfd >= 0);
 
 	ev.events = EPOLLIN;
-	ev.data.fd = s->nsca_socket;
-	if (epoll_ctl(epfd, EPOLL_CTL_ADD, s->nsca_socket, &ev) != 0)
+	ev.data.fd = sockfd;
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) != 0)
 		return NULL;
 
 	cache_t *clients = cache_new(CLIENT_MAX, CLIENT_EXPIRE);
@@ -88,9 +106,9 @@ void* nsca_listener(void *u)
 			return NULL;
 
 		for (n = 0; n < nfds; n++) {
-			if (events[n].data.fd == s->nsca_socket) {
+			if (events[n].data.fd == sockfd) {
 				/* new inbound connection */
-				connfd = accept(s->nsca_socket, NULL, NULL);
+				connfd = accept(sockfd, NULL, NULL);
 				assert(connfd >= 0);
 				fdflags(connfd, O_NONBLOCK);
 

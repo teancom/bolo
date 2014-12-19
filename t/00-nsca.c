@@ -7,23 +7,12 @@ TESTS {
 	void *dbman;
 	pthread_t tid;
 
-	s.nsca_socket = socket(AF_INET, SOCK_STREAM, 0);
-	CHECK(s.nsca_socket >= 0, "failed to get a test NSCA listener socket");
+	s.config.nsca_port = 5667;
 
 	addr.sin_family = AF_INET;
-	addr.sin_port   = htons(5667);
+	addr.sin_port   = htons(s.config.nsca_port);
 	rc = inet_pton(addr.sin_family, "127.0.0.1", &addr.sin_addr);
 	CHECK(rc == 1, "failed to parse '127.0.0.1' via inet_pton (AF_INET)");
-
-	int v = 1;
-	rc = setsockopt(s.nsca_socket, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v));
-	CHECK(rc == 0, "failed to set SO_REUSEADDR on test NSCA socket");
-
-	rc = bind(s.nsca_socket, (struct sockaddr*)&addr, sizeof(addr));
-	CHECK(rc == 0, "failed to bind test NSCA socket to localhost:5667");
-
-	rc = listen(s.nsca_socket, 64);
-	CHECK(rc == 0, "failed to listen on test NSCA socket (localhost:5667");
 
 	s.zmq = zmq_ctx_new();
 	CHECK(s.zmq, "failed to create a new 0MQ context");
@@ -76,5 +65,4 @@ TESTS {
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
-	close(s.nsca_socket);
 }
