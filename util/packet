@@ -6,7 +6,7 @@ use warnings;
 sub usage
 {
 	my $s = shift || '';
-	die "${s}USAGE: $0 (bolo|nsca) <code> <name> <summary>\n";
+	die "${s}USAGE: $0 nsca <code> <name> <summary>\n";
 }
 
 sub status
@@ -57,29 +57,7 @@ my $summary = join(' ', @ARGV) or usage;
 my $status = status($code);
 my $timestamp = time;
 
-if ($type eq 'bolo') {
-	# a BOLO native packet looks like this:
-	#
-	#   [   version   ]  8 bits
-	#   [    status   ]  8 bits
-	#   [---RESERVED--] 16 bits
-	#   [    length   ] 32 bits
-	#   [  timestamp  ] 32 bits
-	#   [      ...    ] (rest)   (length - 10) * 8 bits
-	#
-
-	my $version = 1;
-	my $length  = length("$name\0$summary\0")+12;
-	print "/* v=$version, ts=$timestamp, len=$length, status=$status\n";
-	print "   name    '$name'\n";
-	print "   summary '$summary' */\n";
-	print '"';
-	print sanitize(pack("CCnNNZ*Z*",
-		$version, $status, 0, $length, $timestamp,
-		$name, $summary));
-	print "\";\n";
-
-} elsif ($type eq 'nsca') {
+if ($type eq 'nsca') {
 	# an NSCA packet looks like this:
 	#
 	#   [   version   ]   16 bits

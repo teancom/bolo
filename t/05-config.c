@@ -5,10 +5,9 @@ TESTS {
 		server_t svr; memset(&svr, 0, sizeof(svr));
 
 		write_file("t/tmp/config",
-			"# test bolo configuration\n"
+			"# test configuration\n"
 			"\n"
 			"# network endpoints\n"
-			"listener  tcp://*:4444\n"
 			"control   tcp://*:5555\n"
 			"nsca.port 5668\n"
 			"\n"
@@ -44,7 +43,6 @@ TESTS {
 		ok(configure("t/tmp/config", &svr) == 0,
 			"Read configuration from t/tmp/config");
 
-		is(svr.config.bolo_endpoint, "tcp://*:4444",   "listener set");
 		is(svr.config.stat_endpoint, "tcp://*:5555",   "control set");
 		is_int(svr.config.nsca_port,  5668,            "nsca.port set");
 		is(svr.config.log_level,     "critical",       "log level set");

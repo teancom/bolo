@@ -18,21 +18,20 @@
      NSCA  listener  | [UPDATE]  |    db manager   |  [STATE]  |  STAT  listener
       tcp://*:5667   |---------->|   inproc://db   |<----------|   tcp://*:2999
                      |           '-----------------'  [DUMP]   |
-   ------------------'               ^    ^                    '------------------
-                                     |    |
-   ------------------.               |    |  [CHECKFRESH]
-                     |---------------'    |  [SAVESTATE]
-     BOLO  listener  | [UPDATE]           |
-      tcp://*:2998   |           .-----------------.
-                     |           |    scheduler    |
-   ------------------'           '-----------------'
+   ------------------'                    ^                    '------------------
+                                          |
+                                          |  [CHECKFRESH]
+                                          |  [SAVESTATE]
+                                          |
+                                 .-----------------.
+                                 |    scheduler    |
+                                 '-----------------'
 
    Threads:
      1. NSCA listener - Handles inbound NLMA/NSCA submission
-     2. BOLO listener - Handles inbound native result submission
-     3. STAT listener - Handles inbound control messages, like STAT/DUMP
-     4. db manager    - Manages the internal database
-     5. scheulder     - Issues timed commands to the db manager
+     2. STAT listener - Handles inbound control messages, like STAT/DUMP
+     3. db manager    - Manages the internal database
+     4. scheulder     - Issues timed commands to the db manager
 
 
    PDUs:

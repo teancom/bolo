@@ -1,6 +1,5 @@
 TODO
 
-- bolo listener
 - error handling -- check EVERYTHING
 - memleak profiling
 - memory usage analysis

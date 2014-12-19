@@ -21,15 +21,6 @@
 #define MIN_BOLO_LEN 12+2
 
 typedef struct {
-	uint8_t   version;     /* version of the BOLO packet format in use       */
-	uint8_t   status;      /* numeric status (OK|WARNING|CRITICAL|UNKNOWN)   */
-	uint16_t  _RESERVED_1;
-	uint32_t  length;      /* length of entire packet, including 'version'   */
-	uint32_t  timestamp;   /* time of original submission                    */
-	char      payload[];   /* host + output, as null-terminated strings      */
-} bolo_t;
-
-typedef struct {
 	uint16_t  freshness;
 	uint8_t   status;
 	char     *summary;
@@ -55,7 +46,6 @@ typedef struct {
 
 	struct {
 		uint16_t  nsca_port;
-		char     *bolo_endpoint;
 		char     *stat_endpoint;
 
 		char     *log_level;
@@ -76,7 +66,6 @@ int configure(const char *path, server_t *s);
 
 /* threads */
 void* nsca_listener(void *u);
-void* bolo_listener(void *u);
 void* stat_listener(void *u);
 void* db_manager(void *u);
 void* scheduler(void *u);
