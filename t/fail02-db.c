@@ -7,6 +7,7 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
+	memset(&svr, 0, sizeof(svr));
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\x42\0\0T\x92""e\xe0\0\0\0\2" /* version 42; WRONG! */

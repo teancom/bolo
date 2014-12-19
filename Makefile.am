@@ -27,6 +27,7 @@ CTAP_TESTS += t/01-dbman
 CTAP_TESTS += t/02-sched
 CTAP_TESTS += t/04-stat
 CTAP_TESTS += t/05-config
+CTAP_TESTS += t/06-fresh
 
 CTAP_TESTS += t/fail01-db
 CTAP_TESTS += t/fail02-db
@@ -45,6 +46,7 @@ t_01_dbman_SOURCES  = $(TEST_SRC) t/01-dbman.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
 t_04_stat_SOURCES   = $(TEST_SRC) t/04-stat.c
 t_05_config_SOURCES = $(TEST_SRC) t/05-config.c
+t_06_fresh_SOURCES  = $(TEST_SRC) t/06-fresh.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
 t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c

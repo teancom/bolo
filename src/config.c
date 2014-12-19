@@ -144,7 +144,7 @@ getline:
 	return 0;
 }
 
-int configure(const char *path, server_t *s, db_t *db)
+int configure(const char *path, server_t *s)
 {
 	parser_t p;
 	memset(&p, 0, sizeof(p));
@@ -187,7 +187,7 @@ int configure(const char *path, server_t *s, db_t *db)
 			type = calloc(1, sizeof(type_t));
 			type->freshness = 300;
 			type->status    = WARNING;
-			hash_set(&db->types, p.tval, type);
+			hash_set(&s->db.types, p.tval, type);
 
 			NEXT; if (p.token != T_OPEN_BRACE) goto esyntax;
 			for (;;) {
@@ -229,11 +229,11 @@ int configure(const char *path, server_t *s, db_t *db)
 			NEXT;
 			type = NULL;
 			if (p.token == T_TYPENAME) {
-				type = hash_get(&db->types, p.tval);
+				type = hash_get(&s->db.types, p.tval);
 				NEXT;
 
 			} else if (default_type) {
-				type = hash_get(&db->types, default_type);
+				type = hash_get(&s->db.types, default_type);
 
 			}
 
@@ -245,10 +245,7 @@ int configure(const char *path, server_t *s, db_t *db)
 			}
 
 			state = calloc(1, sizeof(state_t));
-			state->name = strdup(p.tval);
-			hash_set(&db->states, p.tval, state);
-
-			state->name   = strdup(p.tval);
+			hash_set(&s->db.states, p.tval, state);
 			state->type   = type;
 			state->status = PENDING;
 			state->expiry = type->freshness + time_s();

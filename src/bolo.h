@@ -36,7 +36,6 @@ typedef struct {
 } type_t;
 
 typedef struct {
-	char     *name;
 	type_t   *type;
 	int32_t   last_seen;
 	int32_t   expiry;
@@ -52,6 +51,7 @@ typedef struct {
 
 typedef struct {
 	void   *zmq;
+	db_t    db;
 
 	struct {
 		uint16_t  nsca_port;
@@ -72,7 +72,7 @@ typedef struct {
 	} interval;
 } server_t;
 
-int configure(const char *path, server_t *s, db_t *d);
+int configure(const char *path, server_t *s);
 
 /* threads */
 void* nsca_listener(void *u);

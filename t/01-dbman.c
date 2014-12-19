@@ -7,12 +7,23 @@ TESTS {
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
+
+	memset(&svr, 0, sizeof(svr));
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"
 		"\0%T\x92=[\2\0test.state.1\0critically-ness\0"
 		"\0%T\x92=[\1\0test.state.0\0its problematic\0"
 		"\0\0", 92);
+	type_t type_default = {
+		.freshness = 60,
+		.status    = WARNING,
+		.summary   = "it is stale",
+	};
+	state_t state0 = { .type = &type_default };
+	state_t state1 = { .type = &type_default };
+	hash_set(&svr.db.states, "test.state.0", &state0);
+	hash_set(&svr.db.states, "test.state.1", &state1);
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
@@ -56,6 +67,18 @@ TESTS {
 	is_string(s = pdu_string(p, 4), "WARNING",         "STATE[3] is status"); free(s);
 	is_string(s = pdu_string(p, 5), "its problematic", "STATE[4] is summary"); free(s);
 	pdu_free(p);
+
+	/* send test.state.3 (not configured) initial ok */
+	p = pdu_make("UPDATE", 4, ts, "test.state.3", "0", "NEW");
+	rc = pdu_send_and_free(p, z);
+	is_int(rc, 0, "sent [UPDATE] PDU to db manager");
+
+	p = pdu_recv(z);
+	isnt_null(p, "received reply PDU from db manager");
+	is_string(pdu_type(p), "ERROR", "db manager replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
+	pdu_free(p);
+
 
 	/* send test.state.0 initial ok */
 	p = pdu_make("UPDATE", 4, ts, "test.state.0", "0", "all good");
