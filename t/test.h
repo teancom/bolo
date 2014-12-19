@@ -51,7 +51,7 @@ static void diag_hex(const char *pre, const char *buf, size_t n)
 	*p++ = HEX[(buf[i] & 0x0f)];      \
 	*p++ = ' '; i++
 
-		switch (i % 16) {
+		switch ((n - i) > 16 ? 0 : n % 16) {
 			case  0: HEXEN;
 			case 15: HEXEN;
 			case 14: HEXEN;
