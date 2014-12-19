@@ -18,6 +18,7 @@ TESTS {
 		"failed to create a new 0MQ context");
 	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
 		"failed to spin up db manager thread");
+	sleep_ms(50);
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock db manager test socket");
 	CHECK(zmq_connect(z, DB_MANAGER_ENDPOINT) == 0,
