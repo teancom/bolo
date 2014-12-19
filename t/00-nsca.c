@@ -25,6 +25,7 @@ TESTS {
 
 	rc = pthread_create(&tid, NULL, nsca_listener, &s);
 	CHECK(rc == 0, "failed to spin up nsca listener thread");
+	sleep_ms(50);
 
 	/* ----------------------------- */
 
