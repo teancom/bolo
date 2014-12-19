@@ -1,6 +1,7 @@
 TODO
 
 - send_bolo util
+- stat CLI util
 - daemonization
 - bolo --option  --handling
 - logging
