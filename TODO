@@ -2,7 +2,6 @@ TODO
 
 - types
 - bolo listener
-- stat listener
 - freshness checking
 - error handling -- check EVERYTHING
 - memleak profiling
