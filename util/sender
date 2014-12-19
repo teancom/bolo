@@ -1,0 +1,68 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use IO::Socket::INET;
+
+################################################
+
+my @CRC32 = ();
+for (my $i = 0; $i < 256; $i++) {
+	my $crc = $i;
+	for (my $j = 8; $j > 0; $j--) {
+		if ($crc & 1) {
+			$crc = ($crc >> 1) ^ 0xedb88320;
+		} else {
+			$crc >>= 1;
+		}
+		$CRC32[$i] = $crc;
+	}
+}
+
+sub crc32
+{
+	my $crc = 0xffffffff;
+	$crc = (($crc >> 8) & 0x00ffffff) ^ $CRC32[($crc ^ $_) & 0xff]
+		for unpack("C*", $_[0]);
+	return $crc;
+}
+
+sub status
+{
+	local $_ = shift @_;
+	return 0 if m/^ok(ay)?$/i;
+	return 1 if m/^warn(ing)?$/i;
+	return 2 if m/^crit(ical)?$/i;
+	return 3 if m/^unk(n(own)?)?$/i;
+	die("bad status code '$_'\n");
+}
+
+################################################
+
+@ARGV >= 5
+	or die "USAGE: $0 server:port host service status message\n";
+
+my ($peer, $host, $service, $status, @rest) = @ARGV;
+my $summary = join(' ', @rest);
+$status= status($status);
+
+my $sock = IO::Socket::INET->new(
+	PeerAddr => $peer,
+	Proto    => 'tcp',
+	Timeout  => 15
+) or die "Failed to connect to $peer: $!\n";
+
+my $FMT = "nNNnZ64Z128Z4096";
+my $version   = 1;
+my $crc32     = 0;
+my $timestamp = time;
+
+my $raw = pack($FMT,
+	$version, $crc32, $timestamp, $status,
+	$host, $service, $summary);
+$crc32 = crc32($raw);
+
+print $sock pack($FMT,
+	$version, $crc32, $timestamp, $status,
+	$host, $service, $summary);
+close $sock;
