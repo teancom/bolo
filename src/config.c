@@ -6,21 +6,21 @@
 
 #define LINE_BUF_SIZE 8192
 
-#define T_KEYWORD_CONTROLLER 0x02
-#define T_KEYWORD_NSCA_PORT  0x03
-#define T_KEYWORD_LOG        0x04
-#define T_KEYWORD_SAVEFILE   0x05
-#define T_KEYWORD_DUMPFILES  0x06
-#define T_KEYWORD_TYPE       0x07
-#define T_KEYWORD_FRESHNESS  0x08
-#define T_KEYWORD_STATE      0x09
-#define T_KEYWORD_USE        0x0a
+#define T_KEYWORD_CONTROLLER 0x01
+#define T_KEYWORD_LISTENER   0x02
+#define T_KEYWORD_LOG        0x03
+#define T_KEYWORD_SAVEFILE   0x04
+#define T_KEYWORD_DUMPFILES  0x05
+#define T_KEYWORD_TYPE       0x06
+#define T_KEYWORD_FRESHNESS  0x07
+#define T_KEYWORD_STATE      0x08
+#define T_KEYWORD_USE        0x09
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
 #define T_STRING             0x82
 #define T_NUMBER             0x83
-#define T_TYPENAME           0x845
+#define T_TYPENAME           0x84
 
 typedef struct {
 	FILE *io;
@@ -85,8 +85,8 @@ getline:
 			b++;
 		if (!*b || isspace(*b)) {
 			*b++ = '\0';
+			KEYWORD("listener",   LISTENER);
 			KEYWORD("controller", CONTROLLER);
-			KEYWORD("nsca.port",  NSCA_PORT);
 			KEYWORD("log",        LOG);
 			KEYWORD("savefile",   SAVEFILE);
 			KEYWORD("dumpfiles",  DUMPFILES);
@@ -168,8 +168,8 @@ int configure(const char *path, server_t *s)
 		if (!lex(&p)) break;
 
 		switch (p.token) {
+		case T_KEYWORD_LISTENER:   SERVER_STRING(s->config.listener);   break;
 		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller); break;
-		case T_KEYWORD_NSCA_PORT:  SERVER_NUMBER(s->config.nsca_port);  break;
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);   break;
 		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);  break;
 

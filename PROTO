@@ -28,7 +28,7 @@
                                  '-----------------'
 
    Threads:
-     1. listener   - Handles inbound NLMA/NSCA submission
+     1. listener   - Handles inbound state result submission
      2. controller - Handles inbound control messages, like STAT/DUMP
      3. db manager - Manages the internal database
      4. scheduler  - Issues timed commands to the db manager

@@ -14,7 +14,7 @@ CORE_SRC  =
 CORE_SRC += src/bolo.h
 CORE_SRC += src/dbman.c
 CORE_SRC += src/sched.c
-CORE_SRC += src/nsca.c
+CORE_SRC += src/listener.c
 CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
 
@@ -22,9 +22,9 @@ sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
 CTAP_TESTS  =
-CTAP_TESTS += t/00-nsca
 CTAP_TESTS += t/01-dbman
 CTAP_TESTS += t/02-sched
+CTAP_TESTS += t/03-lsnr
 CTAP_TESTS += t/04-ctrl
 CTAP_TESTS += t/05-config
 CTAP_TESTS += t/06-fresh
@@ -41,9 +41,9 @@ TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
-t_00_nsca_SOURCES   = $(TEST_SRC) t/00-nsca.c
 t_01_dbman_SOURCES  = $(TEST_SRC) t/01-dbman.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
+t_03_lsnr_SOURCES   = $(TEST_SRC) t/03-lsnr.c
 t_04_ctrl_SOURCES   = $(TEST_SRC) t/04-ctrl.c
 t_05_config_SOURCES = $(TEST_SRC) t/05-config.c
 t_06_fresh_SOURCES  = $(TEST_SRC) t/06-fresh.c

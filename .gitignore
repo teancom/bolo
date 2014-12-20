@@ -34,10 +34,9 @@ local
 
 bolo
 t/tmp
-t/00-nsca
 t/01-dbman
 t/02-sched
-t/03-bolo
+t/03-lsnr
 t/04-ctrl
 t/05-config
 t/06-fresh

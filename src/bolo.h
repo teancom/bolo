@@ -12,14 +12,16 @@
 #define UNKNOWN  3
 #define PENDING  4
 
-#define DEFAULT_CONFIG_FILE   "/etc/bolo.conf"
-#define DEFAULT_NSCA_PORT 5667
-#define DEFAULT_BOLO_ENDPOINT "tcp://*:2998"
-#define DEFAULT_STAT_ENDPOINT "tcp://*:2999"
+#define DEFAULT_CONFIG_FILE "/etc/bolo.conf"
+
+#define DEFAULT_LISTENER     "tcp://*:2999"
+#define DEFAULT_CONTROLLER   "tcp://127.0.0.1:2998"
+#define DEFAULT_LOG_LEVEL    "error"
+#define DEFAULT_LOG_FACILITY "daemon"
+#define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
+#define DEFAULT_DUMPFILES    "/var/tmp/bolo.%s"
 
 #define DB_MANAGER_ENDPOINT "inproc://db"
-
-#define MIN_BOLO_LEN 12+2
 
 typedef struct {
 	uint16_t  freshness;
@@ -46,7 +48,6 @@ typedef struct {
 	db_t    db;
 
 	struct {
-		uint16_t  nsca_port;
 		char     *listener;
 		char     *controller;
 

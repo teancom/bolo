@@ -11,6 +11,13 @@ int main(int argc, char **argv)
 	if (argc == 2) config_file = argv[1];
 
 	memset(&svr, 0, sizeof(svr));
+	svr.config.listener     = strdup(DEFAULT_LISTENER);
+	svr.config.controller   = strdup(DEFAULT_CONTROLLER);
+	svr.config.log_level    = strdup(DEFAULT_LOG_LEVEL);
+	svr.config.log_facility = strdup(DEFAULT_LOG_FACILITY);
+	svr.config.savefile     = strdup(DEFAULT_SAVEFILE);
+	svr.config.dumpfiles    = strdup(DEFAULT_DUMPFILES);
+
 	rc = configure(config_file, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to read configuration from %s\nAborting...\n",
@@ -45,7 +52,7 @@ int main(int argc, char **argv)
 	}
 	rc = pthread_create(&tid_lsnr, NULL, listener, &svr);
 	if (rc != 0) {
-		fprintf(stderr, "Failed to start up NSCA listener thread\nAborting...\n");
+		fprintf(stderr, "Failed to start up listener thread\nAborting...\n");
 		return 2;
 	}
 
