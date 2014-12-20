@@ -33,6 +33,7 @@ local
 .commit
 
 bolo
+send_bolo
 t/tmp
 t/01-dbman
 t/02-sched
