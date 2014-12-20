@@ -24,6 +24,10 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	log_open("bolo", svr.config.log_facility);
+	log_level(0, svr.config.log_level);
+	logger(LOG_INFO, "starting up");
+
 	rc = pthread_create(&tid_db, NULL, db_manager, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up database manager thread\nAborting...\n");
@@ -50,6 +54,8 @@ int main(int argc, char **argv)
 	pthread_join(tid_sched, &_);
 	pthread_join(tid_stat,  &_);
 	pthread_join(tid_nsca,  &_);
+
+	logger(LOG_INFO, "shutting down");
 
 	return 0;
 }

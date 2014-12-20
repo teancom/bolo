@@ -1,5 +1,4 @@
 #include "bolo.h"
-#include <assert.h>
 #include <unistd.h>
 
 void* scheduler(void *u)
@@ -7,9 +6,15 @@ void* scheduler(void *u)
 	server_t *s = (server_t*)u;
 
 	void *db = zmq_socket(s->zmq, ZMQ_DEALER);
-	assert(db);
-	int rc = zmq_connect(db, DB_MANAGER_ENDPOINT);
-	assert(rc == 0);
+	if (!db) {
+		logger(LOG_CRIT, "scheduler failed to get a DEALER socket");
+		return NULL;
+	}
+
+	if (zmq_connect(db, DB_MANAGER_ENDPOINT) != 0) {
+		logger(LOG_CRIT, "scheduler failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+		return NULL;
+	}
 
 	if (!s->interval.tick)
 		s->interval.tick = 1000;

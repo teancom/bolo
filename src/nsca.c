@@ -1,5 +1,4 @@
 #include "bolo.h"
-#include <assert.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -46,51 +45,72 @@ static void client_free(void *_c)
 	free(c);
 }
 
-static void inline fdflags(int fd, int flags)
+static void inline nonblocking(int fd)
 {
 	int orig = fcntl(fd, F_GETFL, 0);
-	assert(orig >= 0);
-
-	int rc = fcntl(fd, F_SETFL, orig|flags);
-	assert(rc == 0);
+	if (orig < 0 || fcntl(fd, F_SETFL, orig|O_NONBLOCK) != 0)
+		logger(LOG_CRIT, "nsca listener failed to set fd %i to non-blocking (O_NONBLOCK): %s",
+			fd, strerror(errno));
 }
 
 void* nsca_listener(void *u)
 {
 	struct epoll_event ev, events[EPOLL_MAX_FD];
-	int rc, n, nfds, epfd, connfd;
-	server_t *s;
+	int n, nfds, epfd, connfd;
+	server_t *svr;
 	void *db;
+	char *s;
 
-	s = (server_t*)u;
-	assert(s);
+	svr = (server_t*)u;
+	if (!svr) {
+		logger(LOG_CRIT, "nsca listener failed: server context was NULL");
+		return NULL;
+	}
 
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	assert(sockfd >= 0);
+	if (sockfd < 0) {
+		logger(LOG_CRIT, "nsca listener failed to get a socket descriptor: %s",
+				strerror(errno));
+		return NULL;
+	}
 
 	struct sockaddr_in addr;
 	addr.sin_family = AF_INET;
-	addr.sin_port   = htons(s->config.nsca_port);
+	addr.sin_port   = htons(svr->config.nsca_port);
 	addr.sin_addr.s_addr = INADDR_ANY;
 
 	n = 1;
-	rc = setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n));
-	assert(rc == 0);
+	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)) != 0) {
+		logger(LOG_WARNING, "nsca listener failed to set SO_REUSEADDR on listening socket");
+		return NULL;
+	}
+	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
+		logger(LOG_CRIT, "nsca listener failed to bind socket to port %u\n", svr->config.nsca_port);
+		return NULL;
+	}
+	if (listen(sockfd, 64) != 0) {
+		logger(LOG_CRIT, "nsca listener failed to listen on port %u\n", svr->config.nsca_port);
+		return NULL;
+	}
 
-	rc = bind(sockfd, (struct sockaddr*)&addr, sizeof(addr));
-	assert(rc == 0);
+	nonblocking(sockfd);
 
-	rc = listen(sockfd, 64);
-	assert(rc == 0);
-
-	fdflags(sockfd, O_NONBLOCK);
-
-	db = zmq_socket(s->zmq, ZMQ_DEALER);
-	assert(db);
-	zmq_connect(db, DB_MANAGER_ENDPOINT);
+	db = zmq_socket(svr->zmq, ZMQ_DEALER);
+	if (!db) {
+		logger(LOG_CRIT, "nsca listener failed to get a DEALER socket");
+		return NULL;
+	}
+	if (zmq_connect(db, DB_MANAGER_ENDPOINT) != 0) {
+		logger(LOG_CRIT, "nsca listener failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+		return NULL;
+	}
 
 	epfd = epoll_create1(0);
-	assert(epfd >= 0);
+	if (epfd < 0) {
+		logger(LOG_CRIT, "nsca listener failed to get an epoll file descriptor: %s",
+				strerror(errno));
+		return NULL;
+	}
 
 	memset(&ev, 0, sizeof(ev));
 	ev.events = EPOLLIN;
@@ -110,8 +130,11 @@ void* nsca_listener(void *u)
 			if (events[n].data.fd == sockfd) {
 				/* new inbound connection */
 				connfd = accept(sockfd, NULL, NULL);
-				assert(connfd >= 0);
-				fdflags(connfd, O_NONBLOCK);
+				if (connfd < 0) {
+					logger(LOG_ERR, "nsca listener: inbound connect could not be accepted");
+					continue;
+				}
+				nonblocking(connfd);
 
 				ev.events = EPOLLIN | EPOLLET;
 				ev.data.fd = connfd;
@@ -129,7 +152,11 @@ void* nsca_listener(void *u)
 			} else {
 				char *id = string("%04x", events[n].data.fd);
 				client_t *c = cache_get(clients, id);
-				assert(c != NULL);
+				if (!c) {
+					logger(LOG_CRIT, "nsca listener: inbound data for unknown client %s; ignoring", id);
+					free(id);
+					continue;
+				}
 
 				/* read what's left from the client */
 				ssize_t n = read(c->fd, &c->packet + c->bytes,
@@ -146,7 +173,10 @@ void* nsca_listener(void *u)
 						pdu_send(q, db);
 
 						pdu_t *a = pdu_recv(db);
-						assert(strcmp(pdu_type(a), "OK") == 0);
+						if (strcmp(pdu_type(a), "OK") != 0) {
+							logger(LOG_ERR, "nsca listener received an ERROR (in response to an UPDATE) from the db manager: %s",
+								s = pdu_string(a, 1)); free(s);
+						}
 
 						client_free(c);
 					}
