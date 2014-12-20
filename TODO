@@ -5,6 +5,5 @@ TODO
 - bolo --option --handling
 - daemonization
 - error handling -- check EVERYTHING
-- memleak profiling
 - memory usage analysis
 - perf testing
