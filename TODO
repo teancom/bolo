@@ -1,7 +1,6 @@
 TODO
 
 - send_bolo --option --handling
-- stat_bolo --option --handling
 - bolo --option --handling
 - memory usage analysis
 - perf testing

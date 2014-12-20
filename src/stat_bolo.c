@@ -1,17 +1,48 @@
 #include "bolo.h"
+#include <getopt.h>
+
+static struct {
+	char *endpoint;
+	int   verbose;
+} OPTIONS = { 0 };
+
+#define DEBUG OPTIONS.verbose > 0
 
 int main(int argc, char **argv)
 {
-	if (argc != 2) {
-		fprintf(stderr, "USAGE: %s tcp://IP:PORT\n", argv[0]);
-		return 1;
+	OPTIONS.verbose = 0;
+	OPTIONS.endpoint = strdup("tcp://127.0.0.1:2998");
+
+	struct option long_opts[] = {
+		{ "help",           no_argument, 0, 'h' },
+		{ "verbose",        no_argument, 0, 'v' },
+		{ "endpoint", required_argument, 0, 'e' },
+		{ 0, 0, 0, 0 },
+	};
+	for (;;) {
+		int idx = 1;
+		int c = getopt_long(argc, argv, "h?v+e:", long_opts, &idx);
+		if (c == -1) break;
+
+		switch (c) {
+		case 'h':
+		case '?':
+			break;
+
+		case 'v':
+			OPTIONS.verbose++;
+			break;
+
+		case 'e':
+			free(OPTIONS.endpoint);
+			OPTIONS.endpoint = strdup(optarg);
+			break;
+
+		default:
+			fprintf(stderr, "unhandled option flag %#02x\n", c);
+			return 1;
+		}
 	}
-
-	char *DEBUG = getenv("DEBUG");
-	if (DEBUG && !(strcmp(DEBUG, "1") == 0 || strcmp(DEBUG, "yes")))
-		DEBUG = NULL;
-
-	char *endpoint = argv[1];
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
@@ -19,15 +50,15 @@ int main(int argc, char **argv)
 		fprintf(stderr, "failed to initialize 0MQ context\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ DEALER socket to talk to %s\n", endpoint);
+	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ DEALER socket to talk to %s\n", OPTIONS.endpoint);
 	void *z = zmq_socket(zmq, ZMQ_DEALER);
 	if (!z) {
 		fprintf(stderr, "failed to create a DEALER socket\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", endpoint);
-	if (zmq_connect(z, endpoint) != 0) {
-		fprintf(stderr, "failed to connect to %s\n", endpoint);
+	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
+	if (zmq_connect(z, OPTIONS.endpoint) != 0) {
+		fprintf(stderr, "failed to connect to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
 
@@ -72,13 +103,13 @@ int main(int argc, char **argv)
 
 			if (DEBUG) fprintf(stderr, "+>> sending [STATE|%s] PDU\n", c);
 			if (pdu_send_and_free(pdu_make("STATE", 1, c), z) != 0) {
-				fprintf(stderr, "failed to send [STATE] PDU to %s; command aborted\n", endpoint);
+				fprintf(stderr, "failed to send [STATE] PDU to %s; command aborted\n", OPTIONS.endpoint);
 				return 3;
 			}
 			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
 			p = pdu_recv(z);
 			if (!p) {
-				fprintf(stderr, "no response received from %s\n", endpoint);
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
 				return 3;
 			}
 			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
@@ -87,7 +118,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			if (strcmp(pdu_type(p), "STATE") != 0) {
-				fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(p), endpoint);
+				fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(p), OPTIONS.endpoint);
 				return 4;
 			}
 			fprintf(stdout, "%s ",  s = pdu_string(p, 1)); free(s); /* name      */
@@ -102,13 +133,13 @@ int main(int argc, char **argv)
 
 			if (DEBUG) fprintf(stderr, "+>> sending [DUMP] PDU\n");
 			if (pdu_send_and_free(pdu_make("DUMP", 0), z) != 0) {
-				fprintf(stderr, "failed to send [DUMP] PDU to %s; command aborted\n", endpoint);
+				fprintf(stderr, "failed to send [DUMP] PDU to %s; command aborted\n", OPTIONS.endpoint);
 				return 3;
 			}
 			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
 			p = pdu_recv(z);
 			if (!p) {
-				fprintf(stderr, "no response received from %s\n", endpoint);
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
 				return 3;
 			}
 			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
@@ -117,7 +148,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			if (strcmp(pdu_type(p), "DUMP") != 0) {
-				fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(p), endpoint);
+				fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(p), OPTIONS.endpoint);
 				return 4;
 			}
 			fprintf(stdout, "%s", s = pdu_string(p, 1)); free(s);
