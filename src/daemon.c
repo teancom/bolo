@@ -1,12 +1,34 @@
 #include "bolo.h"
 #include <pthread.h>
 #include <string.h>
+#include <unistd.h>
+#include <signal.h>
+
+/* signal-handling thread; when it exits, main will
+   pthread_cancel all of the other threads and then
+   join them, in order. */
+void* watcher(void *u)
+{
+	sigset_t *sigs = (sigset_t*)u;
+	int s, sig;
+	for (;;) {
+		s = sigwait(sigs, &sig);
+		if (s != 0) {
+			errno = s;
+			perror("watcher sigwait");
+			exit(1);
+		}
+
+		logger(LOG_ERR, "watcher received signal %i; terminating\n", sig);
+		return NULL;
+	}
+}
 
 int main(int argc, char **argv)
 {
 	int rc;
 	server_t svr;
-	pthread_t tid_db, tid_sched, tid_ctrl, tid_lsnr;
+	pthread_t tid_watcher, tid_db, tid_sched, tid_ctrl, tid_lsnr;
 	const char *config_file = DEFAULT_CONFIG_FILE;
 	if (argc == 2) config_file = argv[1];
 
@@ -39,6 +61,23 @@ int main(int argc, char **argv)
 	log_level(0, svr.config.log_level);
 	logger(LOG_INFO, "starting up");
 
+	sigset_t sigs;
+	sigemptyset(&sigs);
+	sigaddset(&sigs, SIGQUIT);
+	sigaddset(&sigs, SIGINT);
+	sigaddset(&sigs, SIGTERM);
+	sigaddset(&sigs, SIGUSR1);
+	rc = pthread_sigmask(SIG_BLOCK, &sigs, NULL);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to block signals: %s\nAborting...\n", strerror(errno));
+		return 2;
+	}
+	rc = pthread_create(&tid_watcher, NULL, watcher, &sigs);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to start up watcher thread\nAborting...\n");
+		return 2;
+	}
+
 	rc = pthread_create(&tid_db, NULL, db_manager, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up database manager thread\nAborting...\n");
@@ -61,12 +100,15 @@ int main(int argc, char **argv)
 	}
 
 	void *_;
-	pthread_join(tid_db,    &_);
-	pthread_join(tid_sched, &_);
-	pthread_join(tid_ctrl,  &_);
-	pthread_join(tid_lsnr,  &_);
+	pthread_join(tid_watcher, &_);
+
+	pthread_cancel(tid_db);    pthread_join(tid_db,  &_);
+	pthread_cancel(tid_sched); pthread_join(tid_sched, &_);
+	pthread_cancel(tid_lsnr);  pthread_join(tid_lsnr,  &_);
+	pthread_cancel(tid_ctrl);  pthread_join(tid_ctrl,  &_);
+	zmq_ctx_destroy(svr.zmq);
+	deconfigure(&svr);
 
 	logger(LOG_INFO, "shutting down");
-
 	return 0;
 }

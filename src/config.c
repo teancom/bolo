@@ -160,7 +160,7 @@ int configure(const char *path, server_t *s)
 #define SERVER_NUMBER(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	x = atoi(p.tval)
 
-	const char *default_type = NULL;
+	char *default_type = NULL;
 	type_t *type = NULL;
 	state_t *state = NULL;
 
@@ -180,6 +180,7 @@ int configure(const char *path, server_t *s)
 
 		case T_KEYWORD_USE:
 			NEXT; if (p.token != T_TYPENAME) { ERROR("Expected a type name for `use TYPENAME` construct"); }
+			free(default_type);
 			default_type = strdup(p.tval);
 			break;
 
@@ -262,6 +263,7 @@ int configure(const char *path, server_t *s)
 	if (!feof(p.io))
 		goto bail;
 
+	free(default_type);
 	fclose(p.io);
 	return 0;
 
@@ -269,6 +271,35 @@ esyntax:
 	fprintf(stderr, "syntax error\n");
 bail:
 	fprintf(stderr, "configuration failed\n");
+	free(default_type);
 	fclose(p.io);
 	return 1;
+}
+
+int deconfigure(server_t *s)
+{
+	char *name;
+
+	state_t *state;
+	for_each_key_value(&s->db.states, name, state) {
+		free(state->summary);
+		free(state);
+	}
+	hash_done(&s->db.states, 0);
+
+	type_t *type;
+	for_each_key_value(&s->db.types, name, type) {
+		free(type->summary);
+		free(type);
+	}
+	hash_done(&s->db.types, 0);
+
+	free(s->config.listener);     s->config.listener     = NULL;
+	free(s->config.controller);   s->config.controller   = NULL;
+	free(s->config.savefile);     s->config.savefile     = NULL;
+	free(s->config.dumpfiles);    s->config.dumpfiles    = NULL;
+	free(s->config.log_level);    s->config.log_level    = NULL;
+	free(s->config.log_facility); s->config.log_facility = NULL;
+
+	return 0;
 }

@@ -66,6 +66,7 @@ typedef struct {
 } server_t;
 
 int configure(const char *path, server_t *s);
+int deconfigure(server_t *s);
 
 /* threads */
 void* listener(void *u);

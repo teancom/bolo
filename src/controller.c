@@ -5,46 +5,77 @@
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+
+typedef struct {
+	server_t *server;
+	void     *listener;
+	void     *client;
+} controller_t;
+
+static void* cleanup_controller(void *_)
+{
+	controller_t *c = (controller_t*)_;
+
+	if (c->listener) {
+		logger(LOG_INFO, "controller cleaning up; closing listening socket");
+		vzmq_shutdown(c->listener, 500);
+	}
+	if (c->client) {
+		logger(LOG_INFO, "controller cleaning up; closing db manager client socket");
+		vzmq_shutdown(c->client, 0);
+	}
+
+	free(c);
+	return NULL;
+}
 
 void* controller(void *u)
 {
-	int rc;
-	server_t *svr = (server_t*)u;
+	controller_t *c = calloc(1, sizeof(controller_t));
+	pthread_cleanup_push(cleanup_controller, c);
 
-	void *z = zmq_socket(svr->zmq, ZMQ_ROUTER);
-	if (!z) {
-		logger(LOG_CRIT, "controller failed to get a ROUTER socket to bind");
+	c->server = (server_t*)u;
+	if (!c->server) {
+		logger(LOG_CRIT, "controller failed: server context was NULL");
 		return NULL;
 	}
-	if (zmq_bind(z, svr->config.controller) != 0) {
-		logger(LOG_CRIT, "controller failed to bind to %s", svr->config.controller);
-		return  NULL;
-	}
 
-	void *dbman = zmq_socket(svr->zmq, ZMQ_DEALER);
-	if (!dbman) {
+	c->client = zmq_socket(c->server->zmq, ZMQ_DEALER);
+	if (!c->client) {
 		logger(LOG_CRIT, "controller failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(dbman, DB_MANAGER_ENDPOINT) != 0) {
+	if (zmq_connect(c->client, DB_MANAGER_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "controller failed to connect to db manager at " DB_MANAGER_ENDPOINT);
 		return NULL;
+	}
+
+	c->listener = zmq_socket(c->server->zmq, ZMQ_ROUTER);
+	if (!c->listener) {
+		logger(LOG_CRIT, "controller failed to get a ROUTER socket to bind");
+		return NULL;
+	}
+	if (zmq_bind(c->listener, c->server->config.controller) != 0) {
+		logger(LOG_CRIT, "controller failed to bind to %s", c->server->config.controller);
+		return  NULL;
 	}
 
 	seed_randomness();
 
 	pdu_t *q, *a, *res;
 	char *s;
+	int rc;
 
-	while ((q = pdu_recv(z)) != NULL) {
+	while ((q = pdu_recv(c->listener)) != NULL) {
 		if (strcmp(pdu_type(q), "STATE") == 0) {
 			rc = pdu_send_and_free(pdu_make("STATE", 1,
-				s = pdu_string(q, 1)), dbman); free(s);
+				s = pdu_string(q, 1)), c->client); free(s);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 
 			} else {
-				res = pdu_recv(dbman);
+				res = pdu_recv(c->client);
 				if (!res) {
 					a = pdu_reply(q, "ERROR", 1, "Internal Error");
 				} else if (strcmp(pdu_type(res), "ERROR") == 0) {
@@ -70,12 +101,12 @@ void* controller(void *u)
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
 			rc = pdu_send_and_free(pdu_make("DUMP", 1,
-				s = string("%04x%04x", rand(), rand())), dbman); free(s);
+				s = string("%04x%04x", rand(), rand())), c->client); free(s);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 
 			} else {
-				res = pdu_recv(dbman);
+				res = pdu_recv(c->client);
 
 				if (strcmp(pdu_type(res), "ERROR") == 0) {
 					a = pdu_reply(q, "ERROR", 1, s = pdu_string(res, 1)); free(s);
@@ -102,9 +133,10 @@ void* controller(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
-		pdu_send_and_free(a, z);
+		pdu_send_and_free(a, c->listener);
 		pdu_free(q);
 	}
 
-	return NULL; /* LCOV_EXCL_LINE */
+	pthread_cleanup_pop(1);
+	return NULL;
 }

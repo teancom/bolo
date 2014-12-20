@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 typedef struct PACKED {
 	uint32_t  magic;
@@ -21,6 +22,11 @@ typedef struct PACKED {
 	 uint8_t  status;
 	 uint8_t  stale;
 } binf_record_t;
+
+typedef struct {
+	server_t *server;
+	void     *zocket;
+} db_manager_t;
 
 static inline const char *statstr(uint8_t s)
 {
@@ -183,6 +189,7 @@ static int read_state(db_t *db, const char *file)
 		logger(LOG_INFO, "read record #%i (%s)", i, strings);
 		state_t *s = hash_get(&db->states, strings);
 		if (s) {
+			free(s->summary);
 			s->summary   = strdup(strings + strlen(strings) + 1);
 			s->last_seen = record.last_seen;
 			s->status    = record.status;
@@ -278,31 +285,55 @@ static int update(db_t *db, uint32_t ts, const char *name, uint8_t code, const c
 	return 0;
 }
 
+static void* cleanup_db_manager(void *_)
+{
+	db_manager_t *db = (db_manager_t*)_;
+	if (db->zocket) {
+		logger(LOG_INFO, "db manager cleaning up; closing listening socket");
+		vzmq_shutdown(db->zocket, 500);
+		db->zocket = NULL;
+	}
+	if (db->server) {
+		logger(LOG_INFO, "db manager cleaning up; saving final state to %s",
+			db->server->config.savefile);
+		if (save_state(&db->server->db, db->server->config.savefile) != 0) {
+			logger(LOG_CRIT, "failed to save final state to %s: %s",
+				db->server->config.savefile, strerror(errno));
+		}
+	}
+
+	free(db);
+	return NULL;
+}
+
 void* db_manager(void *u)
 {
-	server_t *s = (server_t*)u;
-	if (!s) {
+	db_manager_t *db = calloc(1, sizeof(db_manager_t));
+	pthread_cleanup_push(cleanup_db_manager, db);
+
+	db->server = (server_t*)u;
+	if (!db->server) {
 		logger(LOG_CRIT, "db manager failed: server context was NULL");
 		return NULL;
 	}
 
-	void *z = zmq_socket(s->zmq, ZMQ_ROUTER);
-	if (!z) {
+	db->zocket = zmq_socket(db->server->zmq, ZMQ_ROUTER);
+	if (!db->zocket) {
 		logger(LOG_CRIT, "db manager failed to get a ROUTER socket");
 		return NULL;
 	}
-	if (zmq_bind(z, DB_MANAGER_ENDPOINT) != 0) {
+	if (zmq_bind(db->zocket, DB_MANAGER_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "db manager failed to bind to " DB_MANAGER_ENDPOINT);
 		return NULL;
 	}
 
-	if (read_state(&s->db, s->config.savefile) != 0) {
+	if (read_state(&db->server->db, db->server->config.savefile) != 0) {
 		logger(LOG_WARNING, "db manager failed to read state from %s: %s",
-				s->config.savefile, strerror(errno));
+				db->server->config.savefile, strerror(errno));
 	}
 
 	pdu_t *q, *a;
-	while ((q = pdu_recv(z)) != NULL) {
+	while ((q = pdu_recv(db->zocket)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "db manager received an empty PDU; ignoring");
 			continue;
@@ -313,7 +344,7 @@ void* db_manager(void *u)
 			char *code = pdu_string(q, 3);
 			char *msg  = pdu_string(q, 4);
 
-			if (update(&s->db, strtol(ts, NULL, 10), name, atoi(code), msg) == 0)
+			if (update(&db->server->db, strtol(ts, NULL, 10), name, atoi(code), msg) == 0)
 				a = pdu_reply(q, "OK", 0);
 			else
 				a = pdu_reply(q, "ERROR", 1, "State Not Found");
@@ -325,7 +356,7 @@ void* db_manager(void *u)
 
 		} else if (strcmp(pdu_type(q), "STATE") == 0) {
 			char *name = pdu_string(q, 1);
-			state_t *state = hash_get(&s->db.states, name);
+			state_t *state = hash_get(&db->server->db.states, name);
 			if (!state) {
 				a = pdu_reply(q, "ERROR", 1, "State Not Found");
 			} else {
@@ -339,19 +370,19 @@ void* db_manager(void *u)
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
 			char *key  = pdu_string(q, 1);
-			char *file = string(s->config.dumpfiles, key);
+			char *file = string(db->server->config.dumpfiles, key);
 			free(key);
 
-			dump(&s->db, file);
+			dump(&db->server->db, file);
 			a = pdu_reply(q, "DUMP", 1, file);
 			free(file);
 
 		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0) {
-			check_freshness(&s->db);
+			check_freshness(&db->server->db);
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
-			if (save_state(&s->db, s->config.savefile) != 0) {
+			if (save_state(&db->server->db, db->server->config.savefile) != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 			} else {
 				a = pdu_reply(q, "OK", 0);
@@ -361,9 +392,10 @@ void* db_manager(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
-		pdu_send_and_free(a, z);
+		pdu_send_and_free(a, db->zocket);
 		pdu_free(q);
 	}
 
-	return NULL; /* LCOV_EXCL_LINE */
+	pthread_cleanup_pop(1);
+	return NULL;
 }
