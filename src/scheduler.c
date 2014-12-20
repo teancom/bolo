@@ -1,6 +1,4 @@
 #include "bolo.h"
-#include <unistd.h>
-#include <pthread.h>
 
 typedef struct {
 	server_t *server;

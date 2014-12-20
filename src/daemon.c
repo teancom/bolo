@@ -1,7 +1,4 @@
 #include "bolo.h"
-#include <pthread.h>
-#include <string.h>
-#include <unistd.h>
 #include <signal.h>
 
 /* signal-handling thread; when it exits, main will

@@ -1,11 +1,5 @@
 #include "bolo.h"
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/mman.h>
-#include <fcntl.h>
-#include <string.h>
-#include <unistd.h>
-#include <pthread.h>
 
 typedef struct {
 	server_t *server;

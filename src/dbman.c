@@ -1,12 +1,5 @@
 #include "bolo.h"
-#include <unistd.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
 #include <arpa/inet.h>
-#include <pthread.h>
 
 typedef struct PACKED {
 	uint32_t  magic;
