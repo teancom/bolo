@@ -121,6 +121,6 @@ static void write_file(const char *file, const char *contents, size_t n)
 	if (contents && n == 0)
 		n = strlen(contents);
 
-	write(fd, contents, n);
+	CHECK(write(fd, contents, n) == n, "write_file() - short write detected");
 	close(fd);
 }
