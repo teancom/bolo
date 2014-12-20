@@ -15,6 +15,9 @@
 #define T_KEYWORD_FRESHNESS  0x07
 #define T_KEYWORD_STATE      0x08
 #define T_KEYWORD_USE        0x09
+#define T_KEYWORD_PIDFILE    0x0a
+#define T_KEYWORD_USER       0x0b
+#define T_KEYWORD_GROUP      0x0c
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -87,6 +90,9 @@ getline:
 			*b++ = '\0';
 			KEYWORD("listener",   LISTENER);
 			KEYWORD("controller", CONTROLLER);
+			KEYWORD("user",       USER);
+			KEYWORD("group",      GROUP);
+			KEYWORD("pidfile",    PIDFILE);
 			KEYWORD("log",        LOG);
 			KEYWORD("savefile",   SAVEFILE);
 			KEYWORD("dumpfiles",  DUMPFILES);
@@ -168,10 +174,13 @@ int configure(const char *path, server_t *s)
 		if (!lex(&p)) break;
 
 		switch (p.token) {
-		case T_KEYWORD_LISTENER:   SERVER_STRING(s->config.listener);   break;
-		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller); break;
-		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);   break;
-		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);  break;
+		case T_KEYWORD_LISTENER:   SERVER_STRING(s->config.listener);    break;
+		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller);  break;
+		case T_KEYWORD_USER:       SERVER_STRING(s->config.runas_user);  break;
+		case T_KEYWORD_GROUP:      SERVER_STRING(s->config.runas_group); break;
+		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
+		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
+		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);   break;
 
 		case T_KEYWORD_LOG:
 			SERVER_STRING(s->config.log_level);
@@ -296,6 +305,9 @@ int deconfigure(server_t *s)
 
 	free(s->config.listener);     s->config.listener     = NULL;
 	free(s->config.controller);   s->config.controller   = NULL;
+	free(s->config.pidfile);      s->config.savefile     = NULL;
+	free(s->config.runas_user);   s->config.runas_user   = NULL;
+	free(s->config.runas_group);  s->config.runas_group  = NULL;
 	free(s->config.savefile);     s->config.savefile     = NULL;
 	free(s->config.dumpfiles);    s->config.dumpfiles    = NULL;
 	free(s->config.log_level);    s->config.log_level    = NULL;

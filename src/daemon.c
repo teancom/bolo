@@ -37,6 +37,9 @@ int main(int argc, char **argv)
 	svr.config.controller   = strdup(DEFAULT_CONTROLLER);
 	svr.config.log_level    = strdup(DEFAULT_LOG_LEVEL);
 	svr.config.log_facility = strdup(DEFAULT_LOG_FACILITY);
+	svr.config.runas_user   = strdup(DEFAULT_RUNAS_USER);
+	svr.config.runas_group  = strdup(DEFAULT_RUNAS_GROUP);
+	svr.config.pidfile      = strdup(DEFAULT_PIDFILE);
 	svr.config.savefile     = strdup(DEFAULT_SAVEFILE);
 	svr.config.dumpfiles    = strdup(DEFAULT_DUMPFILES);
 
@@ -60,6 +63,11 @@ int main(int argc, char **argv)
 	log_open("bolo", svr.config.log_facility);
 	log_level(0, svr.config.log_level);
 	logger(LOG_INFO, "starting up");
+
+	if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
+		logger(LOG_CRIT, "daemonization failed!");
+		return 2;
+	}
 
 	sigset_t sigs;
 	sigemptyset(&sigs);

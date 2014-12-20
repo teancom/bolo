@@ -145,7 +145,7 @@ static int read_state(db_t *db, const char *file)
 	header.timestamp = ntohl(header.timestamp);
 	header.count     = ntohl(header.count);
 
-	logger(LOG_NOTICE, "%s is a v%i database, dated %lu, and containing %u records",
+	logger(LOG_NOTICE, "%s is a v%i database, dated %lu, and contains %u records",
 			file, header.version, header.timestamp, header.count);
 
 	if (header.version != 1) {
@@ -156,7 +156,7 @@ static int read_state(db_t *db, const char *file)
 	}
 
 	for (i = 1; i <= header.count; i++) {
-		logger(LOG_NOTICE, "reading state record #%i from savefile", i);
+		logger(LOG_INFO, "reading state record #%i from savefile", i);
 
 		n = read(fd, &record, sizeof(record));
 		if (n != sizeof(record)) {

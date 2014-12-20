@@ -18,6 +18,9 @@
 #define DEFAULT_CONTROLLER   "tcp://127.0.0.1:2998"
 #define DEFAULT_LOG_LEVEL    "error"
 #define DEFAULT_LOG_FACILITY "daemon"
+#define DEFAULT_RUNAS_USER   "bolo"
+#define DEFAULT_RUNAS_GROUP  "bolo"
+#define DEFAULT_PIDFILE      "/var/run/bolo.pid"
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
 #define DEFAULT_DUMPFILES    "/var/tmp/bolo.%s"
 
@@ -54,6 +57,9 @@ typedef struct {
 		char     *log_level;
 		char     *log_facility;
 
+		char     *pidfile;
+		char     *runas_user;
+		char     *runas_group;
 		char     *savefile;
 		char     *dumpfiles;
 	} config;

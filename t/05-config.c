@@ -11,6 +11,10 @@ TESTS {
 			"listener   tcp://*:4242\n"
 			"controller tcp://*:5555\n"
 			"\n"
+			"user       monitor\n"
+			"group      amgs\n"
+			"pidfile    /var/run/bolo.pid\n"
+			"\n"
 			"# logging\n"
 			"log critical daemon\n"
 			"\n"
@@ -47,6 +51,9 @@ TESTS {
 		is(svr.config.listener,      "tcp://*:4242",   "listener set");
 		is(svr.config.log_level,     "critical",       "log level set");
 		is(svr.config.log_facility,  "daemon",         "log facility set");
+		is(svr.config.runas_user,    "monitor",        "run-as user set");
+		is(svr.config.runas_group,   "amgs",           "run-as group set");
+		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
 		is(svr.config.dumpfiles,     "/tmp/dump.\%s",  "dumpfiles set");
 
