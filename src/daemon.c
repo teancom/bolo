@@ -1,5 +1,11 @@
 #include "bolo.h"
 #include <signal.h>
+#include <getopt.h>
+
+static struct {
+	char *config_file;
+	int   foreground;
+} OPTIONS = { 0 };
 
 /* signal-handling thread; when it exits, main will
    pthread_cancel all of the other threads and then
@@ -23,11 +29,43 @@ void* watcher(void *u)
 
 int main(int argc, char **argv)
 {
+	OPTIONS.config_file = strdup(DEFAULT_CONFIG_FILE);
+	OPTIONS.foreground  = 0;
+
+	struct option long_opts[] = {
+		{ "help",             no_argument, 0, 'h' },
+		{ "foreground",       no_argument, 0, 'F' },
+		{ "config",     required_argument, 0, 'c' },
+		{ 0, 0, 0, 0 },
+	};
+	for (;;) {
+		int idx = 1;
+		int c = getopt_long(argc, argv, "h?Fc:", long_opts, &idx);
+		if (c == -1) break;
+
+		switch (c) {
+		case 'h':
+		case '?':
+			break;
+
+		case 'F':
+			OPTIONS.foreground = 1;
+			break;
+
+		case 'c':
+			free(OPTIONS.config_file);
+			OPTIONS.config_file = strdup(optarg);
+			break;
+
+		default:
+			fprintf(stderr, "unhandled option flag %#02x\n", c);
+			return 1;
+		}
+	}
+
 	int rc;
 	server_t svr;
 	pthread_t tid_watcher, tid_db, tid_sched, tid_ctrl, tid_lsnr;
-	const char *config_file = DEFAULT_CONFIG_FILE;
-	if (argc == 2) config_file = argv[1];
 
 	memset(&svr, 0, sizeof(svr));
 	svr.config.listener     = strdup(DEFAULT_LISTENER);
@@ -44,10 +82,10 @@ int main(int argc, char **argv)
 	svr.interval.freshness  = 2;
 	svr.interval.savestate  = 15;
 
-	rc = configure(config_file, &svr);
+	rc = configure(OPTIONS.config_file, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to read configuration from %s\nAborting...\n",
-			config_file);
+			OPTIONS.config_file);
 		return 1;
 	}
 
@@ -57,13 +95,20 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	if (OPTIONS.foreground) {
+		free(svr.config.log_facility);
+		svr.config.log_facility = strdup("stderr");
+	}
+
 	log_open("bolo", svr.config.log_facility);
 	log_level(0, svr.config.log_level);
-	logger(LOG_INFO, "starting up");
+	logger(LOG_NOTICE, "starting up");
 
-	if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
-		logger(LOG_CRIT, "daemonization failed!");
-		return 2;
+	if (!OPTIONS.foreground) {
+		if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
+			logger(LOG_CRIT, "daemonization failed!");
+			return 2;
+		}
 	}
 
 	sigset_t sigs;
@@ -114,6 +159,6 @@ int main(int argc, char **argv)
 	zmq_ctx_destroy(svr.zmq);
 	deconfigure(&svr);
 
-	logger(LOG_INFO, "shutting down");
+	logger(LOG_NOTICE, "shutting down");
 	return 0;
 }
