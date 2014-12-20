@@ -28,17 +28,19 @@ static inline const char *statstr(uint8_t s)
 	return names[s > 3 ? 3 : s];
 }
 
-void save_state(db_t *db, const char *file)
+static int save_state(db_t *db, const char *file)
 {
 	binf_header_t header;
 	binf_record_t record;
 	char *name; state_t *state;
+	int i;
+	size_t n;
 
 	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0640);
 	if (fd < 0) {
 		logger(LOG_ERR, "db manager failed to open save file %s for writing: %s",
 				file, strerror(errno));
-		return;
+		return -1;
 	}
 
 	memcpy(&header.magic, "BOLO", 4);
@@ -52,7 +54,14 @@ void save_state(db_t *db, const char *file)
 		header.count++;
 	header.count = htonl(header.count);
 
-	write(fd, &header, sizeof(header));
+	n = write(fd, &header, sizeof(header));
+	if (n != sizeof(header)) {
+		logger(LOG_ERR, "only wrote %i of %i bytes for the savefile header; %s is probably corrupt now",
+			n, sizeof(header), file);
+		close(fd);
+		return -1;
+	}
+	i = 1;
 	for_each_key_value(&db->states, name, state) {
 		size_t l_name    = strlen(name)           + 1;
 		size_t l_summary = strlen(state->summary) + 1;
@@ -61,54 +70,101 @@ void save_state(db_t *db, const char *file)
 		record.status    = state->status;
 		record.stale     = state->stale;
 
-		write(fd, &record,        sizeof(record));
-		write(fd, name,           l_name);
-		write(fd, state->summary, l_summary);
+		n = write(fd, &record, sizeof(record));
+		if (n != sizeof(record)) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
+				n, sizeof(record), i, name, file);
+			close(fd);
+			return -1;
+		}
+		n = write(fd, name, l_name);
+		if (n != l_name) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
+				n + sizeof(record), sizeof(record) + l_name, i, name, file);
+			close(fd);
+			return -1;
+		}
+		n = write(fd, state->summary, l_summary);
+		if (n != l_summary) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
+				n + sizeof(record) + l_name, sizeof(record) + l_name + l_summary, i, name, file);
+			close(fd);
+			return -1;
+		}
+
+		i++;
 	}
 	close(fd);
+	return 0;
 }
 
-int read_state(db_t *db, const char *file)
+static int read_state(db_t *db, const char *file)
 {
 	binf_header_t header;
 	binf_record_t record;
 	ssize_t n;
+	int i;
 
 	int fd = open(file, O_RDONLY);
-	if (fd < 0)
+	if (fd < 0) {
+		logger(LOG_ERR, "db manager failed to open %s for reading: %s",
+			file, strerror(errno));
 		return -1;
+	}
 
 	n = read(fd, &header, sizeof(header));
-	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0)
-		goto fail;
+	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0) {
+		logger(LOG_ERR, "%s does not seem to be a bolo savefile", file);
+		close(fd);
+		return -1;
+	}
 
-	if (n != sizeof(header))
-		goto fail;
+	if (n != sizeof(header)) {
+		logger(LOG_ERR, "%s: invalid header size %i (expected %u)",
+			file, n, sizeof(header));
+		close(fd);
+		return -1;
+	}
 
 	header.version   = ntohs(header.version);
 	header.flags     = ntohs(header.flags);
 	header.timestamp = ntohl(header.timestamp);
 	header.count     = ntohl(header.count);
 
-	if (header.version != 1)
-		goto fail;
+	if (header.version != 1) {
+		logger(LOG_ERR, "%s is a v%u savefile; this version of bolo only supports v1 files",
+			file, header.version);
+		close(fd);
+		return -1;
+	}
 
-	while (header.count-- > 0) {
+	for (i = 1; i <= header.count; i++) {
 		n = read(fd, &record, sizeof(record));
-		if (n != sizeof(record))
-			goto fail;
+		if (n != sizeof(record)) {
+			logger(LOG_ERR, "%s: only read %i bytes of record #%i, expected to read %i",
+				file, n, sizeof(record));
+			close(fd);
+			return -1;
+		}
 
 		record.len       = ntohs(record.len);
 		record.last_seen = ntohl(record.last_seen);
-		if (record.len == 0 || record.len < sizeof(binf_record_t))
-			goto fail;
+		if (record.len == 0 || record.len < sizeof(binf_record_t)) {
+			logger(LOG_ERR, "%s: record #%i reports an invalid length of %u; is the savefile corrupt?",
+				file, i, record.len);
+			close(fd);
+			return -1;
+		}
 
 		size_t rest = record.len - sizeof(binf_record_t);
 		char *strings = calloc(rest, sizeof(char));
 		n = read(fd, strings, rest);
 		if (n != rest) {
+			logger(LOG_ERR, "%s: only read %i of %i bytes for record #%i payload, is the savefile corrupt?",
+				file, n, rest, i);
 			free(strings);
-			goto fail;
+			close(fd);
+			return -1;
 		}
 
 		state_t *s = hash_get(&db->states, strings);
@@ -123,13 +179,9 @@ int read_state(db_t *db, const char *file)
 
 	close(fd);
 	return 0;
-
-fail:
-	close(fd);
-	return -1;
 }
 
-void check_freshness(db_t *db)
+static void check_freshness(db_t *db)
 {
 	state_t *state;
 	char *k;
@@ -146,7 +198,7 @@ void check_freshness(db_t *db)
 	}
 }
 
-void dump(db_t *db, const char *file)
+static void dump(db_t *db, const char *file)
 {
 	if (!file) {
 		logger(LOG_ERR, "db manager cannot dump state; no dump file name provided");
@@ -181,7 +233,7 @@ void dump(db_t *db, const char *file)
 	close(fd);
 }
 
-int update(db_t *db, uint32_t ts, const char *name, uint8_t code, const char *msg)
+static int update(db_t *db, uint32_t ts, const char *name, uint8_t code, const char *msg)
 {
 	if (!name) {
 		logger(LOG_ERR, "db manager unable to update state: no name given");
@@ -277,8 +329,11 @@ void* db_manager(void *u)
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
-			save_state(&s->db, s->config.savefile);
-			a = pdu_reply(q, "OK", 0);
+			if (save_state(&s->db, s->config.savefile) != 0) {
+				a = pdu_reply(q, "ERROR", 1, "Internal Error");
+			} else {
+				a = pdu_reply(q, "OK", 0);
+			}
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
