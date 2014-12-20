@@ -18,6 +18,10 @@ int main(int argc, char **argv)
 	svr.config.savefile     = strdup(DEFAULT_SAVEFILE);
 	svr.config.dumpfiles    = strdup(DEFAULT_DUMPFILES);
 
+	svr.interval.tick       = 1000;
+	svr.interval.freshness  = 2;
+	svr.interval.savestate  = 15;
+
 	rc = configure(config_file, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to read configuration from %s\nAborting...\n",
