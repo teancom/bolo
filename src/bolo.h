@@ -47,7 +47,8 @@ typedef struct {
 
 	struct {
 		uint16_t  nsca_port;
-		char     *stat_endpoint;
+		char     *listener;
+		char     *controller;
 
 		char     *log_level;
 		char     *log_facility;
@@ -66,8 +67,8 @@ typedef struct {
 int configure(const char *path, server_t *s);
 
 /* threads */
-void* nsca_listener(void *u);
-void* stat_listener(void *u);
+void* listener(void *u);
+void* controller(void *u);
 void* db_manager(void *u);
 void* scheduler(void *u);
 

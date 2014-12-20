@@ -6,28 +6,28 @@
 #include <string.h>
 #include <unistd.h>
 
-void* stat_listener(void *u)
+void* controller(void *u)
 {
 	int rc;
 	server_t *svr = (server_t*)u;
 
 	void *z = zmq_socket(svr->zmq, ZMQ_ROUTER);
 	if (!z) {
-		logger(LOG_CRIT, "stat listener failed to get a ROUTER socket to bind");
+		logger(LOG_CRIT, "controller failed to get a ROUTER socket to bind");
 		return NULL;
 	}
-	if (zmq_bind(z, svr->config.stat_endpoint) != 0) {
-		logger(LOG_CRIT, "stat listener failed to bind to %s", svr->config.stat_endpoint);
+	if (zmq_bind(z, svr->config.controller) != 0) {
+		logger(LOG_CRIT, "controller failed to bind to %s", svr->config.controller);
 		return  NULL;
 	}
 
 	void *dbman = zmq_socket(svr->zmq, ZMQ_DEALER);
 	if (!dbman) {
-		logger(LOG_CRIT, "stat listener failed to get a DEALER socket");
+		logger(LOG_CRIT, "controller failed to get a DEALER socket");
 		return NULL;
 	}
 	if (zmq_connect(dbman, DB_MANAGER_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "stat listener failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+		logger(LOG_CRIT, "controller failed to connect to db manager at " DB_MANAGER_ENDPOINT);
 		return NULL;
 	}
 

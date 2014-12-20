@@ -35,7 +35,7 @@ static client_t* client_new(int fd)
 {
 	client_t *c = calloc(1, sizeof(client_t));
 	if (!c) {
-		logger(LOG_EMERG, "nsca listener: failed to allocate new client_t object: %s",
+		logger(LOG_EMERG, "listener: failed to allocate new client_t object: %s",
 				strerror(errno));
 		abort();
 	}
@@ -58,7 +58,7 @@ static int nonblocking(int fd)
 	return fcntl(fd, F_SETFL, orig|O_NONBLOCK);
 }
 
-void* nsca_listener(void *u)
+void* listener(void *u)
 {
 	struct epoll_event ev, events[EPOLL_MAX_FD];
 	int n, nfds, epfd, connfd;
@@ -68,13 +68,13 @@ void* nsca_listener(void *u)
 
 	svr = (server_t*)u;
 	if (!svr) {
-		logger(LOG_CRIT, "nsca listener failed: server context was NULL");
+		logger(LOG_CRIT, "listener failed: server context was NULL");
 		return NULL;
 	}
 
 	int sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	if (sockfd < 0) {
-		logger(LOG_CRIT, "nsca listener failed to get a socket descriptor: %s",
+		logger(LOG_CRIT, "listener failed to get a socket descriptor: %s",
 				strerror(errno));
 		return NULL;
 	}
@@ -86,37 +86,37 @@ void* nsca_listener(void *u)
 
 	n = 1;
 	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &n, sizeof(n)) != 0) {
-		logger(LOG_WARNING, "nsca listener failed to set SO_REUSEADDR on listening socket");
+		logger(LOG_WARNING, "listener failed to set SO_REUSEADDR on listening socket");
 		return NULL;
 	}
 	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-		logger(LOG_CRIT, "nsca listener failed to bind socket to port %u\n", svr->config.nsca_port);
+		logger(LOG_CRIT, "listener failed to bind socket to port %u\n", svr->config.nsca_port);
 		return NULL;
 	}
 	if (listen(sockfd, 64) != 0) {
-		logger(LOG_CRIT, "nsca listener failed to listen on port %u\n", svr->config.nsca_port);
+		logger(LOG_CRIT, "listener failed to listen on port %u\n", svr->config.nsca_port);
 		return NULL;
 	}
 
 	if (nonblocking(sockfd) != 0) {
-		logger(LOG_CRIT, "nsca listener failed to set bound socket non-blocking (O_NONBLOCK): %s",
+		logger(LOG_CRIT, "listener failed to set bound socket non-blocking (O_NONBLOCK): %s",
 			strerror(errno));
 		return NULL;
 	}
 
 	db = zmq_socket(svr->zmq, ZMQ_DEALER);
 	if (!db) {
-		logger(LOG_CRIT, "nsca listener failed to get a DEALER socket");
+		logger(LOG_CRIT, "listener failed to get a DEALER socket");
 		return NULL;
 	}
 	if (zmq_connect(db, DB_MANAGER_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "nsca listener failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+		logger(LOG_CRIT, "listener failed to connect to db manager at " DB_MANAGER_ENDPOINT);
 		return NULL;
 	}
 
 	epfd = epoll_create1(0);
 	if (epfd < 0) {
-		logger(LOG_CRIT, "nsca listener failed to get an epoll file descriptor: %s",
+		logger(LOG_CRIT, "listener failed to get an epoll file descriptor: %s",
 				strerror(errno));
 		return NULL;
 	}
@@ -140,12 +140,12 @@ void* nsca_listener(void *u)
 				/* new inbound connection */
 				connfd = accept(sockfd, NULL, NULL);
 				if (connfd < 0) {
-					logger(LOG_ERR, "nsca listener: inbound connect could not be accepted: %s",
+					logger(LOG_ERR, "listener: inbound connect could not be accepted: %s",
 						strerror(errno));
 					continue;
 				}
 				if (nonblocking(connfd) != 0) {
-					logger(LOG_CRIT, "nsca listener failed to set connecion %i non-blocking (O_NONBLOCK): %s",
+					logger(LOG_CRIT, "listener failed to set connecion %i non-blocking (O_NONBLOCK): %s",
 						connfd, connfd);
 					close(connfd);
 					break;
@@ -154,7 +154,7 @@ void* nsca_listener(void *u)
 				ev.events = EPOLLIN | EPOLLET;
 				ev.data.fd = connfd;
 				if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) != 0) {
-					logger(LOG_CRIT, "nsca listener failed to register connection %i with epoll subsystem: %s",
+					logger(LOG_CRIT, "listener failed to register connection %i with epoll subsystem: %s",
 						connfd, strerror(errno));
 					return NULL;
 				}
@@ -164,7 +164,7 @@ void* nsca_listener(void *u)
 				client_t *c = client_new(connfd);
 
 				if (!cache_set(clients, id, c)) {
-					logger(LOG_ERR, "nsca listener has no more room in the connection cache, closing connection %i",
+					logger(LOG_ERR, "listener has no more room in the connection cache, closing connection %i",
 						connfd);
 					client_free(c);
 				}
@@ -174,7 +174,7 @@ void* nsca_listener(void *u)
 				char *id = string("%04x", events[n].data.fd);
 				client_t *c = cache_get(clients, id);
 				if (!c) {
-					logger(LOG_CRIT, "nsca listener received data for unknown client %s; ignoring", id);
+					logger(LOG_CRIT, "listener received data for unknown client %s; ignoring", id);
 					free(id);
 					continue;
 				}
@@ -195,7 +195,7 @@ void* nsca_listener(void *u)
 
 						pdu_t *a = pdu_recv(db);
 						if (strcmp(pdu_type(a), "OK") != 0) {
-							logger(LOG_ERR, "nsca listener received an ERROR (in response to an UPDATE) from the db manager: %s",
+							logger(LOG_ERR, "listener received an ERROR (in response to an UPDATE) from the db manager: %s",
 								s = pdu_string(a, 1)); free(s);
 						}
 

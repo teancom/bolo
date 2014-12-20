@@ -15,8 +15,8 @@
 
    ------------------.                                         .------------------
                      |           .-----------------.           |
-     NSCA  listener  | [UPDATE]  |    db manager   |  [STATE]  |  STAT  listener
-      tcp://*:5667   |---------->|   inproc://db   |<----------|   tcp://*:2999
+        LISTENER     | [UPDATE]  |    db manager   |  [STATE]  |    CONTROLLER
+      tcp://*:2999   |---------->|   inproc://db   |<----------|   tcp://*:2998
                      |           '-----------------'  [DUMP]   |
    ------------------'                    ^                    '------------------
                                           |
@@ -28,10 +28,10 @@
                                  '-----------------'
 
    Threads:
-     1. NSCA listener - Handles inbound NLMA/NSCA submission
-     2. STAT listener - Handles inbound control messages, like STAT/DUMP
-     3. db manager    - Manages the internal database
-     4. scheulder     - Issues timed commands to the db manager
+     1. listener   - Handles inbound NLMA/NSCA submission
+     2. controller - Handles inbound control messages, like STAT/DUMP
+     3. db manager - Manages the internal database
+     4. scheduler  - Issues timed commands to the db manager
 
 
    PDUs:

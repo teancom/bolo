@@ -5,19 +5,19 @@ TESTS {
 	void *z, *dbman;
 	pthread_t tid;
 
-	svr.config.stat_endpoint = "inproc://stat";
+	svr.config.controller = "inproc://stat";
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 	CHECK(dbman = zmq_socket(svr.zmq, ZMQ_ROUTER),
 		"failed to create mock db manager test socket");
 	CHECK(zmq_bind(dbman, DB_MANAGER_ENDPOINT) == 0,
 		"failed to bind to db manager socket");
-	CHECK(pthread_create(&tid, NULL, stat_listener, &svr) == 0,
+	CHECK(pthread_create(&tid, NULL, controller, &svr) == 0,
 		"failed to spin up stat listener thread");
 
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create stat client socket");
-	CHECK(zmq_connect(z, svr.config.stat_endpoint) == 0,
+	CHECK(zmq_connect(z, svr.config.controller) == 0,
 		"failed to create stat client socket");
 	sleep_ms(50);
 

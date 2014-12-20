@@ -23,8 +23,8 @@ TESTS {
 	rc = zmq_bind(dbman, DB_MANAGER_ENDPOINT);
 	CHECK(rc == 0, "failed to bind mock db manager test socket to endpoint");
 
-	rc = pthread_create(&tid, NULL, nsca_listener, &s);
-	CHECK(rc == 0, "failed to spin up nsca listener thread");
+	rc = pthread_create(&tid, NULL, listener, &s);
+	CHECK(rc == 0, "failed to spin up listener thread");
 	sleep_ms(50);
 
 	/* ----------------------------- */

@@ -8,8 +8,8 @@ TESTS {
 			"# test configuration\n"
 			"\n"
 			"# network endpoints\n"
-			"control   tcp://*:5555\n"
-			"nsca.port 5668\n"
+			"controller tcp://*:5555\n"
+			"nsca.port  5668\n"
 			"\n"
 			"# logging\n"
 			"log critical daemon\n"
@@ -43,7 +43,7 @@ TESTS {
 		ok(configure("t/tmp/config", &svr) == 0,
 			"Read configuration from t/tmp/config");
 
-		is(svr.config.stat_endpoint, "tcp://*:5555",   "control set");
+		is(svr.config.controller,    "tcp://*:5555",   "control set");
 		is_int(svr.config.nsca_port,  5668,            "nsca.port set");
 		is(svr.config.log_level,     "critical",       "log level set");
 		is(svr.config.log_facility,  "daemon",         "log facility set");

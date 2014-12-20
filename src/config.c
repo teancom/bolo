@@ -6,7 +6,7 @@
 
 #define LINE_BUF_SIZE 8192
 
-#define T_KEYWORD_CONTROL    0x02
+#define T_KEYWORD_CONTROLLER 0x02
 #define T_KEYWORD_NSCA_PORT  0x03
 #define T_KEYWORD_LOG        0x04
 #define T_KEYWORD_SAVEFILE   0x05
@@ -85,15 +85,15 @@ getline:
 			b++;
 		if (!*b || isspace(*b)) {
 			*b++ = '\0';
-			KEYWORD("control",   CONTROL);
-			KEYWORD("nsca.port", NSCA_PORT);
-			KEYWORD("log",       LOG);
-			KEYWORD("savefile",  SAVEFILE);
-			KEYWORD("dumpfiles", DUMPFILES);
-			KEYWORD("type",      TYPE);
-			KEYWORD("freshness", FRESHNESS);
-			KEYWORD("state",     STATE);
-			KEYWORD("use",       USE);
+			KEYWORD("controller", CONTROLLER);
+			KEYWORD("nsca.port",  NSCA_PORT);
+			KEYWORD("log",        LOG);
+			KEYWORD("savefile",   SAVEFILE);
+			KEYWORD("dumpfiles",  DUMPFILES);
+			KEYWORD("type",       TYPE);
+			KEYWORD("freshness",  FRESHNESS);
+			KEYWORD("state",      STATE);
+			KEYWORD("use",        USE);
 
 			if (!p->token) {
 				memcpy(p->tval, p->line, b-p->line);
@@ -168,10 +168,10 @@ int configure(const char *path, server_t *s)
 		if (!lex(&p)) break;
 
 		switch (p.token) {
-		case T_KEYWORD_CONTROL:   SERVER_STRING(s->config.stat_endpoint); break;
-		case T_KEYWORD_NSCA_PORT: SERVER_NUMBER(s->config.nsca_port);     break;
-		case T_KEYWORD_SAVEFILE:  SERVER_STRING(s->config.savefile);      break;
-		case T_KEYWORD_DUMPFILES: SERVER_STRING(s->config.dumpfiles);     break;
+		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller); break;
+		case T_KEYWORD_NSCA_PORT:  SERVER_NUMBER(s->config.nsca_port);  break;
+		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);   break;
+		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);  break;
 
 		case T_KEYWORD_LOG:
 			SERVER_STRING(s->config.log_level);
