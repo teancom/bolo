@@ -63,7 +63,7 @@ TESTS {
 	is_string(pdu_type(p), "STATE", "db manager replied with an [OK]");
 	is_string(s = pdu_string(p, 1), "test.state.0",    "STATE[0] is state name"); free(s);
 	is_string(s = pdu_string(p, 2), "1418870107",      "STATE[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "yes",             "STATE[2] is freshness boolean"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness boolean"); free(s);
 	is_string(s = pdu_string(p, 4), "WARNING",         "STATE[3] is status"); free(s);
 	is_string(s = pdu_string(p, 5), "its problematic", "STATE[4] is summary"); free(s);
 	pdu_free(p);
@@ -137,7 +137,7 @@ TESTS {
 	is_string(pdu_type(p), "STATE", "db manager replied with a [STATE]");
 	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name"); free(s);
 	is_string(s = pdu_string(p, 2), ts,                "STATE[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "yes",             "STATE[2] is freshness boolean"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness boolean"); free(s);
 	is_string(s = pdu_string(p, 4), "CRITICAL",        "STATE[3] is status"); free(s);
 	is_string(s = pdu_string(p, 5), "critically-ness", "STATE[4] is summary"); free(s);
 	pdu_free(p);

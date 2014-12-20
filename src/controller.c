@@ -45,8 +45,27 @@ void* controller(void *u)
 
 			} else {
 				res = pdu_recv(dbman);
-				a = pdu_reply(q, pdu_type(res), 1,
-					s = pdu_string(res, 1)); free(s);
+				if (!res) {
+					a = pdu_reply(q, "ERROR", 1, "Internal Error");
+				} else if (strcmp(pdu_type(res), "ERROR") == 0) {
+					a = pdu_reply(q, "ERROR", 1, s = pdu_string(res, 1)); free(s);
+				} else if (strcmp(pdu_type(res), "STATE") == 0) {
+					char *name, *ts, *stale, *code, *msg;
+					a = pdu_reply(q, pdu_type(res), 5,
+						name  = pdu_string(res, 1),
+						ts    = pdu_string(res, 2),
+						stale = pdu_string(res, 3),
+						code  = pdu_string(res, 4),
+						msg   = pdu_string(res, 5));
+					fprintf(stderr, "[STATE|%s|%s|%s|%s|%s] sent\n", name, ts, stale, code, msg);
+					free(name);
+					free(ts);
+					free(stale);
+					free(code);
+					free(msg);
+				} else {
+					a = pdu_reply(q, "ERROR", 1, "Internal Error");
+				}
 			}
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {

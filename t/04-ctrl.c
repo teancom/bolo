@@ -13,7 +13,7 @@ TESTS {
 	CHECK(zmq_bind(dbman, DB_MANAGER_ENDPOINT) == 0,
 		"failed to bind to db manager socket");
 	CHECK(pthread_create(&tid, NULL, controller, &svr) == 0,
-		"failed to spin up stat listener thread");
+		"failed to spin up controller thread");
 
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create stat client socket");
@@ -30,11 +30,11 @@ TESTS {
 	alarm(5);
 	p = pdu_make("@INVALID!", 2, "foo", "baz");
 	is_int(pdu_send_and_free(p, z), 0,
-		"sent [@INVALID!] PDU to stat listener");
+		"sent [@INVALID!] PDU to controller");
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from stat listener");
-	is_string(pdu_type(p), "ERROR", "stat listener replied with an [ERROR]");
+	isnt_null(p, "received reply PDU from controller");
+	is_string(pdu_type(p), "ERROR", "controller replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "Invalid PDU", "Error message returned"); free(s);
 	pdu_free(p);
 	alarm(0);
@@ -43,18 +43,23 @@ TESTS {
 	alarm(5);
 	p = pdu_make("STATE", 1, "random.metric");
 	is_int(pdu_send_and_free(p, z), 0,
-		"sent [STATE] PDU to stat listener");
+		"sent [STATE] PDU to controller");
 
 		/* be the DB manager for a bit */
 		q = pdu_recv(dbman);
-		pdu_send_and_free(pdu_reply(q, "STATE", 1, "xyzzy"), dbman);
+		pdu_send_and_free(pdu_reply(q, "STATE", 5, "xyzzy", "1234", "no", "2", "foo"), dbman);
 		pdu_free(q);
 		/* --------------------------- */
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from stat listener");
-	is_string(pdu_type(p), "STATE", "stat listener replied with a [STATE]");
-	is_string(s = pdu_string(p, 1), "xyzzy", "stat listener relayed result"); free(s);
+	isnt_null(p, "received reply PDU from controller");
+	is_string(pdu_type(p), "STATE", "controller replied with a [STATE]");
+	is_string(s = pdu_string(p, 1), "xyzzy", "controller relayed result frame 1"); free(s);
+	is_string(s = pdu_string(p, 2), "1234",  "controller relayed result frame 2"); free(s);
+	is_string(s = pdu_string(p, 3), "no",    "controller relayed result frame 3"); free(s);
+	is_string(s = pdu_string(p, 4), "2",     "controller relayed result frame 4"); free(s);
+	is_string(s = pdu_string(p, 5), "foo",   "controller relayed result frame 5"); free(s);
+	is_null(pdu_string(p, 6), "controller only relays 5 frames (there is no 6th)");
 	pdu_free(p);
 	alarm(0);
 
@@ -62,7 +67,7 @@ TESTS {
 	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
-		"sent [DUMP] PDU to stat listener");
+		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
 		q = pdu_recv(dbman);
@@ -71,11 +76,11 @@ TESTS {
 		/* --------------------------- */
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from stat listener");
-	is_string(pdu_type(p), "DUMP", "stat listener replied with a [DUMP]");
+	isnt_null(p, "received reply PDU from controller");
+	is_string(pdu_type(p), "DUMP", "controller replied with a [DUMP]");
 	is_string(s = pdu_string(p, 1),
 		"this is the\ncontent stuff\n",
-		"stat listener returns contents of file"); free(s);
+		"controller returns contents of file"); free(s);
 	pdu_free(p);
 	alarm(0);
 
@@ -83,7 +88,7 @@ TESTS {
 	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
-		"sent [DUMP] PDU to stat listener");
+		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
 		q = pdu_recv(dbman);
@@ -91,10 +96,10 @@ TESTS {
 		/* --------------------------- */
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from stat listener");
-	is_string(pdu_type(p), "ERROR", "stat listener replied with an [ERROR]");
+	isnt_null(p, "received reply PDU from controller");
+	is_string(pdu_type(p), "ERROR", "controller replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "stuff broke",
-		"stat listener relayed error message"); free(s);
+		"controller relayed error message"); free(s);
 	pdu_free(p);
 	alarm(0);
 
@@ -103,7 +108,7 @@ TESTS {
 	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
-		"sent [DUMP] PDU to stat listener");
+		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
 		q = pdu_recv(dbman);
@@ -112,10 +117,10 @@ TESTS {
 		/* --------------------------- */
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from stat listener");
-	is_string(pdu_type(p), "ERROR", "stat listener replied with an [ERROR]");
+	isnt_null(p, "received reply PDU from controller");
+	is_string(pdu_type(p), "ERROR", "controller replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "Internal Error",
-		"stat listener generated error message"); free(s);
+		"controller generated error message"); free(s);
 	pdu_free(p);
 	alarm(0);
 

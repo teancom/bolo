@@ -331,7 +331,7 @@ void* db_manager(void *u)
 			} else {
 				a = pdu_reply(q, "STATE", 1, name);
 				pdu_extendf(a, "%li", state->last_seen);
-				pdu_extendf(a, "%s",  state->stale ? "no" : "yes");
+				pdu_extendf(a, "%s",  state->stale ? "stale" : "fresh");
 				pdu_extendf(a, "%s",  statstr(state->status));
 				pdu_extendf(a, "%s",  state->summary);
 			}

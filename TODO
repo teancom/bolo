@@ -1,10 +1,9 @@
 TODO
 
 - send_bolo --option --handling
-- stat CLI util
+- stat_bolo --option --handling
+- bolo --option --handling
 - daemonization
-- bolo --option  --handling
-- logging
 - error handling -- check EVERYTHING
 - memleak profiling
 - memory usage analysis

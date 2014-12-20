@@ -48,7 +48,7 @@ TESTS {
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");
 	is_string(s = pdu_string(a, 1), "test.state.0", "reply was for intended target"); free(s);
 	is_string(s = pdu_string(a, 2), "1418870107", "last_seen was set from state file"); free(s);
-	is_string(s = pdu_string(a, 3), "yes", "test.state.0 is still fresh"); free(s);
+	is_string(s = pdu_string(a, 3), "fresh", "test.state.0 is still fresh"); free(s);
 	is_string(s = pdu_string(a, 5), "its problematic", "summary messsage"); free(s);
 	pdu_free(a);
 
@@ -69,7 +69,7 @@ TESTS {
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");
 	is_string(s = pdu_string(a, 1), "test.state.0", "reply was for intended target"); free(s);
 	is_string(s = pdu_string(a, 2), "1418870107", "last_seen was set from state file"); free(s);
-	is_string(s = pdu_string(a, 3), "no", "test.state.0 is no longer fresh"); free(s);
+	is_string(s = pdu_string(a, 3), "stale", "test.state.0 is no longer fresh"); free(s);
 	is_string(s = pdu_string(a, 5), "no results!!!",
 		"stale message is set for summary"); free(s);
 	pdu_free(a);
