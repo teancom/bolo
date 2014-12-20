@@ -34,23 +34,28 @@ typedef struct {
 static client_t* client_new(int fd)
 {
 	client_t *c = calloc(1, sizeof(client_t));
+	if (!c) {
+		logger(LOG_EMERG, "nsca listener: failed to allocate new client_t object: %s",
+				strerror(errno));
+		abort();
+	}
 	c->fd = fd;
 	return c;
 }
 
 static void client_free(void *_c)
 {
+	if (!_c) return;
 	client_t *c = (client_t*)_c;
 	close(c->fd);
 	free(c);
 }
 
-static void inline nonblocking(int fd)
+static int nonblocking(int fd)
 {
 	int orig = fcntl(fd, F_GETFL, 0);
-	if (orig < 0 || fcntl(fd, F_SETFL, orig|O_NONBLOCK) != 0)
-		logger(LOG_CRIT, "nsca listener failed to set fd %i to non-blocking (O_NONBLOCK): %s",
-			fd, strerror(errno));
+	if (orig < 0) return orig;
+	return fcntl(fd, F_SETFL, orig|O_NONBLOCK);
 }
 
 void* nsca_listener(void *u)
@@ -93,7 +98,11 @@ void* nsca_listener(void *u)
 		return NULL;
 	}
 
-	nonblocking(sockfd);
+	if (nonblocking(sockfd) != 0) {
+		logger(LOG_CRIT, "nsca listener failed to set bound socket non-blocking (O_NONBLOCK): %s",
+			strerror(errno));
+		return NULL;
+	}
 
 	db = zmq_socket(svr->zmq, ZMQ_DEALER);
 	if (!db) {
@@ -131,29 +140,41 @@ void* nsca_listener(void *u)
 				/* new inbound connection */
 				connfd = accept(sockfd, NULL, NULL);
 				if (connfd < 0) {
-					logger(LOG_ERR, "nsca listener: inbound connect could not be accepted");
+					logger(LOG_ERR, "nsca listener: inbound connect could not be accepted: %s",
+						strerror(errno));
 					continue;
 				}
-				nonblocking(connfd);
+				if (nonblocking(connfd) != 0) {
+					logger(LOG_CRIT, "nsca listener failed to set connecion %i non-blocking (O_NONBLOCK): %s",
+						connfd, connfd);
+					close(connfd);
+					break;
+				}
 
 				ev.events = EPOLLIN | EPOLLET;
 				ev.data.fd = connfd;
-				if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) != 0)
+				if (epoll_ctl(epfd, EPOLL_CTL_ADD, connfd, &ev) != 0) {
+					logger(LOG_CRIT, "nsca listener failed to register connection %i with epoll subsystem: %s",
+						connfd, strerror(errno));
 					return NULL;
+				}
 
 				/* push new client state into cache */
 				char *id = string("%04x", connfd);
 				client_t *c = client_new(connfd);
 
-				if (!cache_set(clients, id, c))
+				if (!cache_set(clients, id, c)) {
+					logger(LOG_ERR, "nsca listener has no more room in the connection cache, closing connection %i",
+						connfd);
 					client_free(c);
+				}
 				free(id);
 
 			} else {
 				char *id = string("%04x", events[n].data.fd);
 				client_t *c = cache_get(clients, id);
 				if (!c) {
-					logger(LOG_CRIT, "nsca listener: inbound data for unknown client %s; ignoring", id);
+					logger(LOG_CRIT, "nsca listener received data for unknown client %s; ignoring", id);
 					free(id);
 					continue;
 				}
