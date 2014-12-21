@@ -18,7 +18,7 @@ typedef struct PACKED {
 
 typedef struct {
 	server_t *server;
-	void     *zocket;
+	void     *listener;
 } db_manager_t;
 
 static inline const char *statstr(uint8_t s)
@@ -281,10 +281,10 @@ static int update(db_t *db, uint32_t ts, const char *name, uint8_t code, const c
 static void* cleanup_db_manager(void *_)
 {
 	db_manager_t *db = (db_manager_t*)_;
-	if (db->zocket) {
+	if (db->listener) {
 		logger(LOG_INFO, "db manager cleaning up; closing listening socket");
-		vzmq_shutdown(db->zocket, 500);
-		db->zocket = NULL;
+		vzmq_shutdown(db->listener, 500);
+		db->listener = NULL;
 	}
 	if (db->server) {
 		logger(LOG_INFO, "db manager cleaning up; saving final state to %s",
@@ -310,12 +310,12 @@ void* db_manager(void *u)
 		return NULL;
 	}
 
-	db->zocket = zmq_socket(db->server->zmq, ZMQ_ROUTER);
-	if (!db->zocket) {
+	db->listener = zmq_socket(db->server->zmq, ZMQ_ROUTER);
+	if (!db->listener) {
 		logger(LOG_CRIT, "db manager failed to get a ROUTER socket");
 		return NULL;
 	}
-	if (zmq_bind(db->zocket, DB_MANAGER_ENDPOINT) != 0) {
+	if (zmq_bind(db->listener, DB_MANAGER_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "db manager failed to bind to " DB_MANAGER_ENDPOINT);
 		return NULL;
 	}
@@ -326,7 +326,7 @@ void* db_manager(void *u)
 	}
 
 	pdu_t *q, *a;
-	while ((q = pdu_recv(db->zocket)) != NULL) {
+	while ((q = pdu_recv(db->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "db manager received an empty PDU; ignoring");
 			continue;
@@ -385,7 +385,7 @@ void* db_manager(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
-		pdu_send_and_free(a, db->zocket);
+		pdu_send_and_free(a, db->listener);
 		pdu_free(q);
 	}
 
