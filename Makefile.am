@@ -21,9 +21,10 @@ CORE_SRC += src/config.c
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
-bin_PROGRAMS = send_bolo stat_bolo
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
+bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/01-dbman
