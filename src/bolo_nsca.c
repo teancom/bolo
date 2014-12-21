@@ -65,10 +65,12 @@ int main(int argc, char **argv)
 	uint8_t status;
 	char *name, *code, *msg, line[8192];
 	size_t n, offset = 0;
-	while ((n = read(0, line + offset, 8192 - offset)) > 0) {
+	while ((n = read(0, line + offset, 8192 - offset)) >= 0) {
+		if (n == 0 && (!*line || *line == '\x17')) break;
 		char *f[4], *p;
 
-#define MALFORMED(s) { fprintf(stderr, "malformed input line: %s; skipping\n", s); continue; }
+#define CONSUME memmove(line, p + 1, 8192 - (p - line) - 1); offset = p - line
+#define MALFORMED(s) { fprintf(stderr, "malformed input line: %s; skipping\n", s); CONSUME; continue; }
 		p = f[0] = line;
 		while (*p && *p != '\t' && *p != '\x17') p++;;
 		if (!*p)          MALFORMED("EOL after first token");
@@ -103,7 +105,6 @@ int main(int argc, char **argv)
 		}
 		if (msg[strlen(msg)-1] == '\n')
 			msg[strlen(msg)-1] = '\0';
-#undef MALFORMED
 
 		status = UNKNOWN;
 		if (strcasecmp(code, "0") == 0 || strcasecmp(code, "ok") == 0 || strcasecmp(code, "okay") == 0)
@@ -153,10 +154,10 @@ int main(int argc, char **argv)
 			return 4;
 		}
 
-		size_t consumed = p - line;
-		memmove(line, p + 1, 8192 - consumed - 1);
-		offset = consumed;
+		CONSUME;
 	}
+#undef CONSUME
+#undef MALFORMED
 
 	if (DEBUG) fprintf(stderr, "+>> completed successfully.\n");
 	return 0;
