@@ -1,6 +1,7 @@
 #include "test.h"
 
 TESTS {
+	alarm(5);
 	server_t svr;
 	void *z;
 	pthread_t tid;
