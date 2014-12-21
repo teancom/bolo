@@ -70,6 +70,7 @@ int main(int argc, char **argv)
 	memset(&svr, 0, sizeof(svr));
 	svr.config.listener     = strdup(DEFAULT_LISTENER);
 	svr.config.controller   = strdup(DEFAULT_CONTROLLER);
+	svr.config.broadcast    = strdup(DEFAULT_BROADCAST);
 	svr.config.log_level    = strdup(DEFAULT_LOG_LEVEL);
 	svr.config.log_facility = strdup(DEFAULT_LOG_FACILITY);
 	svr.config.runas_user   = strdup(DEFAULT_RUNAS_USER);
