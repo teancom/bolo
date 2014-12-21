@@ -19,6 +19,7 @@ typedef struct PACKED {
 typedef struct {
 	server_t *server;
 	void     *listener;
+	void     *broadcast;
 } db_manager_t;
 
 static inline const char *statstr(uint8_t s)
@@ -253,19 +254,16 @@ static void dump(db_t *db, const char *file)
 	close(fd);
 }
 
-static int update(db_t *db, uint32_t ts, const char *name, uint8_t code, const char *msg)
+static int update(db_t *db, state_t *state, char *name, uint32_t ts, uint8_t code, const char *msg)
 {
-	if (!name) {
-		logger(LOG_ERR, "db manager unable to update state: no name given");
-		return 0;
+	if (!state) {
+		logger(LOG_ERR, "db manager unable to update NULL state");
+		return -1;
 	}
 	if (!msg) {
 		logger(LOG_ERR, "db manager unable to update state '%s': no summary message given", name);
-		return 0;
+		return -1;
 	}
-
-	state_t *state = hash_get(&db->states, name);
-	if (!state) return -1;
 
 	logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
 
@@ -285,6 +283,11 @@ static void* cleanup_db_manager(void *_)
 		logger(LOG_INFO, "db manager cleaning up; closing listening socket");
 		vzmq_shutdown(db->listener, 500);
 		db->listener = NULL;
+	}
+	if (db->broadcast) {
+		logger(LOG_INFO, "db manager cleaning up; closing broadcast socket");
+		vzmq_shutdown(db->broadcast, 0);
+		db->broadcast = NULL;
 	}
 	if (db->server) {
 		logger(LOG_INFO, "db manager cleaning up; saving final state to %s",
@@ -320,12 +323,22 @@ void* db_manager(void *u)
 		return NULL;
 	}
 
+	db->broadcast = zmq_socket(db->server->zmq, ZMQ_PUB);
+	if (!db->broadcast) {
+		logger(LOG_CRIT, "db manager failed to get a PUB socket");
+		return NULL;
+	}
+	if (zmq_bind(db->broadcast, db->server->config.broadcast) != 0) {
+		logger(LOG_CRIT, "db manager failed to bind to %s", db->server->config.broadcast);
+		return NULL;
+	}
+
 	if (read_state(&db->server->db, db->server->config.savefile) != 0) {
 		logger(LOG_WARNING, "db manager failed to read state from %s: %s",
 				db->server->config.savefile, strerror(errno));
 	}
 
-	pdu_t *q, *a;
+	pdu_t *q, *a, *b = NULL;
 	while ((q = pdu_recv(db->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "db manager received an empty PDU; ignoring");
@@ -337,10 +350,21 @@ void* db_manager(void *u)
 			char *code = pdu_string(q, 3);
 			char *msg  = pdu_string(q, 4);
 
-			if (update(&db->server->db, strtol(ts, NULL, 10), name, atoi(code), msg) == 0)
-				a = pdu_reply(q, "OK", 0);
-			else
+			state_t *state = hash_get(&db->server->db.states, name);
+			if (state) {
+				if (update(&db->server->db, state, name, strtol(ts, NULL, 10), atoi(code), msg) == 0) {
+					a = pdu_reply(q, "OK", 0);
+					b = pdu_make("STATE", 1, name);
+					pdu_extendf(b, "%li", state->last_seen);
+					pdu_extendf(b, "%s",  state->stale ? "stale" : "fresh");
+					pdu_extendf(b, "%s",  statstr(state->status));
+					pdu_extendf(b, "%s",  state->summary);
+				} else {
+					a = pdu_reply(q, "ERROR", 1, "Update Failed");
+				}
+			} else {
 				a = pdu_reply(q, "ERROR", 1, "State Not Found");
+			}
 
 			free(ts);
 			free(name);
@@ -387,6 +411,11 @@ void* db_manager(void *u)
 
 		pdu_send_and_free(a, db->listener);
 		pdu_free(q);
+
+		if (b) {
+			pdu_send_and_free(b, db->broadcast);
+			b = NULL;
+		}
 	}
 
 	pthread_cleanup_pop(1);

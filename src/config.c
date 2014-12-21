@@ -14,6 +14,7 @@
 #define T_KEYWORD_PIDFILE    0x0a
 #define T_KEYWORD_USER       0x0b
 #define T_KEYWORD_GROUP      0x0c
+#define T_KEYWORD_BROADCAST  0x0d
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -87,6 +88,7 @@ getline:
 			*b++ = '\0';
 			KEYWORD("listener",   LISTENER);
 			KEYWORD("controller", CONTROLLER);
+			KEYWORD("broadcast",  BROADCAST);
 			KEYWORD("user",       USER);
 			KEYWORD("group",      GROUP);
 			KEYWORD("pidfile",    PIDFILE);
@@ -175,6 +177,7 @@ int configure(const char *path, server_t *s)
 		switch (p.token) {
 		case T_KEYWORD_LISTENER:   SERVER_STRING(s->config.listener);    break;
 		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller);  break;
+		case T_KEYWORD_BROADCAST:  SERVER_STRING(s->config.broadcast);   break;
 		case T_KEYWORD_USER:       SERVER_STRING(s->config.runas_user);  break;
 		case T_KEYWORD_GROUP:      SERVER_STRING(s->config.runas_group); break;
 		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
@@ -301,6 +304,7 @@ int deconfigure(server_t *s)
 
 	free(s->config.listener);     s->config.listener     = NULL;
 	free(s->config.controller);   s->config.controller   = NULL;
+	free(s->config.broadcast);    s->config.broadcast   = NULL;
 	free(s->config.pidfile);      s->config.savefile     = NULL;
 	free(s->config.runas_user);   s->config.runas_user   = NULL;
 	free(s->config.runas_group);  s->config.runas_group  = NULL;

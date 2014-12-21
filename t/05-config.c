@@ -11,6 +11,7 @@ TESTS {
 			"# network endpoints\n"
 			"listener   tcp://*:4242\n"
 			"controller tcp://*:5555\n"
+			"broadcast  tcp://*:6868\n"
 			"\n"
 			"user       monitor\n"
 			"group      amgs\n"
@@ -48,8 +49,9 @@ TESTS {
 		ok(configure("t/tmp/config", &svr) == 0,
 			"Read configuration from t/tmp/config");
 
-		is(svr.config.controller,    "tcp://*:5555",   "controller set");
 		is(svr.config.listener,      "tcp://*:4242",   "listener set");
+		is(svr.config.controller,    "tcp://*:5555",   "controller set");
+		is(svr.config.broadcast,     "tcp://*:6868",   "broadcast set");
 		is(svr.config.log_level,     "critical",       "log level set");
 		is(svr.config.log_facility,  "daemon",         "log facility set");
 		is(svr.config.runas_user,    "monitor",        "run-as user set");

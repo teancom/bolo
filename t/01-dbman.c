@@ -4,12 +4,13 @@ TESTS {
 	alarm(5);
 	server_t svr;
 	int rc;
-	void *z;
+	void *db_client, *sub;
 	pthread_t tid;
 
 	mkdir("t/tmp", 0755);
 
 	memset(&svr, 0, sizeof(svr));
+	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"
@@ -31,10 +32,16 @@ TESTS {
 	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
 		"failed to spin up db manager thread");
 	sleep_ms(50);
-	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
+	CHECK(db_client = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock db manager test socket");
-	CHECK(zmq_connect(z, DB_MANAGER_ENDPOINT) == 0,
+	CHECK(zmq_connect(db_client, DB_MANAGER_ENDPOINT) == 0,
 		"failed to connect to db manager socket");
+	CHECK(sub = zmq_socket(svr.zmq, ZMQ_SUB),
+		"failed to create mock db subscriber socket");
+	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
+		"failed to set ZMQ_SUBSCRIBE option to '' on db subscriber socket");
+	CHECK(zmq_connect(sub, svr.config.broadcast) == 0,
+		"failed to connect to db publisher socket");
 
 	/* ----------------------------- */
 
@@ -45,10 +52,10 @@ TESTS {
 
 	/* send an invalid PDU */
 	p = pdu_make("@INVALID!", 2, "foo", "bar");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [@INVALID!] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "ERROR", "db manager replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "Invalid PDU", "Error message returned"); free(s);
@@ -56,12 +63,12 @@ TESTS {
 
 	/* get the state of test.state.0 */
 	p = pdu_make("STATE", 1, "test.state.0");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [STATE] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
-	is_string(pdu_type(p), "STATE", "db manager replied with an [OK]");
+	is_string(pdu_type(p), "STATE", "db manager replied with a [STATE]");
 	is_string(s = pdu_string(p, 1), "test.state.0",    "STATE[0] is state name"); free(s);
 	is_string(s = pdu_string(p, 2), "1418870107",      "STATE[1] is last seen ts"); free(s);
 	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness boolean"); free(s);
@@ -71,10 +78,10 @@ TESTS {
 
 	/* send test.state.3 (not configured) initial ok */
 	p = pdu_make("UPDATE", 4, ts, "test.state.3", "0", "NEW");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [UPDATE] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "ERROR", "db manager replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
@@ -83,31 +90,51 @@ TESTS {
 
 	/* send test.state.0 initial ok */
 	p = pdu_make("UPDATE", 4, ts, "test.state.0", "0", "all good");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [UPDATE] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "OK", "db manager replied with an [OK]");
 	pdu_free(p);
 
+	/* check the publisher pipeline */
+	p = pdu_recv(sub);
+	is_string(pdu_type(p), "STATE", "db broadcast a [STATE] PDU");
+	is_string(s = pdu_string(p, 1), "test.state.0", "STATE[0] is state name");   free(s);
+	is_string(s = pdu_string(p, 2), ts,             "STATE[1] is last seen ts"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",        "STATE[2] is freshness");    free(s);
+	is_string(s = pdu_string(p, 4), "OK",           "STATE[3] is status");       free(s);
+	is_string(s = pdu_string(p, 5), "all good",     "STATE[4] is summary");      free(s);
+	pdu_free(p);
+
 	/* send test.state.1 initial crit */
 	p = pdu_make("UPDATE", 4, ts, "test.state.1", "2", "critically-ness");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent 2nd [UPDATE] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "OK", "db manager replied with an [OK]");
+	pdu_free(p);
+
+	/* check the publisher pipeline */
+	p = pdu_recv(sub);
+	is_string(pdu_type(p), "STATE", "db broadcast a [STATE] PDU");
+	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name");   free(s);
+	is_string(s = pdu_string(p, 2), ts,                "STATE[1] is last seen ts"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness");    free(s);
+	is_string(s = pdu_string(p, 4), "CRITICAL",        "STATE[3] is status");       free(s);
+	is_string(s = pdu_string(p, 5), "critically-ness", "STATE[4] is summary");      free(s);
 	pdu_free(p);
 
 	/* dump the state file (to /t/tmp/dump.test) */
 	unlink("t/tmp/dump.test");
 	p = pdu_make("DUMP", 1, "test");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [DUMP] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "DUMP", "db manager replied with a [DUMP]");
 	is_string(s = pdu_string(p, 1), "t/tmp/dump.test", "[DUMP] reply returned file path"); free(s);
@@ -130,10 +157,10 @@ TESTS {
 
 	/* get state of test.state.1 via [STATE] */
 	p = pdu_make("STATE", 1, "test.state.1");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [STATE] query to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "STATE", "db manager replied with a [STATE]");
 	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name"); free(s);
@@ -145,10 +172,10 @@ TESTS {
 
 	/* get non-existent state via [STATE] */
 	p = pdu_make("STATE", 1, "fail.enoent//0");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [STATE] query to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "ERROR", "db manager replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
@@ -156,10 +183,10 @@ TESTS {
 
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 1, "test");
-	rc = pdu_send_and_free(p, z);
+	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [SAVESTATE] PDU to db manager");
 
-	p = pdu_recv(z);
+	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from db manager");
 	is_string(pdu_type(p), "OK", "db manager replied with a [SAVESTATE]");
 	pdu_free(p);

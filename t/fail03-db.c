@@ -9,6 +9,7 @@ TESTS {
 
 	mkdir("t/tmp", 0755);
 	memset(&svr, 0, sizeof(svr));
+	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	unlink(svr.config.savefile = "t/tmp/save");
 

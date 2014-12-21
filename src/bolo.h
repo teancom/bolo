@@ -26,6 +26,7 @@
 
 #define DEFAULT_LISTENER     "tcp://*:2999"
 #define DEFAULT_CONTROLLER   "tcp://127.0.0.1:2998"
+#define DEFAULT_BROADCAST    "tcp://*:2997"
 #define DEFAULT_LOG_LEVEL    "error"
 #define DEFAULT_LOG_FACILITY "daemon"
 #define DEFAULT_RUNAS_USER   "bolo"
@@ -63,6 +64,7 @@ typedef struct {
 	struct {
 		char     *listener;
 		char     *controller;
+		char     *broadcast;
 
 		char     *log_level;
 		char     *log_facility;

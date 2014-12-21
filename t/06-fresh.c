@@ -7,6 +7,7 @@ TESTS {
 	mkdir("t/tmp", 0755);
 	write_file("t/tmp/config",
 		"# sample test config\n"
+		"broadcast inproc://bcast\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		"savefile  t/tmp/save\n"
 		"type :local { freshness 1 critical \"no results!!!\"\n}\n"
