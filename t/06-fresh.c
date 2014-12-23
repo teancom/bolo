@@ -20,9 +20,9 @@ TESTS {
 
 	write_file(svr.config.savefile,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"
-		"\0%T\x92=[\2\0test.state.1\0critically-ness\0"
-		"\0%T\x92=[\1\0test.state.0\0its problematic\0"
-		"\0\0", 92);
+		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"
+		"\0'\0\1T\x92=[\1\0test.state.0\0its problematic\0"
+		"\0\0", 96);
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

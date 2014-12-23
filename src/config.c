@@ -259,6 +259,7 @@ int configure(const char *path, server_t *s)
 
 			state = calloc(1, sizeof(state_t));
 			hash_set(&s->db.states, p.value, state);
+			state->name    = strdup(p.value);
 			state->type    = type;
 			state->status  = PENDING;
 			state->expiry  = type->freshness + time_s();
@@ -290,6 +291,7 @@ int deconfigure(server_t *s)
 
 	state_t *state;
 	for_each_key_value(&s->db.states, name, state) {
+		free(state->name);
 		free(state->summary);
 		free(state);
 	}

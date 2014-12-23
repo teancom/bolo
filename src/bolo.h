@@ -49,6 +49,7 @@ typedef struct {
 
 typedef struct {
 	type_t   *type;
+	char     *name;
 	int32_t   last_seen;
 	int32_t   expiry;
 	uint8_t   status;
@@ -58,16 +59,19 @@ typedef struct {
 
 typedef struct {
 	window_t *window;
+	char     *name;
 	int32_t   last_seen;
 	uint64_t  value;
 } counter_t;
 
 typedef struct {
 	window_t *window;
+	char     *name;
 	int32_t   last_seen;
 	uint64_t  n;
 	double    min;
 	double    max;
+	double    sum;
 	double    mean, mean_;
 	double    var,  var_;
 } sample_t;

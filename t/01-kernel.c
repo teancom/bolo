@@ -13,17 +13,17 @@ TESTS {
 	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",
-		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"
-		"\0%T\x92=[\2\0test.state.1\0critically-ness\0"
-		"\0%T\x92=[\1\0test.state.0\0its problematic\0"
-		"\0\0", 92);
+		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"                     /* 16 */
+		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"  /* 39 */
+		"\0'\0\1T\x92=[\1\0test.state.0\0its problematic\0"  /* 39 */
+		"\0\0", 94 + 2);
 	type_t type_default = {
 		.freshness = 60,
 		.status    = WARNING,
 		.summary   = "it is stale",
 	};
-	state_t state0 = { .type = &type_default };
-	state_t state1 = { .type = &type_default };
+	state_t state0 = { .type = &type_default, .name = "test.state.0" };
+	state_t state1 = { .type = &type_default, .name = "test.state.1" };
 	hash_set(&svr.db.states, "test.state.0", &state0);
 	hash_set(&svr.db.states, "test.state.1", &state1);
 
@@ -191,32 +191,34 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(83, sizeof(char));
+	s = calloc(87, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4 */
 	          "\0\1"     /* H:version    +2 */
 	          "\0\0"     /* H:flags      +2 */
 	          "...."     /* H:timestamp  +4 (to be filled in later) */
 	          "\0\0\0\2" /* H:count      +4 */              /* +16 */
 
-	          "\0\x1e"   /* 0:len        +2 */
+	          "\0\x20"   /* 0:len        +2 */
+	          "\0\1"     /* 0:flags      +2 */
 	          "...."     /* 0:last_seen  +4 (to be filled in later) */
 	          "\0"       /* 0:status     +1 */
-	          "\0"       /* 0:stale      +1 */          /* +16 +8 */
-	          "test.state.0\0"
-	          "all good\0"                           /* +16 +30 */
+	          "\0"       /* 0:stale      +1 */
+	          "test.state.0\0"       /* +13 */
+	          "all good\0"           /*  +9 */              /* +32 */
 
-	          "\0\x25"   /* 1:len        +2 */
+	          "\0\x27"   /* 1:len        +2 */
+	          "\0\1"     /* 1:flags      +2 */
 	          "...."     /* 1:last_seen  +4 (to be filled in later) */
 	          "\2"       /* 1:status     +1 */
 	          "\0"       /* 1:stale      +1 */
-	          "test.state.1\0"
-	          "critically-ness\0"
-	          "", 83);
-	*(uint32_t*)(s+4+2+2)  = htonl(time);
-	*(uint32_t*)(s+16+2)   = htonl(time);
-	*(uint32_t*)(s+16+30+2) = htonl(time);
+	          "test.state.1\0"       /* +13 */
+	          "critically-ness\0"    /* +16 */              /* +39 */
+	          "", 87);
+	*(uint32_t*)(s+4+2+2)     = htonl(time);
+	*(uint32_t*)(s+16+2+2)    = htonl(time);
+	*(uint32_t*)(s+16+32+2+2) = htonl(time);
 
-	binfile_is("t/tmp/save", s, 83,
+	binfile_is("t/tmp/save", s, 87,
 		"save file (binary)"); free(s);
 
 	/* ----------------------------- */

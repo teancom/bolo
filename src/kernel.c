@@ -1,6 +1,39 @@
 #include "bolo.h"
 #include <arpa/inet.h>
 
+#define RECORD_TYPE_MASK  0x000f
+#define RECORD_TYPE_STATE    0x1
+#define RECORD_TYPE_COUNTER  0x2
+#define RECORD_TYPE_SAMPLE   0x3
+
+#define binf_record_type(b) ((b)->flags & RECORD_TYPE_MASK)
+
+static uint64_t htonll(uint64_t x)
+{
+	union {
+		uint64_t u64;
+		uint32_t u32[2];
+	} h, n;
+
+	h.u64 = x;
+	n.u32[0] = htonl(h.u32[1]);
+	n.u32[1] = htonl(h.u32[0]);
+	return n.u64;
+}
+
+static uint64_t ntohll(uint64_t x)
+{
+	union {
+		uint64_t u64;
+		uint32_t u32[2];
+	} h, n;
+
+	n.u64 = x;
+	h.u32[0] = ntohl(n.u32[1]);
+	h.u32[1] = ntohl(n.u32[0]);
+	return h.u64;
+}
+
 typedef struct PACKED {
 	uint32_t  magic;
 	uint16_t  version;
@@ -11,10 +44,31 @@ typedef struct PACKED {
 
 typedef struct PACKED {
 	uint16_t  len;
+	uint16_t  flags;
+} binf_record_t;
+
+typedef struct PACKED {
 	uint32_t  last_seen;
 	 uint8_t  status;
 	 uint8_t  stale;
-} binf_record_t;
+} binf_state_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  value;
+} binf_counter_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  n;
+	double    min;
+	double    max;
+	double    sum;
+	double    mean;
+	double    mean_;
+	double    var;
+	double    var_;
+} binf_sample_t;
 
 typedef struct {
 	server_t *server;
@@ -28,13 +82,257 @@ static inline const char *statstr(uint8_t s)
 	return names[s > 3 ? 3 : s];
 }
 
+static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
+{
+	binf_record_t record;
+	union {
+		binf_state_t   state;
+		binf_counter_t counter;
+		binf_sample_t  sample;
+	} body;
+	union {
+		void      *unknown;
+		state_t   *state;
+		counter_t *counter;
+		sample_t  *sample;
+	} payload;
+	size_t n, want, so_far = 0;
+	const char *s;
+
+	payload.unknown = _;
+
+	record.len   = sizeof(record);
+	record.flags = type;
+	switch (type) {
+	case RECORD_TYPE_STATE:
+		record.len += sizeof(body.state);
+		record.len += strlen(payload.state->name)    + 1;
+		record.len += strlen(payload.state->summary) + 1;
+		break;
+
+	case RECORD_TYPE_COUNTER:
+		record.len += sizeof(body.counter);
+		record.len += strlen(payload.counter->name) + 1;
+		break;
+
+	case RECORD_TYPE_SAMPLE:
+		record.len += sizeof(body.sample);
+		record.len += strlen(payload.sample->name) + 1;
+		break;
+
+	default:
+		return -1;
+	}
+
+	if (len)
+		*len = record.len;
+
+	record.len   = htons(record.len);
+	record.flags = htons(type);
+
+	n = write(fd, &record, sizeof(record));
+	so_far += n;
+	if (n != sizeof(record))
+		return n;
+
+	switch (type) {
+	case RECORD_TYPE_STATE:
+		body.state.last_seen = htonl(payload.state->last_seen);
+		body.state.status    = payload.state->status;
+		body.state.stale     = payload.state->stale;
+
+		n = write(fd, &body.state, want = sizeof(body.state));
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		s = payload.state->name;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		s = payload.state->summary;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		break;
+
+	case RECORD_TYPE_COUNTER:
+		body.counter.last_seen = htonl(payload.counter->last_seen);
+		body.counter.value     = htonll(payload.counter->value);
+
+		n = write(fd, &body.counter, want = sizeof(body.counter));
+		so_far += n;
+		if (n != want)
+			return so_far;
+
+		s = payload.counter->name;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want)
+			return so_far;
+
+		break;
+
+	case RECORD_TYPE_SAMPLE:
+		body.sample.last_seen = htonl(payload.sample->last_seen);
+		body.sample.min       = htonl(payload.sample->min);
+		body.sample.max       = htonl(payload.sample->max);
+		body.sample.sum       = htonl(payload.sample->sum);
+		body.sample.mean      = htonl(payload.sample->mean);
+		body.sample.mean_     = htonl(payload.sample->mean_);
+		body.sample.var       = htonl(payload.sample->var);
+		body.sample.var_      = htonl(payload.sample->var_);
+
+		n = write(fd, &body.sample, sizeof(body.sample));
+		so_far += n;
+		if (n != sizeof(body.sample))
+			return so_far;
+
+		s = payload.sample->name;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want)
+			return so_far;
+
+		break;
+
+	default:
+		return -1;
+	}
+
+	return 0;
+}
+
+static int read_record(int fd, uint8_t *type, void **r)
+{
+	binf_record_t record;
+	union {
+		binf_state_t   state;
+		binf_counter_t counter;
+		binf_sample_t  sample;
+	} body;
+	union {
+		void      *unknown;
+		state_t   *state;
+		counter_t *counter;
+		sample_t  *sample;
+	} payload;
+	size_t n, want;
+	char buf[4096], *p;
+
+	n = read(fd, &record, sizeof(record));
+	if (n != sizeof(record))
+		return 1;
+
+	record.len   = ntohs(record.len);
+	record.flags = ntohs(record.flags);
+	if (type)
+		*type = binf_record_type(&record);
+
+	switch (binf_record_type(&record)) {
+	case RECORD_TYPE_STATE:
+		payload.state = calloc(1, sizeof(state_t));
+
+		n = read(fd, &body.state, want = sizeof(body.state));
+		if (n != want)
+			return 1;
+
+		payload.state->last_seen = ntohl(body.state.last_seen);
+		payload.state->status    = body.state.status;
+		payload.state->stale     = body.state.stale;
+
+		want = record.len - sizeof(record) - sizeof(body.state);
+		if (want > 4095)
+			return 1;
+		n = read(fd, buf, want);
+		if (n != want)
+			return 1;
+		buf[n] = '\0';
+		for (p = buf; *p++; );
+		if (p - buf + 1 == want)
+			return 1;
+		payload.state->name    = strdup(buf);
+		payload.state->summary = strdup(p);
+
+		*r = payload.state;
+		return 0;
+
+	case RECORD_TYPE_COUNTER:
+		payload.counter = calloc(1, sizeof(counter_t));
+
+		n = read(fd, &body.counter, want = sizeof(body.counter));
+		if (n != want)
+			return 1;
+
+		payload.counter->last_seen = ntohl(body.counter.last_seen);
+		payload.counter->value     = ntohll(body.counter.value);
+
+		want = record.len - sizeof(record) - sizeof(body.counter);
+		if (want > 4095)
+			return 1;
+		n = read(fd, buf, want);
+		if (n != want)
+			return 1;
+		buf[n] = '\0';
+		payload.counter->name = strdup(buf);
+
+		*r = payload.counter;
+		return 0;
+
+	case RECORD_TYPE_SAMPLE:
+		payload.sample = calloc(1, sizeof(sample_t));
+
+		n = read(fd, &body.sample, want = sizeof(body.sample));
+		if (n != want)
+			return 1;
+
+		payload.sample->last_seen = ntohl(body.sample.last_seen);
+		payload.sample->n         = ntohl(body.sample.n);
+		payload.sample->min       = ntohl(body.sample.min);
+		payload.sample->max       = ntohl(body.sample.max);
+		payload.sample->sum       = ntohl(body.sample.sum);
+		payload.sample->mean      = ntohl(body.sample.mean);
+		payload.sample->mean_     = ntohl(body.sample.mean_);
+		payload.sample->var       = ntohl(body.sample.var);
+		payload.sample->var_      = ntohl(body.sample.var_);
+
+		want = record.len - sizeof(record) - sizeof(body.sample);
+		if (want > 4095)
+			return 1;
+		n = read(fd, buf, want);
+		if (n != want)
+			return 1;
+		buf[n] = '\0';
+		payload.sample->name = strdup(buf);
+
+		*r = payload.sample;
+		return 0;
+
+	default:
+		return 1;
+	}
+
+	return 1;
+}
+
 static int save_state(db_t *db, const char *file)
 {
 	binf_header_t header;
-	binf_record_t record;
-	char *name; state_t *state;
-	int i;
-	size_t n;
+
+	state_t   *state;
+	counter_t *counter;
+	sample_t  *sample;
+
+	char *name;
+	int i, n;
+	ssize_t len;
 
 	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0640);
 	if (fd < 0) {
@@ -45,15 +343,16 @@ static int save_state(db_t *db, const char *file)
 
 	logger(LOG_NOTICE, "saving db state to %s", file);
 
+	memset(&header, 0, sizeof(header));
 	memcpy(&header.magic, "BOLO", 4);
 	header.version   = htons(1);
 	header.flags     = 0;
 	header.timestamp = htonl((uint32_t)time_s());
 
-	/* FIXME: need a hash_len(&h) in libvigor */
 	header.count = 0;
-	for_each_key_value(&db->states, name, state)
-		header.count++;
+	for_each_key_value(&db->states,   name, state)   header.count++;
+	for_each_key_value(&db->counters, name, counter) header.count++;
+	for_each_key_value(&db->samples,  name, sample)  header.count++;
 	header.count = htonl(header.count);
 
 	logger(LOG_INFO, "writing %i bytes for the binary file header", sizeof(header));
@@ -66,38 +365,36 @@ static int save_state(db_t *db, const char *file)
 	}
 	i = 1;
 	for_each_key_value(&db->states, name, state) {
-		size_t l_name    = strlen(name)           + 1;
-		size_t l_summary = strlen(state->summary) + 1;
-		record.len       = htons(sizeof(record) + l_name + l_summary);
-		record.last_seen = htonl(state->last_seen);
-		record.status    = state->status;
-		record.stale     = state->stale;
-
-		size_t so_far    = 0;
-		n = write(fd, &record, sizeof(record));
-		if (n != sizeof(record)) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
-				so_far + n, record.len, i, name, file);
+		n = write_record(fd, &len, RECORD_TYPE_STATE, state);
+		if (n != 0) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for state record #%i (%s); savefile %s is probably corrupt now",
+				n, len, i, name, file);
 			close(fd);
 			return -1;
 		}
-		so_far += n;
-		n = write(fd, name, l_name);
-		if (n != l_name) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
-				so_far + n, record.len, i, name, file);
+		logger(LOG_INFO, "wrote %i of %i bytes for counter record #%i (%s)", n, len, i, name);
+		i++;
+	}
+	for_each_key_value(&db->counters, name, counter) {
+		n = write_record(fd, &len, RECORD_TYPE_COUNTER, counter);
+		if (n != 0) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for counter record #%i (%s); savefile %s is probably corrupt now",
+				n, len, i, name, file);
 			close(fd);
 			return -1;
 		}
-		so_far += n;
-		n = write(fd, state->summary, l_summary);
-		if (n != l_summary) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for record #%i (%s); savefile %s is probably corrupt now",
-				so_far + n, record.len, i, name, file);
+		logger(LOG_INFO, "wrote %i of %i bytes for counter record #%i (%s)", n, len, i, name);
+		i++;
+	}
+	for_each_key_value(&db->samples, name, sample) {
+		n = write_record(fd, &len, RECORD_TYPE_SAMPLE, sample);
+		if (n != 0) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for samples record #%i (%s); savefile %s is probably corrupt now",
+				n, len, i, name, file);
 			close(fd);
 			return -1;
 		}
-		logger(LOG_INFO, "wrote %i of %i bytes for record #%i (%s)", so_far + n, i, name, name);
+		logger(LOG_INFO, "wrote %i of %i bytes for samples record #%i (%s)", n, len, i, name);
 		i++;
 	}
 	logger(LOG_INFO, "done writing savefile %s", file);
@@ -108,9 +405,14 @@ static int save_state(db_t *db, const char *file)
 static int read_state(db_t *db, const char *file)
 {
 	binf_header_t header;
-	binf_record_t record;
-	ssize_t n;
-	int i;
+	union {
+		void      *unknown;
+		state_t   *state;
+		counter_t *counter;
+		sample_t  *sample;
+	} payload, found;
+	int i, n;
+	uint8_t type;
 
 	int fd = open(file, O_RDONLY);
 	if (fd < 0) {
@@ -150,50 +452,75 @@ static int read_state(db_t *db, const char *file)
 	}
 
 	for (i = 1; i <= header.count; i++) {
-		logger(LOG_INFO, "reading state record #%i from savefile", i);
+		logger(LOG_INFO, "reading record #%i from savefile", i);
 
-		n = read(fd, &record, sizeof(record));
-		if (n != sizeof(record)) {
-			logger(LOG_ERR, "%s: only read %i bytes of record #%i, expected to read %i",
-				file, n, sizeof(record));
+		if (read_record(fd, &type, &payload.unknown) != 0) {
+			logger(LOG_ERR, "%s: failed to read all of record #%i", file, i);
 			close(fd);
 			return -1;
 		}
 
-		record.len       = ntohs(record.len);
-		record.last_seen = ntohl(record.last_seen);
-		if (record.len == 0 || record.len < sizeof(binf_record_t)) {
-			logger(LOG_ERR, "%s: record #%i reports an invalid length of %u; is the savefile corrupt?",
-				file, i, record.len);
-			close(fd);
-			return -1;
-		}
+		switch (type) {
+		case RECORD_TYPE_STATE:
+			if ((found.state = hash_get(&db->states, payload.state->name)) != NULL) {
+				free(found.state->summary);
+				found.state->summary   = payload.state->summary;
+				found.state->last_seen = payload.state->last_seen;
+				found.state->status    = payload.state->status;
+				found.state->stale     = payload.state->stale;
 
-		size_t rest = record.len - sizeof(binf_record_t);
-		char *strings = calloc(rest, sizeof(char));
-		n = read(fd, strings, rest);
-		if (n != rest) {
-			logger(LOG_ERR, "%s: only read %i of %i bytes for record #%i payload, is the savefile corrupt?",
-				file, n, rest, i);
-			free(strings);
-			close(fd);
-			return -1;
-		}
+			} else {
+				logger(LOG_INFO, "state %s not found in configuration, skipping", payload.state->name);
+				free(payload.state->summary);
+			}
 
-		logger(LOG_INFO, "read record #%i (%s)", i, strings);
-		state_t *s = hash_get(&db->states, strings);
-		if (s) {
-			free(s->summary);
-			s->summary   = strdup(strings + strlen(strings) + 1);
-			s->last_seen = record.last_seen;
-			s->status    = record.status;
-			s->stale     = record.stale;
-		} else {
-			logger(LOG_INFO, "state %s not found in configuration, skipping", strings);
+			free(payload.state->name);
+			free(payload.state);
+			payload.state = NULL;
+			break;
+
+		case RECORD_TYPE_COUNTER:
+			if ((found.counter = hash_get(&db->counters, payload.counter->name)) != NULL) {
+				found.counter->last_seen = payload.counter->last_seen;
+				found.counter->value     = payload.counter->value;
+
+			} else {
+				logger(LOG_INFO, "counter %s not found in configuration, skipping", payload.counter->name);
+			}
+
+			free(payload.counter->name);
+			free(payload.counter);
+			payload.counter = NULL;
+			break;
+
+		case RECORD_TYPE_SAMPLE:
+			if ((found.sample = hash_get(&db->samples, payload.sample->name)) != NULL) {
+				found.sample->last_seen = payload.sample->last_seen;
+				found.sample->n         = payload.sample->n;
+				found.sample->min       = payload.sample->min;
+				found.sample->max       = payload.sample->max;
+				found.sample->sum       = payload.sample->sum;
+				found.sample->mean      = payload.sample->mean;
+				found.sample->mean_     = payload.sample->mean_;
+				found.sample->var       = payload.sample->var;
+				found.sample->var_      = payload.sample->var_;
+
+			} else {
+				logger(LOG_INFO, "sample %s not found in configuration, skipping", payload.sample->name);
+			}
+
+			free(payload.sample->name);
+			free(payload.sample);
+			payload.sample = NULL;
+			break;
+
+		default:
+			logger(LOG_ERR, "unknown record type %02x found!", type);
+			close(fd);
+			return 1;
 		}
-		free(strings);
 	}
-	logger(LOG_INFO, "done writing savefile %s", file);
+	logger(LOG_INFO, "done reading savefile %s", file);
 	close(fd);
 	return 0;
 }
