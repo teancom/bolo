@@ -44,6 +44,10 @@ typedef struct {
 } type_t;
 
 typedef struct {
+	uint32_t  time;
+} window_t;
+
+typedef struct {
 	type_t   *type;
 	int32_t   last_seen;
 	int32_t   expiry;
@@ -53,8 +57,28 @@ typedef struct {
 } state_t;
 
 typedef struct {
+	window_t *window;
+	int32_t   last_seen;
+	uint64_t  value;
+} counter_t;
+
+typedef struct {
+	window_t *window;
+	int32_t   last_seen;
+	uint64_t  n;
+	double    min;
+	double    max;
+	double    mean, mean_;
+	double    var,  var_;
+} sample_t;
+
+typedef struct {
 	hash_t  states;
+	hash_t  counters;
+	hash_t  samples;
+
 	hash_t  types;
+	hash_t  windows;
 } db_t;
 
 typedef struct {
