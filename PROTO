@@ -12,53 +12,91 @@
                        --------------------------------------
 
    Architecture:
-                                                           .----------------------
-                                                          /
-                                              [STATE]    /        (clients)
-                                          .------------>         tcp://*:2997
-                                          |   [EVENT]    \    PUB/SUB BROADCAST
-                                          |               \
-                                          |                '----------------------
-                                          |
-   ------------------.                    |                    .------------------
-                     |           .-----------------.           |
-        LISTENER     | [UPDATE]  |    db manager   |  [STATE]  |    CONTROLLER
-      tcp://*:2999   |---------->|   inproc://db   |<----------|   tcp://*:2998
-                     |           '-----------------'  [DUMP]   |
-   ------------------'                    ^                    '------------------
-                                          |
-                                          |  [CHECKFRESH]
-                                          |  [SAVESTATE]
-                                          |
-                                 .-----------------.
-                                 |    scheduler    |
-                                 '-----------------'
+
+                                            [STATE]
+                                            [EVENT]      .----------------------
+   ----------------.                        [COUNTER]   /
+                   |                        [SAMPLE]   /        (clients)
+     NSCA gateway  |                       .--------->         tcp://*:2997
+       TCP/5667    |------.                |           \    PUB/SUB BROADCAST
+                   |      | [STATE]        |            \
+   ----------------'      | [COUNTER]      |             '----------------------
+                          | [SAMPLE]       |
+   ----------------.      |                |          [GET.STATE]    .----------------
+                   |      |    .-------------------.  [GET.COUNTER]  |
+       LISTENER    |      |    |      kernel       |  [GET.STATE]    |   CONTROLLER
+     tcp://*:2999  |------'--->|  inproc://kernel  |<----------------|  tcp://*:2998
+                   |           '-------------------'  [DUMP]         |
+   ----------------'                    ^                            '----------------
+                                        |  [TICK]
+                                        |  [CHECKFRESH]
+                                        |  [SAVESTATE]
+                                        |
+                               .-----------------.
+                               |    scheduler    |
+                               '-----------------'
 
    Threads:
-     1. listener   - Handles inbound state result submission
-     2. controller - Handles inbound control messages, like STAT/DUMP
-     3. db manager - Manages the internal database
-     4. scheduler  - Issues timed commands to the db manager
+     1. listener     - Handles inbound state/counter/sample result submission
+     2. NSCA gateway - Demuxes inbound NSCA packets into state/sample results
+     3. controller   - Handles inbound control messages, like DUMP
+     4. kernel       - Manages the internal database / broadcast events
+     5. scheduler    - Issues timed commands (a la interrupts) to the kernel
 
 
    PDUs:
 
      ---------------------------------------------------------------------------
 
-     UPDATE                OK                ; update the named state, with a
+     STATE                 OK                ; update the named state, with a
      <TIMESTAMP>                             ; new status code and summary
-     <STATE-NAME>                            ; message, in response to data
+     <NAME>                                  ; message, in response to data
      <NUMERIC-CODE>                          ; submitted by monitored systems.
      <SUMMARY MSG>
 
      ---------------------------------------------------------------------------
 
-     STATE                 STATE             ; retrieve a single stat, by name
-     <STATE-NAME>          <STATE-NAME>      ; from the current database
+     COUNTER               OK                ; increment a counter
+     <TIMESTAMP>
+     <NAME>
+     <INCREMENT>
+
+     ---------------------------------------------------------------------------
+
+     SAMPLE                OK                ; update a sample set with an
+     <TIMESTAMP>                             ; arbitrary number of new samples,
+     <NAME>                                  ; recalculating min/max/mean/variance
+     <COUNT>                                 ; as necessary
+     <SAMPLE 1>
+     ...
+     <SAMPLE N>
+
+     ---------------------------------------------------------------------------
+
+     GET.STATE             STATE             ; retrieve a single state, by name,
+     <NAME>                <NAME>            ; from the current database
                            <LAST-SEEN>
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
                            <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     GET.COUNTER           COUNTER           ; retrieve a single counter, by name,
+     <NAME>                <NAME>            ; from the database
+                           <LAST-SEEN>
+                           <VALUE>
+
+     ---------------------------------------------------------------------------
+
+     GET.SAMPLE            SAMPLE            ; retrieve a single counter, by name,
+     <NAME>                <NAME>            ; from the database
+                           <LAST-SEEN>
+                           <COUNT>
+                           <MINIMUM>
+                           <MAXIMUM>
+                           <MEAN>
+                           <VARIANCE>
 
      ---------------------------------------------------------------------------
 
@@ -68,12 +106,18 @@
 
      ---------------------------------------------------------------------------
 
-     CHECKFRESH            OK                ; prompts the db manager to assess
+     TICK                  OK                ; fired every interval.  used by the
+                                             ; kernel for closing out sample and
+                                             ; counter windows.
+
+     ---------------------------------------------------------------------------
+
+     CHECKFRESH            OK                ; prompts the kernel to assess the
                                              ; freshness of all tracked states
 
      ---------------------------------------------------------------------------
 
-     SAVESTATE             OK                ; prompts the db manager to write
+     SAVESTATE             OK                ; prompts the kernel to write the
                                              ; current state to a binary file
                                              ; that it can re-read on next boot
 
