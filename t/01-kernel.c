@@ -29,7 +29,7 @@ TESTS {
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
+	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
 		"failed to spin up kernel thread");
 	sleep_ms(50);
 	CHECK(db_client = zmq_socket(svr.zmq, ZMQ_DEALER),

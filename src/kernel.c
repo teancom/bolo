@@ -20,7 +20,7 @@ typedef struct {
 	server_t *server;
 	void     *listener;
 	void     *broadcast;
-} db_manager_t;
+} kernel_t;
 
 static inline const char *statstr(uint8_t s)
 {
@@ -276,9 +276,9 @@ static int update(db_t *db, state_t *state, char *name, uint32_t ts, uint8_t cod
 	return 0;
 }
 
-static void* cleanup_db_manager(void *_)
+static void* cleanup_kernel(void *_)
 {
-	db_manager_t *db = (db_manager_t*)_;
+	kernel_t *db = (kernel_t*)_;
 	if (db->listener) {
 		logger(LOG_INFO, "kernel cleaning up; closing listening socket");
 		vzmq_shutdown(db->listener, 500);
@@ -302,10 +302,10 @@ static void* cleanup_db_manager(void *_)
 	return NULL;
 }
 
-void* db_manager(void *u)
+void* kernel(void *u)
 {
-	db_manager_t *db = calloc(1, sizeof(db_manager_t));
-	pthread_cleanup_push(cleanup_db_manager, db);
+	kernel_t *db = calloc(1, sizeof(kernel_t));
+	pthread_cleanup_push(cleanup_kernel, db);
 
 	db->server = (server_t*)u;
 	if (!db->server) {

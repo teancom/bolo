@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	rc = pthread_create(&tid_db, NULL, db_manager, &svr);
+	rc = pthread_create(&tid_db, NULL, kernel, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up database manager thread\nAborting...\n");
 		return 2;

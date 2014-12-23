@@ -17,7 +17,7 @@ TESTS {
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
+	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
 		"failed to spin up kernel thread");
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock kernel test socket");

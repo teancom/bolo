@@ -28,7 +28,7 @@ TESTS {
 		"failed to create a new 0MQ context");
 
 	pthread_t tid;
-	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
+	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
 		"failed to spin up kernel thread");
 	sleep_ms(50);
 
