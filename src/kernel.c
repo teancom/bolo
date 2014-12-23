@@ -323,6 +323,10 @@ void* db_manager(void *u)
 		return NULL;
 	}
 
+	if (!db->server->config.broadcast) {
+		logger(LOG_CRIT, "kernel failed: no broadcast bind address specified");
+		return NULL;
+	}
 	db->broadcast = zmq_socket(db->server->zmq, ZMQ_PUB);
 	if (!db->broadcast) {
 		logger(LOG_CRIT, "kernel failed to get a PUB socket");
@@ -333,6 +337,10 @@ void* db_manager(void *u)
 		return NULL;
 	}
 
+	if (!db->server->config.savefile) {
+		logger(LOG_CRIT, "kernel failed: no savefile provided");
+		return NULL;
+	}
 	if (read_state(&db->server->db, db->server->config.savefile) != 0) {
 		logger(LOG_WARNING, "kernel failed to read state from %s: %s",
 				db->server->config.savefile, strerror(errno));
