@@ -68,7 +68,7 @@ void* listener(void *u)
 			char *code = pdu_string(q, 2);
 			char *msg  = pdu_string(q, 3);
 
-			pdu_send_and_free(pdu_make("UPDATE", 4, ts, name, code, msg), l->client);
+			pdu_send_and_free(pdu_make("PUT.STATE", 4, ts, name, code, msg), l->client);
 			a = pdu_reply(q, "OK", 0);
 
 			free(ts);

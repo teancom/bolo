@@ -62,9 +62,9 @@ TESTS {
 	pdu_free(p);
 
 	/* get the state of test.state.0 */
-	p = pdu_make("STATE", 1, "test.state.0");
+	p = pdu_make("GET.STATE", 1, "test.state.0");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent [STATE] PDU to kernel");
+	is_int(rc, 0, "sent [GET.STATE] PDU to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -77,9 +77,9 @@ TESTS {
 	pdu_free(p);
 
 	/* send test.state.3 (not configured) initial ok */
-	p = pdu_make("UPDATE", 4, ts, "test.state.3", "0", "NEW");
+	p = pdu_make("PUT.STATE", 4, ts, "test.state.3", "0", "NEW");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent [UPDATE] PDU to kernel");
+	is_int(rc, 0, "sent [PUT.STATE] PDU to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -89,9 +89,9 @@ TESTS {
 
 
 	/* send test.state.0 initial ok */
-	p = pdu_make("UPDATE", 4, ts, "test.state.0", "0", "all good");
+	p = pdu_make("PUT.STATE", 4, ts, "test.state.0", "0", "all good");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent [UPDATE] PDU to kernel");
+	is_int(rc, 0, "sent [PUT.STATE] PDU to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -109,9 +109,9 @@ TESTS {
 	pdu_free(p);
 
 	/* send test.state.1 initial crit */
-	p = pdu_make("UPDATE", 4, ts, "test.state.1", "2", "critically-ness");
+	p = pdu_make("PUT.STATE", 4, ts, "test.state.1", "2", "critically-ness");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent 2nd [UPDATE] PDU to kernel");
+	is_int(rc, 0, "sent 2nd [PUT.STATE] PDU to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -156,9 +156,9 @@ TESTS {
 		"dumped YAML file"); free(s);
 
 	/* get state of test.state.1 via [STATE] */
-	p = pdu_make("STATE", 1, "test.state.1");
+	p = pdu_make("GET.STATE", 1, "test.state.1");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent [STATE] query to kernel");
+	is_int(rc, 0, "sent [GET.STATE] query to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -171,9 +171,9 @@ TESTS {
 	pdu_free(p);
 
 	/* get non-existent state via [STATE] */
-	p = pdu_make("STATE", 1, "fail.enoent//0");
+	p = pdu_make("GET.STATE", 1, "fail.enoent//0");
 	rc = pdu_send_and_free(p, db_client);
-	is_int(rc, 0, "sent [STATE] query to kernel");
+	is_int(rc, 0, "sent [GET.STATE] query to kernel");
 
 	p = pdu_recv(db_client);
 	isnt_null(p, "received reply PDU from kernel");

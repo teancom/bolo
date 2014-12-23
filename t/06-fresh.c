@@ -44,7 +44,7 @@ TESTS {
 	pdu_t *q, *a;
 
 	/* check (pre-sweep) status */
-	q = pdu_make("STATE", 1, "test.state.0");
+	q = pdu_make("GET.STATE", 1, "test.state.0");
 	is_int(pdu_send_and_free(q, z), 0, "asked kernel for test.state.0");
 	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");
@@ -65,7 +65,7 @@ TESTS {
 	pdu_free(a);
 
 	/* check (post-sweep) status */
-	q = pdu_make("STATE", 1, "test.state.0");
+	q = pdu_make("GET.STATE", 1, "test.state.0");
 	is_int(pdu_send_and_free(q, z), 0, "asked kernel for test.state.0");
 	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");

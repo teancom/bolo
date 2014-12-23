@@ -13,17 +13,17 @@
 
    Architecture:
 
-                                            [STATE]
-                                            [EVENT]      .----------------------
-   ----------------.                        [COUNTER]   /
-                   |                        [SAMPLE]   /        (clients)
-     NSCA gateway  |                       .--------->         tcp://*:2997
-       TCP/5667    |------.                |           \    PUB/SUB BROADCAST
-                   |      | [STATE]        |            \
-   ----------------'      | [COUNTER]      |             '----------------------
-                          | [SAMPLE]       |
-   ----------------.      |                |          [GET.STATE]    .----------------
-                   |      |    .-------------------.  [GET.COUNTER]  |
+                                                [STATE]
+                                                [EVENT]      .----------------------
+   ----------------.                            [COUNTER]   /
+                   |                            [SAMPLE]   /        (clients)
+     NSCA gateway  |                           .--------->         tcp://*:2997
+       TCP/5667    |------.                    |           \    PUB/SUB BROADCAST
+                   |      | [PUT.STATE]        |            \
+   ----------------'      | [PUT.COUNTER]      |             '----------------------
+                          | [PUT.SAMPLE]       |
+   ----------------.      |                    |                     .----------------
+                   |      |    .-------------------.                 |
        LISTENER    |      |    |      kernel       |  [GET.STATE]    |   CONTROLLER
      tcp://*:2999  |------'--->|  inproc://kernel  |<----------------|  tcp://*:2998
                    |           '-------------------'  [DUMP]         |
@@ -36,6 +36,8 @@
                                |    scheduler    |
                                '-----------------'
 
+
+  ##############################################################################
    Threads:
      1. listener     - Handles inbound state/counter/sample result submission
      2. NSCA gateway - Demuxes inbound NSCA packets into state/sample results
@@ -44,11 +46,12 @@
      5. scheduler    - Issues timed commands (a la interrupts) to the kernel
 
 
-   PDUs:
+  ##############################################################################
+   PDUs (kernel):
 
      ---------------------------------------------------------------------------
 
-     STATE                 OK                ; update the named state, with a
+     PUT.STATE             OK                ; update the named state, with a
      <TIMESTAMP>                             ; new status code and summary
      <NAME>                                  ; message, in response to data
      <NUMERIC-CODE>                          ; submitted by monitored systems.
@@ -56,14 +59,14 @@
 
      ---------------------------------------------------------------------------
 
-     COUNTER               OK                ; increment a counter
+     PUT.COUNTER           OK                ; increment a counter
      <TIMESTAMP>
      <NAME>
      <INCREMENT>
 
      ---------------------------------------------------------------------------
 
-     SAMPLE                OK                ; update a sample set with an
+     PUT.SAMPLE            OK                ; update a sample set with an
      <TIMESTAMP>                             ; arbitrary number of new samples,
      <NAME>                                  ; recalculating min/max/mean/variance
      <COUNT>                                 ; as necessary
@@ -79,24 +82,6 @@
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
                            <SUMMARY MSG>
-
-     ---------------------------------------------------------------------------
-
-     GET.COUNTER           COUNTER           ; retrieve a single counter, by name,
-     <NAME>                <NAME>            ; from the database
-                           <LAST-SEEN>
-                           <VALUE>
-
-     ---------------------------------------------------------------------------
-
-     GET.SAMPLE            SAMPLE            ; retrieve a single counter, by name,
-     <NAME>                <NAME>            ; from the database
-                           <LAST-SEEN>
-                           <COUNT>
-                           <MINIMUM>
-                           <MAXIMUM>
-                           <MEAN>
-                           <VARIANCE>
 
      ---------------------------------------------------------------------------
 
@@ -128,6 +113,59 @@
 
      ---------------------------------------------------------------------------
 
+
+  ##############################################################################
+  PDUs (native listener):
+
+     ---------------------------------------------------------------------------
+
+     STATE                 OK                ; set the code / status / summary
+     <TIMESTAMP>                             ; of a state.  yields a PUT.STATE
+     <NAME>                                  ; to the kernel
+     <NUMERIC-CODE>
+     <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     COUNTER               OK                ; increment a counter
+     <TIMESTAMP>                             ; yields a PUT.COUNTER to the kernel
+     <NAME>
+     <INCREMENT>
+
+     ---------------------------------------------------------------------------
+
+     SAMPLE                OK                ; update a sample set with an
+     <TIMESTAMP>                             ; arbitrary number of new samples,
+     <NAME>                                  ; recalculating min/max/mean/variance
+     <SAMPLE 1>                              ; as necessary.  yields a PUT.SAMPLE
+     ...                                     ; to the kernel
+     <SAMPLE N>
+
+     ---------------------------------------------------------------------------
+
+
+  ##############################################################################
+  PDUs (controller):
+
+     ---------------------------------------------------------------------------
+
+     STATE                 STATE             ; retrieve a single state by name.
+     <NAME>                <NAME>            ; yields a GET.STATE to the kernel
+                           <LAST-SEEN>
+                           <FRESH>           ; yes or no
+                           <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
+                           <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     DUMP                  DUMP              ; request a full dump of data, in
+                           <YAML-DATA>       ; YAML format.  yields a DUMP to
+                                             ; the kernel
+
+     ---------------------------------------------------------------------------
+
+
+  ##############################################################################
   Dump YAML format:
 
     ---
@@ -144,6 +182,8 @@
     name3:
       # etc.
 
+
+  ##############################################################################
   Save (binary) file format:
 
     [magic:u32]      "BOLO"

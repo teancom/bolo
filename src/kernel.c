@@ -352,7 +352,7 @@ void* db_manager(void *u)
 			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
 			continue;
 		}
-		if (strcmp(pdu_type(q), "UPDATE") == 0) {
+		if (strcmp(pdu_type(q), "PUT.STATE") == 0) {
 			char *ts   = pdu_string(q, 1);
 			char *name = pdu_string(q, 2);
 			char *code = pdu_string(q, 3);
@@ -379,7 +379,7 @@ void* db_manager(void *u)
 			free(code);
 			free(msg);
 
-		} else if (strcmp(pdu_type(q), "STATE") == 0) {
+		} else if (strcmp(pdu_type(q), "GET.STATE") == 0) {
 			char *name = pdu_string(q, 1);
 			state_t *state = hash_get(&db->server->db.states, name);
 			if (!state) {

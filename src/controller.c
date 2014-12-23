@@ -63,7 +63,7 @@ void* controller(void *u)
 
 	while ((q = pdu_recv(c->listener)) != NULL) {
 		if (strcmp(pdu_type(q), "STATE") == 0) {
-			rc = pdu_send_and_free(pdu_make("STATE", 1,
+			rc = pdu_send_and_free(pdu_make("GET.STATE", 1,
 				s = pdu_string(q, 1)), c->client); free(s);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");

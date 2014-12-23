@@ -169,9 +169,9 @@ static int stat_querymode(void)
 			}
 			if (DEBUG) fprintf(stderr, "+>> parsed `stat' agument as '%s'\n", c);
 
-			if (DEBUG) fprintf(stderr, "+>> sending [STATE|%s] PDU\n", c);
-			if (pdu_send_and_free(pdu_make("STATE", 1, c), z) != 0) {
-				fprintf(stderr, "failed to send [STATE] PDU to %s; command aborted\n", OPTIONS.endpoint);
+			if (DEBUG) fprintf(stderr, "+>> sending [GET.STATE|%s] PDU\n", c);
+			if (pdu_send_and_free(pdu_make("GET.STATE", 1, c), z) != 0) {
+				fprintf(stderr, "failed to send [GET.STATE] PDU to %s; command aborted\n", OPTIONS.endpoint);
 				return 3;
 			}
 			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");

@@ -36,14 +36,14 @@ TESTS {
 		/* go be the kernel */
 		q = pdu_recv(kernel);
 		isnt_null(q, "received a packet as the kernel");
-		is(pdu_type(q), "UPDATE", "packet is an [UPDATE] packet");
-		ok(abs(atoi(pdu_string(q, 1)) - time_s()) < 5,     "UPDATE[0] is timestamp");
-		is(pdu_string(q, 2), "host.example.com:cpu_usage", "UPDATE[1] is name");
-		is(pdu_string(q, 3), "0",                          "UPDATE[2] is status");
-		is(pdu_string(q, 4), "looks good, 42.5\% usage",   "UPDATE[3] is summary");
+		is(pdu_type(q), "PUT.STATE", "packet is an [PUT.STATE] packet");
+		ok(abs(atoi(pdu_string(q, 1)) - time_s()) < 5,     "PUT.STATE[0] is timestamp");
+		is(pdu_string(q, 2), "host.example.com:cpu_usage", "PUT.STATE[1] is name");
+		is(pdu_string(q, 3), "0",                          "PUT.STATE[2] is status");
+		is(pdu_string(q, 4), "looks good, 42.5\% usage",   "PUT.STATE[3] is summary");
 
 		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
-			"failed to send OK reply to our UPDATE");
+			"failed to send OK reply to our [PUT.STATE]");
 		pdu_free(q);
 
 	/* back to the client */
