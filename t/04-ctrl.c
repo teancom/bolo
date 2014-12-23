@@ -3,16 +3,16 @@
 TESTS {
 	alarm(5);
 	server_t svr;
-	void *z, *dbman;
+	void *z, *kernel;
 	pthread_t tid;
 
 	svr.config.controller = "inproc://stat";
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-	CHECK(dbman = zmq_socket(svr.zmq, ZMQ_ROUTER),
-		"failed to create mock db manager test socket");
-	CHECK(zmq_bind(dbman, DB_MANAGER_ENDPOINT) == 0,
-		"failed to bind to db manager socket");
+	CHECK(kernel = zmq_socket(svr.zmq, ZMQ_ROUTER),
+		"failed to create mock kernel test socket");
+	CHECK(zmq_bind(kernel, KERNEL_ENDPOINT) == 0,
+		"failed to bind to kernel socket");
 	CHECK(pthread_create(&tid, NULL, controller, &svr) == 0,
 		"failed to spin up controller thread");
 
@@ -47,8 +47,8 @@ TESTS {
 		"sent [STATE] PDU to controller");
 
 		/* be the DB manager for a bit */
-		q = pdu_recv(dbman);
-		pdu_send_and_free(pdu_reply(q, "STATE", 5, "xyzzy", "1234", "no", "2", "foo"), dbman);
+		q = pdu_recv(kernel);
+		pdu_send_and_free(pdu_reply(q, "STATE", 5, "xyzzy", "1234", "no", "2", "foo"), kernel);
 		pdu_free(q);
 		/* --------------------------- */
 
@@ -71,9 +71,9 @@ TESTS {
 		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
-		q = pdu_recv(dbman);
+		q = pdu_recv(kernel);
 		write_file("t/tmp/dump", "this is the\ncontent stuff\n", 0);
-		pdu_send_and_free(pdu_reply(q, "DUMP", 1, "t/tmp/dump"), dbman);
+		pdu_send_and_free(pdu_reply(q, "DUMP", 1, "t/tmp/dump"), kernel);
 		/* --------------------------- */
 
 	p = pdu_recv(z);
@@ -85,15 +85,15 @@ TESTS {
 	pdu_free(p);
 	alarm(0);
 
-	/* DUMP failure from dbman */
+	/* DUMP failure from kernel */
 	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
-		q = pdu_recv(dbman);
-		pdu_send_and_free(pdu_reply(q, "ERROR", 1, "stuff broke"), dbman);
+		q = pdu_recv(kernel);
+		pdu_send_and_free(pdu_reply(q, "ERROR", 1, "stuff broke"), kernel);
 		/* --------------------------- */
 
 	p = pdu_recv(z);
@@ -105,16 +105,16 @@ TESTS {
 	alarm(0);
 
 
-	/* DUMP failure from dbman (enoent) */
+	/* DUMP failure from kernel (enoent) */
 	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [DUMP] PDU to controller");
 
 		/* be the DB manager for a bit */
-		q = pdu_recv(dbman);
+		q = pdu_recv(kernel);
 		unlink("t/tmp/enoent");
-		pdu_send_and_free(pdu_reply(q, "DUMP", 1, "t/tmp/enoent"), dbman);
+		pdu_send_and_free(pdu_reply(q, "DUMP", 1, "t/tmp/enoent"), kernel);
 		/* --------------------------- */
 
 	p = pdu_recv(z);

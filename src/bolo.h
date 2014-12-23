@@ -35,7 +35,7 @@
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
 #define DEFAULT_DUMPFILES    "/var/tmp/bolo.%s"
 
-#define DB_MANAGER_ENDPOINT "inproc://db"
+#define KERNEL_ENDPOINT "inproc://kernel"
 
 typedef struct {
 	uint16_t  freshness;

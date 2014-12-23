@@ -37,7 +37,7 @@ send_bolo
 stat_bolo
 bolo_nsca
 t/tmp
-t/01-dbman
+t/01-kernel
 t/02-sched
 t/03-lsnr
 t/04-ctrl

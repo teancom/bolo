@@ -13,9 +13,9 @@ TESTS {
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_ROUTER),
-		"failed to create mock db manager test socket");
-	CHECK(zmq_bind(z, DB_MANAGER_ENDPOINT) == 0,
-		"failed to connect to db manager socket");
+		"failed to create mock kernel test socket");
+	CHECK(zmq_bind(z, KERNEL_ENDPOINT) == 0,
+		"failed to connect to kernel socket");
 	CHECK(pthread_create(&tid, NULL, scheduler, &svr) == 0,
 		"failed to spin up scheduler thread");
 

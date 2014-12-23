@@ -10,7 +10,7 @@ static void* cleanup_scheduler(void *_)
 	scheduler_t *s = (scheduler_t*)_;
 
 	if (s->client) {
-		logger(LOG_INFO, "scheduler cleaning up; closing db manager client socket");
+		logger(LOG_INFO, "scheduler cleaning up; closing kernel client socket");
 		vzmq_shutdown(s->client, 0);
 	}
 
@@ -38,8 +38,8 @@ void* scheduler(void *u)
 		return NULL;
 	}
 
-	if (zmq_connect(s->client, DB_MANAGER_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "scheduler failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+	if (zmq_connect(s->client, KERNEL_ENDPOINT) != 0) {
+		logger(LOG_CRIT, "scheduler failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}
 

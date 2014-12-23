@@ -16,7 +16,7 @@ static void* cleanup_controller(void *_)
 		vzmq_shutdown(c->listener, 500);
 	}
 	if (c->client) {
-		logger(LOG_INFO, "controller cleaning up; closing db manager client socket");
+		logger(LOG_INFO, "controller cleaning up; closing kernel client socket");
 		vzmq_shutdown(c->client, 0);
 	}
 
@@ -40,8 +40,8 @@ void* controller(void *u)
 		logger(LOG_CRIT, "controller failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(c->client, DB_MANAGER_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "controller failed to connect to db manager at " DB_MANAGER_ENDPOINT);
+	if (zmq_connect(c->client, KERNEL_ENDPOINT) != 0) {
+		logger(LOG_CRIT, "controller failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}
 

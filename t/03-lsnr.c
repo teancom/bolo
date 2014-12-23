@@ -3,16 +3,16 @@
 TESTS {
 	alarm(5);
 	server_t s;
-	void *dbman, *z;
+	void *kernel, *z;
 	pthread_t tid;
 
 	s.config.listener = "inproc://listener";
 
 	CHECK(s.zmq = zmq_ctx_new(), "failed to create a new 0MQ context");
-	CHECK(dbman = zmq_socket(s.zmq, ZMQ_ROUTER),
-		"failed to create mock db manager test socket");
-	CHECK(zmq_bind(dbman, DB_MANAGER_ENDPOINT) == 0,
-		"failed to bind mock db manager test socket to endpoint");
+	CHECK(kernel = zmq_socket(s.zmq, ZMQ_ROUTER),
+		"failed to create mock kernel test socket");
+	CHECK(zmq_bind(kernel, KERNEL_ENDPOINT) == 0,
+		"failed to bind mock kernel test socket to endpoint");
 
 	CHECK(pthread_create(&tid, NULL, listener, &s) == 0,
 		"failed to spin up listener thread");
@@ -33,16 +33,16 @@ TESTS {
 			"looks good, 42.5\% usage"),  /* summary message */
 		z) == 0, "sent [SUBMIT] to listener");
 
-		/* go be the db manager */
-		q = pdu_recv(dbman);
-		isnt_null(q, "received a packet as the db manager");
+		/* go be the kernel */
+		q = pdu_recv(kernel);
+		isnt_null(q, "received a packet as the kernel");
 		is(pdu_type(q), "UPDATE", "packet is an [UPDATE] packet");
 		ok(abs(atoi(pdu_string(q, 1)) - time_s()) < 5,     "UPDATE[0] is timestamp");
 		is(pdu_string(q, 2), "host.example.com:cpu_usage", "UPDATE[1] is name");
 		is(pdu_string(q, 3), "0",                          "UPDATE[2] is status");
 		is(pdu_string(q, 4), "looks good, 42.5\% usage",   "UPDATE[3] is summary");
 
-		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), dbman) == 0,
+		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
 			"failed to send OK reply to our UPDATE");
 		pdu_free(q);
 

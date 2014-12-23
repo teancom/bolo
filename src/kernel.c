@@ -38,7 +38,7 @@ static int save_state(db_t *db, const char *file)
 
 	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0640);
 	if (fd < 0) {
-		logger(LOG_ERR, "db manager failed to open save file %s for writing: %s",
+		logger(LOG_ERR, "kernel failed to open save file %s for writing: %s",
 				file, strerror(errno));
 		return -1;
 	}
@@ -114,7 +114,7 @@ static int read_state(db_t *db, const char *file)
 
 	int fd = open(file, O_RDONLY);
 	if (fd < 0) {
-		logger(LOG_ERR, "db manager failed to open %s for reading: %s",
+		logger(LOG_ERR, "kernel failed to open %s for reading: %s",
 			file, strerror(errno));
 		return -1;
 	}
@@ -220,19 +220,19 @@ static void check_freshness(db_t *db)
 static void dump(db_t *db, const char *file)
 {
 	if (!file) {
-		logger(LOG_ERR, "db manager cannot dump state; no dump file name provided");
+		logger(LOG_ERR, "kernel cannot dump state; no dump file name provided");
 		return;
 	}
 	int fd = open(file, O_WRONLY|O_CREAT|O_EXCL, 0644);
 	if (fd < 0) {
-		logger(LOG_ERR, "db manager cannot dump state; unable to open %s for writing: %s",
+		logger(LOG_ERR, "kernel cannot dump state; unable to open %s for writing: %s",
 				file, strerror(errno));
 		return;
 	}
 
 	FILE *io = fdopen(fd, "w");
 	if (!io) {
-		logger(LOG_ERR, "db manager cannot dump state; failed to open %s for writing: %s",
+		logger(LOG_ERR, "kernel cannot dump state; failed to open %s for writing: %s",
 				file, strerror(errno));
 		return;
 	}
@@ -257,11 +257,11 @@ static void dump(db_t *db, const char *file)
 static int update(db_t *db, state_t *state, char *name, uint32_t ts, uint8_t code, const char *msg)
 {
 	if (!state) {
-		logger(LOG_ERR, "db manager unable to update NULL state");
+		logger(LOG_ERR, "kernel unable to update NULL state");
 		return -1;
 	}
 	if (!msg) {
-		logger(LOG_ERR, "db manager unable to update state '%s': no summary message given", name);
+		logger(LOG_ERR, "kernel unable to update state '%s': no summary message given", name);
 		return -1;
 	}
 
@@ -280,17 +280,17 @@ static void* cleanup_db_manager(void *_)
 {
 	db_manager_t *db = (db_manager_t*)_;
 	if (db->listener) {
-		logger(LOG_INFO, "db manager cleaning up; closing listening socket");
+		logger(LOG_INFO, "kernel cleaning up; closing listening socket");
 		vzmq_shutdown(db->listener, 500);
 		db->listener = NULL;
 	}
 	if (db->broadcast) {
-		logger(LOG_INFO, "db manager cleaning up; closing broadcast socket");
+		logger(LOG_INFO, "kernel cleaning up; closing broadcast socket");
 		vzmq_shutdown(db->broadcast, 0);
 		db->broadcast = NULL;
 	}
 	if (db->server) {
-		logger(LOG_INFO, "db manager cleaning up; saving final state to %s",
+		logger(LOG_INFO, "kernel cleaning up; saving final state to %s",
 			db->server->config.savefile);
 		if (save_state(&db->server->db, db->server->config.savefile) != 0) {
 			logger(LOG_CRIT, "failed to save final state to %s: %s",
@@ -309,39 +309,39 @@ void* db_manager(void *u)
 
 	db->server = (server_t*)u;
 	if (!db->server) {
-		logger(LOG_CRIT, "db manager failed: server context was NULL");
+		logger(LOG_CRIT, "kernel failed: server context was NULL");
 		return NULL;
 	}
 
 	db->listener = zmq_socket(db->server->zmq, ZMQ_ROUTER);
 	if (!db->listener) {
-		logger(LOG_CRIT, "db manager failed to get a ROUTER socket");
+		logger(LOG_CRIT, "kernel failed to get a ROUTER socket");
 		return NULL;
 	}
-	if (zmq_bind(db->listener, DB_MANAGER_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "db manager failed to bind to " DB_MANAGER_ENDPOINT);
+	if (zmq_bind(db->listener, KERNEL_ENDPOINT) != 0) {
+		logger(LOG_CRIT, "kernel failed to bind to " KERNEL_ENDPOINT);
 		return NULL;
 	}
 
 	db->broadcast = zmq_socket(db->server->zmq, ZMQ_PUB);
 	if (!db->broadcast) {
-		logger(LOG_CRIT, "db manager failed to get a PUB socket");
+		logger(LOG_CRIT, "kernel failed to get a PUB socket");
 		return NULL;
 	}
 	if (zmq_bind(db->broadcast, db->server->config.broadcast) != 0) {
-		logger(LOG_CRIT, "db manager failed to bind to %s", db->server->config.broadcast);
+		logger(LOG_CRIT, "kernel failed to bind to %s", db->server->config.broadcast);
 		return NULL;
 	}
 
 	if (read_state(&db->server->db, db->server->config.savefile) != 0) {
-		logger(LOG_WARNING, "db manager failed to read state from %s: %s",
+		logger(LOG_WARNING, "kernel failed to read state from %s: %s",
 				db->server->config.savefile, strerror(errno));
 	}
 
 	pdu_t *q, *a, *b = NULL;
 	while ((q = pdu_recv(db->listener)) != NULL) {
 		if (!pdu_type(q)) {
-			logger(LOG_ERR, "db manager received an empty PDU; ignoring");
+			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
 			continue;
 		}
 		if (strcmp(pdu_type(q), "UPDATE") == 0) {

@@ -29,14 +29,14 @@ TESTS {
 
 	pthread_t tid;
 	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
-		"failed to spin up db manager thread");
+		"failed to spin up kernel thread");
 	sleep_ms(50);
 
 	void *z;
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
-		"failed to create mock db manager test socket");
-	CHECK(zmq_connect(z, DB_MANAGER_ENDPOINT) == 0,
-		"failed to connect to db manager socket");
+		"failed to create mock kernel test socket");
+	CHECK(zmq_connect(z, KERNEL_ENDPOINT) == 0,
+		"failed to connect to kernel socket");
 
 	/* ----------------------------- */
 
@@ -45,8 +45,8 @@ TESTS {
 
 	/* check (pre-sweep) status */
 	q = pdu_make("STATE", 1, "test.state.0");
-	is_int(pdu_send_and_free(q, z), 0, "asked db manager for test.state.0");
-	CHECK(a = pdu_recv(z), "failed to get reply from db manager");
+	is_int(pdu_send_and_free(q, z), 0, "asked kernel for test.state.0");
+	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");
 	is_string(s = pdu_string(a, 1), "test.state.0", "reply was for intended target"); free(s);
 	is_string(s = pdu_string(a, 2), "1418870107", "last_seen was set from state file"); free(s);
@@ -59,15 +59,15 @@ TESTS {
 
 	/* initiate freshness sweep */
 	q = pdu_make("CHECKFRESH", 0);
-	is_int(pdu_send(q, z), 0, "asked db manager to check freshness");
-	CHECK(a = pdu_recv(z), "failed to get reply from db manager");
-	is_string(pdu_type(a), "OK", "got [OK] reply from db manager");
+	is_int(pdu_send(q, z), 0, "asked kernel to check freshness");
+	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
+	is_string(pdu_type(a), "OK", "got [OK] reply from kernel");
 	pdu_free(a);
 
 	/* check (post-sweep) status */
 	q = pdu_make("STATE", 1, "test.state.0");
-	is_int(pdu_send_and_free(q, z), 0, "asked db manager for test.state.0");
-	CHECK(a = pdu_recv(z), "failed to get reply from db manager");
+	is_int(pdu_send_and_free(q, z), 0, "asked kernel for test.state.0");
+	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "STATE", "got [STATE] reply for test.state.0");
 	is_string(s = pdu_string(a, 1), "test.state.0", "reply was for intended target"); free(s);
 	is_string(s = pdu_string(a, 2), "1418870107", "last_seen was set from state file"); free(s);

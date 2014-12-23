@@ -18,11 +18,11 @@ TESTS {
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 	CHECK(pthread_create(&tid, NULL, db_manager, &svr) == 0,
-		"failed to spin up db manager thread");
+		"failed to spin up kernel thread");
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
-		"failed to create mock db manager test socket");
-	CHECK(zmq_connect(z, DB_MANAGER_ENDPOINT) == 0,
-		"failed to connect to db manager socket");
+		"failed to create mock kernel test socket");
+	CHECK(zmq_connect(z, KERNEL_ENDPOINT) == 0,
+		"failed to connect to kernel socket");
 	sleep_ms(50);
 
 	/* ----------------------------- */
@@ -33,11 +33,11 @@ TESTS {
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 1, "test");
 	rc = pdu_send_and_free(p, z);
-	is_int(rc, 0, "sent [SAVESTATE] PDU to db manager");
+	is_int(rc, 0, "sent [SAVESTATE] PDU to kernel");
 
 	p = pdu_recv(z);
-	isnt_null(p, "received reply PDU from db manager");
-	is_string(pdu_type(p), "OK", "db manager replied with a [SAVESTATE]");
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
 	char s[16];

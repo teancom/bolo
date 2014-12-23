@@ -12,7 +12,7 @@ LDADD = -lpthread -lzmq
 
 CORE_SRC  =
 CORE_SRC += src/bolo.h
-CORE_SRC += src/dbman.c
+CORE_SRC += src/kernel.c
 CORE_SRC += src/scheduler.c
 CORE_SRC += src/listener.c
 CORE_SRC += src/controller.c
@@ -27,7 +27,7 @@ stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 
 CTAP_TESTS  =
-CTAP_TESTS += t/01-dbman
+CTAP_TESTS += t/01-kernel
 CTAP_TESTS += t/02-sched
 CTAP_TESTS += t/03-lsnr
 CTAP_TESTS += t/04-ctrl
@@ -46,7 +46,7 @@ TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
-t_01_dbman_SOURCES  = $(TEST_SRC) t/01-dbman.c
+t_01_kernel_SOURCES  = $(TEST_SRC) t/01-kernel.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
 t_03_lsnr_SOURCES   = $(TEST_SRC) t/03-lsnr.c
 t_04_ctrl_SOURCES   = $(TEST_SRC) t/04-ctrl.c
