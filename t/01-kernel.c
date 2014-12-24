@@ -34,10 +34,16 @@ TESTS {
 		"sample  @hourly   res.df:/\n"
 		"", 0);
 	write_file(TEST_SAVE_FILE,
-		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"                     /* 16 */
+		"BOLO\0\1\0\0T\x92J\x97\0\0\0\4"                     /* 16 */
 		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"  /* 39 */
 		"\0'\0\1T\x92=[\1\0test.state.0\0its problematic\0"  /* 39 */
-		"\0\0", 94 + 2);
+		"\0\x19\0\2T\x92=[\0\0\0\0\0\0\0\0counter1\0"        /* 25 */
+		"\0Q\0\3T\x92=[\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+		              "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+		              "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+		              "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
+		              "res.df:/\0"                           /* 81 */
+		"\0\0", 16 + 39 + 39 + 25 + 81 + 2);
 
 	CHECK(configure("t/tmp/bolo.cfg", &svr) == 0,
 		"failed to read configuration file " TEST_CONFIG_FILE);
@@ -234,7 +240,7 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(193, sizeof(char));
+	s = calloc(195, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4    0 */
 	          "\0\1"     /* H:version    +2    4 */
 	          "\0\0"     /* H:flags      +2    6 */
@@ -288,14 +294,14 @@ TESTS {
 	          "\0\0\0\0" /*              +8  176 */
 	          "res.df:/\0"           /*  +9  184 */              /* +81 */
                                      /*      193 */
-	          "", 193);
+	          "\0\0", 195);
 	*(uint32_t*)(s+  8) = htonl(time);
 	*(uint32_t*)(s+ 20) = htonl(time);
 	*(uint32_t*)(s+ 52) = htonl(time);
 	*(uint32_t*)(s+ 91) = htonl(time);
 	*(uint32_t*)(s+116) = htonl(time);
 
-	binfile_is("t/tmp/save", s, 193,
+	binfile_is("t/tmp/save", s, 195,
 		"save file (binary)"); free(s);
 
 	/* ----------------------------- */

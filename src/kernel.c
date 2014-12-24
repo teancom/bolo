@@ -397,6 +397,13 @@ static int save_state(db_t *db, const char *file)
 		logger(LOG_INFO, "wrote %i of %i bytes for samples record #%i (%s)", n, len, i, name);
 		i++;
 	}
+	n = write(fd, "\0\0", 2);
+	if (n != 2) {
+		logger(LOG_ERR, "failed to write trailer bytes; savefile %s is probably corrupt now",
+			file);
+		close(fd);
+		return -1;
+	}
 	logger(LOG_INFO, "done writing savefile %s", file);
 	close(fd);
 	return 0;
@@ -520,6 +527,14 @@ static int read_state(db_t *db, const char *file)
 			return 1;
 		}
 	}
+	char trailer[2] = { 1 };
+	n = read(fd, trailer, 2);
+	if (n != 2 || trailer[0] || trailer[1]) {
+		logger(LOG_ERR, "no savefile trailer found!");
+		close(fd);
+		return 1;
+	}
+
 	logger(LOG_INFO, "done reading savefile %s", file);
 	close(fd);
 	return 0;

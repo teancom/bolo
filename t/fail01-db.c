@@ -40,10 +40,10 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	char s[16];
-	memcpy(s, "BOLO\0\1\0\0....\0\0\0\0", 16);
-	*(uint32_t*)(s+4+2+2) = htonl(time);
-	binfile_is("t/tmp/save", s, 16, "empty save file");
+	char s[18];
+	memcpy(s, "BOLO\0\1\0\0....\0\0\0\0" "\0\0", 16 + 2);
+	*(uint32_t*)(s+8) = htonl(time);
+	binfile_is("t/tmp/save", s, 18, "empty save file");
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
