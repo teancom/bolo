@@ -45,5 +45,6 @@ TESTS {
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
+	pthread_join(tid, NULL);
 	zmq_close(z);
 }

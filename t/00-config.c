@@ -43,6 +43,19 @@ TESTS {
 			"state host02/cpu\n"
 			"state :cloud site/online\n"
 			"state host01/memory\n"
+			"\n"
+			"window @minutely 60\n"
+			"window @hourly   3600\n"
+			"\n"
+			"counter @minutely counter1\n"
+			"counter @minutely counter2\n"
+			"sample  @minutely res.cpu.usage\n"
+			"sample  @hourly   res.df:/\n"
+			"sample  @hourly   res.df:/var\n"
+			"\n"
+			"use @hourly\n"
+			"counter counter3\n"
+			"sample  something.hourly\n"
 			"", 0);
 
 		int32_t now = time_s();
@@ -92,6 +105,60 @@ TESTS {
 		ok(abs(now + 900 - s->expiry) < 5,  "site/online expires within the next 15min");
 		is_int(s->status, PENDING,          "site/online status is PENDING");
 		ok(!s->stale,                       "site/online is not (yet) stale");
+
+		window_t *w;
+		w = hash_get(&svr.db.windows, "@minutely");
+		isnt_null(w, "window @minutely created");
+		is_int(w->time, 60, "window @minutely is on a 60s modulus");
+
+		w = hash_get(&svr.db.windows, "@hourly");
+		isnt_null(w, "window @houryl created");
+		is_int(w->time, 3600, "window @hourly is on a 3600s modulus");
+
+		w = hash_get(&svr.db.windows, "@enoent");
+		is_null(w, "window @enoent not created");
+
+		counter_t *c;
+		c = hash_get(&svr.db.counters, "counter1");
+		isnt_null(c, "counter counter1 created");
+		is_pointer(c->window,
+			hash_get(&svr.db.windows, "@minutely"), "counter1 is a @minutely counter");
+		is_int(c->value, 0, "counter1 is initially 0");
+
+		c = hash_get(&svr.db.counters, "counter2");
+		isnt_null(c, "counter counter2 created");
+		is_pointer(c->window,
+			hash_get(&svr.db.windows, "@minutely"), "counter2 is a @minutely counter");
+
+		c = hash_get(&svr.db.counters, "counter3");
+		isnt_null(c, "counter counter3 created");
+		is_pointer(c->window,
+			hash_get(&svr.db.windows, "@hourly"), "counter3 is a @minutely counter");
+
+		c = hash_get(&svr.db.counters, "enoent");
+		is_null(c, "counter enoent not created");
+
+		sample_t *sa;
+		sa = hash_get(&svr.db.samples, "res.cpu.usage");
+		isnt_null(sa, "sample res.cpu.usage created");
+		is_int(sa->n, 0, "new sample res.cpu.usage has no members");
+		is_pointer(sa->window,
+			hash_get(&svr.db.windows, "@minutely"), "res.cpu.usage is a @minutely sample");
+
+		sa = hash_get(&svr.db.samples, "res.df:/");
+		isnt_null(sa, "sample res.df:/", "resource res.df:/ created");
+		is_pointer(sa->window,
+			hash_get(&svr.db.windows, "@hourly"), "res.df:/ is an @hourly sample");
+
+		sa = hash_get(&svr.db.samples, "res.df:/var");
+		isnt_null(sa, "sample res.df:/", "resource res.df:/var created");
+		is_pointer(sa->window,
+			hash_get(&svr.db.windows, "@hourly"), "res.df:/var is an @hourly sample");
+
+		sa = hash_get(&svr.db.samples, "something.hourly");
+		isnt_null(sa, "sample res.df:/", "resource something.hourly created");
+		is_pointer(sa->window,
+			hash_get(&svr.db.windows, "@hourly"), "something.hourly is an @hourly sample");
 	}
 
 	subtest { /* various configuration errors */

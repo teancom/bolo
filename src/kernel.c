@@ -581,28 +581,6 @@ static void dump(db_t *db, const char *file)
 	close(fd);
 }
 
-static int update(db_t *db, state_t *state, char *name, uint32_t ts, uint8_t code, const char *msg)
-{
-	if (!state) {
-		logger(LOG_ERR, "kernel unable to update NULL state");
-		return -1;
-	}
-	if (!msg) {
-		logger(LOG_ERR, "kernel unable to update state '%s': no summary message given", name);
-		return -1;
-	}
-
-	logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
-
-	free(state->summary);
-	state->status    = code;
-	state->summary   = strdup(msg);
-	state->last_seen = ts;
-	state->expiry    = ts + state->type->freshness;
-	state->stale     = 0;
-	return 0;
-}
-
 static void* cleanup_kernel(void *_)
 {
 	kernel_t *db = (kernel_t*)_;
@@ -680,31 +658,90 @@ void* kernel(void *u)
 			continue;
 		}
 		if (strcmp(pdu_type(q), "PUT.STATE") == 0) {
-			char *ts   = pdu_string(q, 1);
+			char *s;
+
+			s = pdu_string(q, 1); int32_t ts   = strtol(s, NULL, 10); free(s);
+			s = pdu_string(q, 3); uint8_t code = atoi(s); free(s);
 			char *name = pdu_string(q, 2);
-			char *code = pdu_string(q, 3);
 			char *msg  = pdu_string(q, 4);
 
-			state_t *state = hash_get(&db->server->db.states, name);
-			if (state) {
-				if (update(&db->server->db, state, name, strtol(ts, NULL, 10), atoi(code), msg) == 0) {
+			if (!name || !*name) {
+				a = pdu_reply(q, "ERROR", 1, "No state name given");
+
+			} else if (!msg || !*msg) {
+				a = pdu_reply(q, "ERROR", 1, "No summary given");
+
+			} else {
+				state_t *state = hash_get(&db->server->db.states, name);
+				if (state) {
+					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
+
+					free(state->summary);
+					state->status    = code;
+					state->summary   = strdup(msg);
+					state->last_seen = ts;
+					state->expiry    = ts + state->type->freshness;
+					state->stale     = 0;
+
 					a = pdu_reply(q, "OK", 0);
 					b = pdu_make("STATE", 1, name);
 					pdu_extendf(b, "%li", state->last_seen);
 					pdu_extendf(b, "%s",  state->stale ? "stale" : "fresh");
 					pdu_extendf(b, "%s",  statstr(state->status));
 					pdu_extendf(b, "%s",  state->summary);
+
 				} else {
-					a = pdu_reply(q, "ERROR", 1, "Update Failed");
+					a = pdu_reply(q, "ERROR", 1, "State Not Found");
 				}
-			} else {
-				a = pdu_reply(q, "ERROR", 1, "State Not Found");
 			}
 
-			free(ts);
 			free(name);
-			free(code);
 			free(msg);
+
+		} else if (strcmp(pdu_type(q), "PUT.COUNTER") == 0) {
+			char *s;
+			s = pdu_string(q, 1); int32_t ts   = strtol(s, NULL, 10); free(s);
+			s = pdu_string(q, 3); int32_t incr = strtol(s, NULL, 10); free(s);
+			char *name = pdu_string(q, 2);
+
+			if (!name || !*name) {
+				a = pdu_reply(q, "ERROR", 1, "No counter name given");
+			} else {
+				counter_t *counter = hash_get(&db->server->db.counters, name);
+				if (counter) {
+					logger(LOG_INFO, "updating counter %s, ts=%i, incr=%i", name, ts, incr);
+					counter->last_seen = ts;
+					counter->value += incr;
+
+					a = pdu_reply(q, "OK", 0);
+
+				} else {
+					a = pdu_reply(q, "ERROR", 1, "Counter Not Found");
+				}
+			}
+
+		} else if (strcmp(pdu_type(q), "PUT.SAMPLE") == 0) {
+			char *s;
+			s = pdu_string(q, 1); int32_t ts = strtol(s, NULL, 10); free(s);
+			s = pdu_string(q, 3); double v   = strtod(s, NULL);     free(s);
+			char *name = pdu_string(q, 2);
+
+			if (!name || !*name) {
+				a = pdu_reply(q, "ERROR", 1, "No sample name given");
+			} else {
+				sample_t *sample = hash_get(&db->server->db.samples, name);
+				if (sample) {
+					logger(LOG_INFO, "updating sample %s, ts=%i, value=%i", name, ts, v);
+					sample->last_seen = ts;
+					sample->n++;
+					/* wow, this is so incredibly wrong.  FIXME */
+
+					a = pdu_reply(q, "OK", 0);
+
+				} else {
+					a = pdu_reply(q, "ERROR", 1, "Sample Not Found");
+				}
+			}
 
 		} else if (strcmp(pdu_type(q), "GET.STATE") == 0) {
 			char *name = pdu_string(q, 1);

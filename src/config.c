@@ -15,12 +15,16 @@
 #define T_KEYWORD_USER       0x0b
 #define T_KEYWORD_GROUP      0x0c
 #define T_KEYWORD_BROADCAST  0x0d
+#define T_KEYWORD_WINDOW     0x0e
+#define T_KEYWORD_COUNTER    0x0f
+#define T_KEYWORD_SAMPLE     0x10
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
 #define T_STRING             0x82
 #define T_NUMBER             0x83
 #define T_TYPENAME           0x84
+#define T_WINDOWNAME         0x85
 
 typedef struct {
 	FILE       *io;
@@ -96,8 +100,11 @@ getline:
 			KEYWORD("savefile",   SAVEFILE);
 			KEYWORD("dumpfiles",  DUMPFILES);
 			KEYWORD("type",       TYPE);
+			KEYWORD("window",     WINDOW);
 			KEYWORD("freshness",  FRESHNESS);
 			KEYWORD("state",      STATE);
+			KEYWORD("counter",    COUNTER);
+			KEYWORD("sample",     SAMPLE);
 			KEYWORD("use",        USE);
 
 			if (!p->token) {
@@ -123,6 +130,23 @@ getline:
 			*b++ = '\0';
 			memcpy(p->value, p->buffer, b-p->buffer);
 			p->token = T_TYPENAME;
+
+			while (*b && isspace(*b)) b++;
+			memmove(p->buffer, b, strlen(b)+1);
+			return 1;
+		}
+		b = a;
+	}
+
+	if (*b == '@') {
+		b++;
+		while (*b && (isalnum(*b) || *b == '-' || *b == '_'))
+			b++;
+
+		if (!*b || isspace(*b)) {
+			*b++ = '\0';
+			memcpy(p->value, p->buffer, b-p->buffer);
+			p->token = T_WINDOWNAME;
 
 			while (*b && isspace(*b)) b++;
 			memmove(p->buffer, b, strlen(b)+1);
@@ -168,8 +192,14 @@ int configure(const char *path, server_t *s)
 	x = atoi(p.value)
 
 	char *default_type = NULL;
+	char *default_win  = NULL;
+
 	type_t *type = NULL;
+	window_t *win = NULL;
+
 	state_t *state = NULL;
+	counter_t *counter = NULL;
+	sample_t *sample = NULL;
 
 	for (;;) {
 		if (!lex(&p)) break;
@@ -190,9 +220,30 @@ int configure(const char *path, server_t *s)
 			break;
 
 		case T_KEYWORD_USE:
-			NEXT; if (p.token != T_TYPENAME) { ERROR("Expected a type name for `use TYPENAME` construct"); }
-			free(default_type);
-			default_type = strdup(p.value);
+			NEXT;
+			switch (p.token) {
+			case T_TYPENAME:
+				free(default_type);
+				default_type = strdup(p.value);
+				break;
+
+			case T_WINDOWNAME:
+				free(default_win);
+				default_win = strdup(p.value);
+				break;
+
+			default:
+				ERROR("Expected a type name for `use TYPENAME` construct");
+				break;
+			}
+			break;
+
+		case T_KEYWORD_WINDOW:
+			NEXT; if (p.token != T_WINDOWNAME) { ERROR("Expected a window name for `window WINDOWNAME SECONDS` construct"); }
+			win = calloc(1, sizeof(window_t));
+			hash_set(&s->db.windows, p.value, win);
+			NEXT; if (p.token != T_STRING) { ERROR("Expected numeric value for `window` directive"); }
+			win->time = atoi(p.value);
 			break;
 
 		case T_KEYWORD_TYPE:
@@ -247,13 +298,12 @@ int configure(const char *path, server_t *s)
 
 			} else if (default_type) {
 				type = hash_get(&s->db.types, default_type);
-
 			}
 
 			if (p.token != T_STRING) { ERROR("Expected string value for `state` declaration"); }
 
 			if (!type) {
-				logger(LOG_ERR, "%s:%i: failed to determine token type for '%s'", p.value);
+				logger(LOG_ERR, "%s:%i: failed to determine state type for '%s'", p.file, p.line, p.value);
 				goto bail;
 			}
 
@@ -264,6 +314,58 @@ int configure(const char *path, server_t *s)
 			state->status  = PENDING;
 			state->expiry  = type->freshness + time_s();
 			state->summary = strdup("(state is pending results)");
+
+			break;
+
+		case T_KEYWORD_COUNTER:
+			NEXT;
+			win = NULL;
+			if (p.token == T_WINDOWNAME) {
+				win = hash_get(&s->db.windows, p.value);
+				NEXT;
+
+			} else if (default_win) {
+				win = hash_get(&s->db.windows, default_win);
+			}
+
+			if (p.token != T_STRING) { ERROR("Expected string value for `counter` declaration"); }
+
+			if (!win) {
+				logger(LOG_ERR, "%s:%i: failed to determine window for counter '%s'", p.value);
+				goto bail;
+			}
+
+			counter = calloc(1, sizeof(counter_t));
+			hash_set(&s->db.counters, p.value, counter);
+			counter->name   = strdup(p.value);
+			counter->window = win;
+			counter->value  = 0;
+
+			break;
+
+		case T_KEYWORD_SAMPLE:
+			NEXT;
+			win = NULL;
+			if (p.token == T_WINDOWNAME) {
+				win = hash_get(&s->db.windows, p.value);
+				NEXT;
+
+			} else if (default_win) {
+				win = hash_get(&s->db.windows, default_win);
+			}
+
+			if (p.token != T_STRING) { ERROR("Expected string value for `sample` declaration"); }
+
+			if (!win) {
+				logger(LOG_ERR, "%s:%i: failed to determine window for sample '%s'", p.value);
+				goto bail;
+			}
+
+			sample = calloc(1, sizeof(sample_t));
+			hash_set(&s->db.samples, p.value, sample);
+			sample->name   = strdup(p.value);
+			sample->window = win;
+			sample->n = 0;
 
 			break;
 

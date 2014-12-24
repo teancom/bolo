@@ -102,10 +102,10 @@ static int binfile_is(const char *path, const char *expect, size_t n, const char
 			break;
 
 	ok(0, "%s", msg);
-	diag("   begin to differ at [%i:%i]", i / 16, i % 16);
-	    diag("      got:");
+	diag("   begin to differ at %i [%i:%i]", i, i / 16, i % 16);
+	    diag("      got: %02x", actual[i] & 0xff);
 	diag_hex("   ", actual, n);
-	diag(" expected:");
+	diag(" expected: %02x", expect[i] & 0xff);
 	diag_hex("   ", expect, n);
 
 	munmap(actual, len);

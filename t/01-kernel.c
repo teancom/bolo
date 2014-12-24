@@ -17,13 +17,21 @@ TESTS {
 		"broadcast inproc://bcast\n"
 		"savefile  " TEST_SAVE_FILE "\n"
 		"dumpfiles t/tmp/dump.\%s\n"
+		""
 		"type :default {\n"
 		"  freshness 60\n"
 		"  warning \"it is stale\"\n"
 		"}\n"
 		"use :default\n"
+		""
 		"state test.state.0\n"
 		"state test.state.1\n"
+		""
+		"window @minutely 60\n"
+		"window @hourly   3600\n"
+		""
+		"counter @minutely counter1\n"
+		"sample  @hourly   res.df:/\n"
 		"", 0);
 	write_file(TEST_SAVE_FILE,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"                     /* 16 */
@@ -187,6 +195,35 @@ TESTS {
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
 	pdu_free(p);
 
+	/* increment counter counter1 value a few times */
+	p = pdu_make("PUT.COUNTER", 3, ts, "counter1", "1");
+	rc = pdu_send_and_free(p, db_client);
+	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(db_client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	p = pdu_make("PUT.COUNTER", 3, ts, "counter1", "4");
+	rc = pdu_send_and_free(p, db_client);
+	is_int(rc, 0, "sent second [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(db_client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	/* add samples to res.df:/ */
+	p = pdu_make("PUT.SAMPLE", 3, ts, "res.df:/", "42");
+	rc = pdu_send_and_free(p, db_client);
+	is_int(rc, 0, "sent [PUT.SAMPLE] to kernel");
+
+	p = pdu_recv(db_client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 1, "test");
 	rc = pdu_send_and_free(p, db_client);
@@ -197,34 +234,68 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(87, sizeof(char));
-	memcpy(s, "BOLO"     /* H:magic      +4 */
-	          "\0\1"     /* H:version    +2 */
-	          "\0\0"     /* H:flags      +2 */
-	          "...."     /* H:timestamp  +4 (to be filled in later) */
-	          "\0\0\0\2" /* H:count      +4 */              /* +16 */
+	s = calloc(193, sizeof(char));
+	memcpy(s, "BOLO"     /* H:magic      +4    0 */
+	          "\0\1"     /* H:version    +2    4 */
+	          "\0\0"     /* H:flags      +2    6 */
+	          "...."     /* H:timestamp  +4    8 (to be filled in later) */
+	          "\0\0\0\4" /* H:count      +4   12 */              /* +16 */
 
-	          "\0\x20"   /* 0:len        +2 */
-	          "\0\1"     /* 0:flags      +2 */
-	          "...."     /* 0:last_seen  +4 (to be filled in later) */
-	          "\0"       /* 0:status     +1 */
-	          "\0"       /* 0:stale      +1 */
-	          "test.state.0\0"       /* +13 */
-	          "all good\0"           /*  +9 */              /* +32 */
+	      /* STATES */
+	          "\0\x20"   /* 0:len        +2   16 */
+	          "\0\1"     /* 0:flags      +2   18 */
+	          "...."     /* 0:last_seen  +4   20 (to be filled in later) */
+	          "\0"       /* 0:status     +1   24 */
+	          "\0"       /* 0:stale      +1   25 */
+	          "test.state.0\0"       /* +13   26 */
+	          "all good\0"           /*  +9   39 */              /* +32 */
 
-	          "\0\x27"   /* 1:len        +2 */
-	          "\0\1"     /* 1:flags      +2 */
-	          "...."     /* 1:last_seen  +4 (to be filled in later) */
-	          "\2"       /* 1:status     +1 */
-	          "\0"       /* 1:stale      +1 */
-	          "test.state.1\0"       /* +13 */
-	          "critically-ness\0"    /* +16 */              /* +39 */
-	          "", 87);
-	*(uint32_t*)(s+4+2+2)     = htonl(time);
-	*(uint32_t*)(s+16+2+2)    = htonl(time);
-	*(uint32_t*)(s+16+32+2+2) = htonl(time);
+	          "\0\x27"   /* 1:len        +2   48 */
+	          "\0\1"     /* 1:flags      +2   50 */
+	          "...."     /* 1:last_seen  +4   52 (to be filled in later) */
+	          "\2"       /* 1:status     +1   56 */
+	          "\0"       /* 1:stale      +1   57 */
+	          "test.state.1\0"       /* +13   58 */
+	          "critically-ness\0"    /* +16   71 */              /* +39 */
 
-	binfile_is("t/tmp/save", s, 87,
+	      /* COUNTERS */
+	          "\0\x19"   /* 0:len        +2   87 */
+	          "\0\2"     /* 0:flags      +2   89 */
+	          "...."     /* 0:last_seen  +4   91 (to be filled in later) */
+	          "\0\0\0\0" /* 0:value              */
+	          "\0\0\0\5" /*              +8   95 */
+	          "counter1\0"           /*  +9  104 */              /* +25 */
+
+	      /* SAMPLES */
+	          "\0\x51"   /* 0:len        +2  112 */
+	          "\0\3"     /* 0:flags      +2  114 */
+	          "...."     /* 0:last_seen  +4  116 (to be filled in later) */
+	          "\0\0\0\0" /* 0:n                  */
+	          "\0\0\0\5" /*              +8  120 */
+	          "\0\0\0\0" /* 0:min                */
+	          "\0\0\0\0" /*              +8  128 */
+	          "\0\0\0\0" /* 0:max                */
+	          "\0\0\0\0" /*              +8  136 */
+	          "\0\0\0\0" /* 0:sum                */
+	          "\0\0\0\0" /*              +8  144 */
+	          "\0\0\0\0" /* 0:mean               */
+	          "\0\0\0\0" /*              +8  152 */
+	          "\0\0\0\0" /* 0:mean_              */
+	          "\0\0\0\0" /*              +8  160 */
+	          "\0\0\0\0" /* 0:var                */
+	          "\0\0\0\0" /*              +8  168 */
+	          "\0\0\0\0" /* 0:var_               */
+	          "\0\0\0\0" /*              +8  176 */
+	          "res.df:/\0"           /*  +9  184 */              /* +81 */
+                                     /*      193 */
+	          "", 193);
+	*(uint32_t*)(s+  8) = htonl(time);
+	*(uint32_t*)(s+ 20) = htonl(time);
+	*(uint32_t*)(s+ 52) = htonl(time);
+	*(uint32_t*)(s+ 91) = htonl(time);
+	*(uint32_t*)(s+116) = htonl(time);
+
+	binfile_is("t/tmp/save", s, 193,
 		"save file (binary)"); free(s);
 
 	/* ----------------------------- */
