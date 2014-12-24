@@ -1,5 +1,8 @@
 #include "test.h"
 
+#define TEST_CONFIG_FILE "t/tmp/bolo.cfg"
+#define TEST_SAVE_FILE   "t/tmp/save"
+
 TESTS {
 	alarm(5);
 	server_t svr;
@@ -10,23 +13,26 @@ TESTS {
 	mkdir("t/tmp", 0755);
 
 	memset(&svr, 0, sizeof(svr));
-	svr.config.broadcast = "inproc://bcast";
-	svr.config.dumpfiles = "t/tmp/dump.%s";
-	write_file(svr.config.savefile = "t/tmp/save",
+	write_file(TEST_CONFIG_FILE,
+		"broadcast inproc://bcast\n"
+		"savefile  " TEST_SAVE_FILE "\n"
+		"dumpfiles t/tmp/dump.\%s\n"
+		"type :default {\n"
+		"  freshness 60\n"
+		"  warning \"it is stale\"\n"
+		"}\n"
+		"use :default\n"
+		"state test.state.0\n"
+		"state test.state.1\n"
+		"", 0);
+	write_file(TEST_SAVE_FILE,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\2"                     /* 16 */
 		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"  /* 39 */
 		"\0'\0\1T\x92=[\1\0test.state.0\0its problematic\0"  /* 39 */
 		"\0\0", 94 + 2);
-	type_t type_default = {
-		.freshness = 60,
-		.status    = WARNING,
-		.summary   = "it is stale",
-	};
-	state_t state0 = { .type = &type_default, .name = "test.state.0" };
-	state_t state1 = { .type = &type_default, .name = "test.state.1" };
-	hash_set(&svr.db.states, "test.state.0", &state0);
-	hash_set(&svr.db.states, "test.state.1", &state1);
 
+	CHECK(configure("t/tmp/bolo.cfg", &svr) == 0,
+		"failed to read configuration file " TEST_CONFIG_FILE);
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
