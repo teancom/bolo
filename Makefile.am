@@ -33,6 +33,7 @@ CTAP_TESTS += t/01-kernel
 CTAP_TESTS += t/02-sched
 CTAP_TESTS += t/03-lsnr
 CTAP_TESTS += t/04-ctrl
+CTAP_TESTS += t/05-nsca
 CTAP_TESTS += t/06-fresh
 
 CTAP_TESTS += t/fail01-db
@@ -52,6 +53,7 @@ t_01_kernel_SOURCES = $(TEST_SRC) t/01-kernel.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
 t_03_lsnr_SOURCES   = $(TEST_SRC) t/03-lsnr.c
 t_04_ctrl_SOURCES   = $(TEST_SRC) t/04-ctrl.c
+t_05_nsca_SOURCES   = $(TEST_SRC) t/05-nsca.c
 t_06_fresh_SOURCES  = $(TEST_SRC) t/06-fresh.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c

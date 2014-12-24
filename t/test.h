@@ -14,7 +14,7 @@
 #define HELPER __attribute__((unused))
 
 /* FIXME: move this into ctap proper */
-#define CHECK(x,msg) if (!(x)) BAIL_OUT(msg)
+#define CHECK(x,msg) do { if (!(x)) { diag(strerror(errno)); BAIL_OUT(msg); } } while (0)
 
 HELPER
 static int file_is(const char *path, const char *expect, const char *msg)

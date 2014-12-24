@@ -42,6 +42,7 @@ t/01-kernel
 t/02-sched
 t/03-lsnr
 t/04-ctrl
+t/05-nsca
 t/06-fresh
 t/fail*-db
 

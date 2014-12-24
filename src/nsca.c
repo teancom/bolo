@@ -124,16 +124,21 @@ void* nsca_gateway(void *u)
 	memset(&ev, 0, sizeof(ev));
 	ev.events = EPOLLIN;
 	ev.data.fd = sockfd;
-	if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) != 0)
+	if (epoll_ctl(epfd, EPOLL_CTL_ADD, sockfd, &ev) != 0) {
+		logger(LOG_CRIT, "Failed to add socket fd to epoll list: %s", strerror(errno));
 		return NULL;
+	}
 
 	cache_t *clients = cache_new(CLIENT_MAX, CLIENT_EXPIRE);
 	cache_setopt(clients, VIGOR_CACHE_DESTRUCTOR, client_free);
 
+	logger(LOG_INFO, "NSCA gateway thread starting up");
 	for (;;) {
 		nfds = epoll_wait(epfd, events, EPOLL_MAX_FD, -1);
-		if (nfds == -1)
+		if (nfds == -1) {
+			logger(LOG_CRIT, "epoll_wait encountered an error: %s", strerror(errno));
 			return NULL;
+		}
 
 		for (n = 0; n < nfds; n++) {
 			if (events[n].data.fd == sockfd) {
@@ -208,5 +213,6 @@ void* nsca_gateway(void *u)
 		}
 	}
 
+	logger(LOG_INFO, "NSCA gateway thread shutting down");
 	return NULL;
 }
