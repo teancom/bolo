@@ -1,10 +1,11 @@
 #include "test.h"
 
 TESTS {
+	mkdir("t/tmp", 0755);
+
 	alarm(5);
 	server_t svr; memset(&svr, 0, sizeof(svr));
 
-	mkdir("t/tmp", 0755);
 	write_file("t/tmp/config",
 		"# sample test config\n"
 		"broadcast inproc://bcast\n"

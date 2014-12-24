@@ -1,13 +1,14 @@
 #include "test.h"
 
 TESTS {
+	mkdir("t/tmp", 0755);
+
 	alarm(5);
 	server_t svr;
 	int rc;
 	void *z;
 	pthread_t tid;
 
-	mkdir("t/tmp", 0755);
 	memset(&svr, 0, sizeof(svr));
 	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";

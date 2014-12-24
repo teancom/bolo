@@ -1,6 +1,8 @@
 #include "test.h"
 
 TESTS {
+	mkdir("t/tmp", 0755);
+
 	alarm(5);
 	server_t s;
 	void *kernel, *z;

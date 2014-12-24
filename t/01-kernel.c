@@ -4,13 +4,13 @@
 #define TEST_SAVE_FILE   "t/tmp/save"
 
 TESTS {
+	mkdir("t/tmp", 0755);
+
 	alarm(5);
 	server_t svr;
 	int rc;
 	void *db_client, *sub;
 	pthread_t tid;
-
-	mkdir("t/tmp", 0755);
 
 	memset(&svr, 0, sizeof(svr));
 	write_file(TEST_CONFIG_FILE,

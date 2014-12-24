@@ -1,6 +1,8 @@
 #include "test.h"
 
 TESTS {
+	mkdir("t/tmp", 0755);
+
 	alarm(5);
 	subtest { /* single-file */
 		server_t svr; memset(&svr, 0, sizeof(svr));
