@@ -62,7 +62,7 @@ void* listener(void *u)
 			continue;
 		}
 
-		if (strcmp(pdu_type(q), "SUBMIT") == 0) {
+		if (strcmp(pdu_type(q), "STATE") == 0) {
 			char *ts   = string("%u", time_s());
 			char *name = pdu_string(q, 1);
 			char *code = pdu_string(q, 2);
@@ -75,6 +75,31 @@ void* listener(void *u)
 			free(name);
 			free(code);
 			free(msg);
+
+		} else if (strcmp(pdu_type(q), "COUNTER") == 0) {
+			char *ts   = string("%u", time_s());
+			char *name = pdu_string(q, 1);
+			char *incr = pdu_string(q, 2);
+			if (!incr) incr = strdup("1");
+
+			pdu_send_and_free(pdu_make("PUT.COUNTER", 3, ts, name, incr), l->client);
+			a = pdu_reply(q, "OK", 0);
+
+			free(ts);
+			free(name);
+			free(incr);
+
+		} else if (strcmp(pdu_type(q), "SAMPLE") == 0) {
+			char *ts   = string("%u", time_s());
+			char *name = pdu_string(q, 1);
+			char *val  = pdu_string(q, 2);
+
+			pdu_send_and_free(pdu_make("PUT.SAMPLE", 3, ts, name, val), l->client);
+			a = pdu_reply(q, "OK", 0);
+
+			free(ts);
+			free(name);
+			free(val);
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");

@@ -120,26 +120,22 @@
      ---------------------------------------------------------------------------
 
      STATE                 OK                ; set the code / status / summary
-     <TIMESTAMP>                             ; of a state.  yields a PUT.STATE
-     <NAME>                                  ; to the kernel
-     <NUMERIC-CODE>
-     <SUMMARY MSG>
+     <NAME>                                  ; of a state.  yields a PUT.STATE
+     <NUMERIC-CODE>                          ; to the kernel
+     <SUMMARY>
 
      ---------------------------------------------------------------------------
 
      COUNTER               OK                ; increment a counter
-     <TIMESTAMP>                             ; yields a PUT.COUNTER to the kernel
-     <NAME>
+     <NAME>                                  ; yields a PUT.COUNTER to the kernel
      <INCREMENT>
 
      ---------------------------------------------------------------------------
 
-     SAMPLE                OK                ; update a sample set with an
-     <TIMESTAMP>                             ; arbitrary number of new samples,
-     <NAME>                                  ; recalculating min/max/mean/variance
-     <SAMPLE 1>                              ; as necessary.  yields a PUT.SAMPLE
-     ...                                     ; to the kernel
-     <SAMPLE N>
+     SAMPLE                OK                ; update a sample set with a new
+     <NAME>                                  ; sample, recalculating
+     <VALUE>                                 ; min/max/mean/variance as necessary
+                                             ; yields a PUT.SAMPLE to the kernel
 
      ---------------------------------------------------------------------------
 
