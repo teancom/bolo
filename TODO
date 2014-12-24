@@ -2,5 +2,6 @@ TODO
 
 - integrate counter tracking
 - integrate sample tracking
+- nsca gateway
 - memory usage analysis
 - perf testing
