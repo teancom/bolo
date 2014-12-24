@@ -27,11 +27,11 @@ stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 
 CTAP_TESTS  =
+CTAP_TESTS += t/00-config
 CTAP_TESTS += t/01-kernel
 CTAP_TESTS += t/02-sched
 CTAP_TESTS += t/03-lsnr
 CTAP_TESTS += t/04-ctrl
-CTAP_TESTS += t/05-config
 CTAP_TESTS += t/06-fresh
 
 CTAP_TESTS += t/fail01-db
@@ -46,11 +46,11 @@ TEST_SRC += t/test.h
 
 TESTS = $(CTAP_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
-t_01_kernel_SOURCES  = $(TEST_SRC) t/01-kernel.c
+t_00_config_SOURCES = $(TEST_SRC) t/00-config.c
+t_01_kernel_SOURCES = $(TEST_SRC) t/01-kernel.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
 t_03_lsnr_SOURCES   = $(TEST_SRC) t/03-lsnr.c
 t_04_ctrl_SOURCES   = $(TEST_SRC) t/04-ctrl.c
-t_05_config_SOURCES = $(TEST_SRC) t/05-config.c
 t_06_fresh_SOURCES  = $(TEST_SRC) t/06-fresh.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
