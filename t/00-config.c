@@ -14,6 +14,7 @@ TESTS {
 			"listener   tcp://*:4242\n"
 			"controller tcp://*:5555\n"
 			"broadcast  tcp://*:6868\n"
+			"nsca.port  5669\n"
 			"\n"
 			"user       monitor\n"
 			"group      amgs\n"
@@ -74,6 +75,8 @@ TESTS {
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
 		is(svr.config.dumpfiles,     "/tmp/dump.\%s",  "dumpfiles set");
+
+		is_int(svr.config.nsca_port, 5669, "nsca.port set");
 
 		type_t *t;
 		t = hash_get(&svr.db.types, ":test");

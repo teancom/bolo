@@ -15,6 +15,7 @@ CORE_SRC += src/bolo.h
 CORE_SRC += src/kernel.c
 CORE_SRC += src/scheduler.c
 CORE_SRC += src/listener.c
+CORE_SRC += src/nsca.c
 CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
 

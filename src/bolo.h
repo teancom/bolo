@@ -93,6 +93,7 @@ typedef struct {
 		char     *listener;
 		char     *controller;
 		char     *broadcast;
+		uint16_t  nsca_port;
 
 		char     *log_level;
 		char     *log_facility;
@@ -116,6 +117,7 @@ int deconfigure(server_t *s);
 
 /* threads */
 void* listener(void *u);
+void* nsca_gateway(void *u);
 void* controller(void *u);
 void* kernel(void *u);
 void* scheduler(void *u);

@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 
 	int rc;
 	server_t svr;
-	pthread_t tid_watcher, tid_db, tid_sched, tid_ctrl, tid_lsnr;
+	pthread_t tid_watcher, tid_db, tid_sched, tid_ctrl, tid_lsnr, tid_nsca;
 
 	memset(&svr, 0, sizeof(svr));
 	svr.config.listener     = strdup(DEFAULT_LISTENER);
@@ -149,6 +149,13 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Failed to start up listener thread\nAborting...\n");
 		return 2;
 	}
+	if (svr.config.nsca_port > 0) {
+		rc = pthread_create(&tid_nsca, NULL, nsca_gateway, &svr);
+		if (rc != 0) {
+			fprintf(stderr, "Failed to start up NSCA gateway thread\nAborting...\n");
+			return 2;
+		}
+	}
 
 	void *_;
 	pthread_join(tid_watcher, &_);
@@ -157,6 +164,12 @@ int main(int argc, char **argv)
 	pthread_cancel(tid_sched); pthread_join(tid_sched, &_);
 	pthread_cancel(tid_lsnr);  pthread_join(tid_lsnr,  &_);
 	pthread_cancel(tid_ctrl);  pthread_join(tid_ctrl,  &_);
+
+	if (svr.config.nsca_port > 0) {
+		pthread_cancel(tid_nsca);
+		pthread_join(tid_nsca,  &_);
+	}
+
 	zmq_ctx_destroy(svr.zmq);
 	deconfigure(&svr);
 

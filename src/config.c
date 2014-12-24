@@ -18,6 +18,7 @@
 #define T_KEYWORD_WINDOW     0x0e
 #define T_KEYWORD_COUNTER    0x0f
 #define T_KEYWORD_SAMPLE     0x10
+#define T_KEYWORD_NSCAPORT   0x11
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -93,6 +94,7 @@ getline:
 			KEYWORD("listener",   LISTENER);
 			KEYWORD("controller", CONTROLLER);
 			KEYWORD("broadcast",  BROADCAST);
+			KEYWORD("nsca.port",  NSCAPORT);
 			KEYWORD("user",       USER);
 			KEYWORD("group",      GROUP);
 			KEYWORD("pidfile",    PIDFILE);
@@ -188,8 +190,6 @@ int configure(const char *path, server_t *s)
 #define ERROR(s) logger(LOG_CRIT, "%s:%i: syntax error: ", p.file, p.line, s); goto bail
 #define SERVER_STRING(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	free(x); x = strdup(p.value)
-#define SERVER_NUMBER(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
-	x = atoi(p.value)
 
 	char *default_type = NULL;
 	char *default_win  = NULL;
@@ -213,6 +213,12 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
 		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);   break;
+
+		case T_KEYWORD_NSCAPORT:
+			NEXT;
+			if (p.token != T_STRING) { ERROR("Expected string value"); }
+			s->config.nsca_port = atoi(p.value) & 0xffff;
+			break;
 
 		case T_KEYWORD_LOG:
 			SERVER_STRING(s->config.log_level);
