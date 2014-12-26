@@ -58,13 +58,68 @@ static int nonblocking(int fd)
 	return fcntl(fd, F_SETFL, orig|O_NONBLOCK);
 }
 
+static void update_kernel(void *db, client_t *c)
+{
+	pdu_t *q, *a;
+	char *s, *p = NULL;
+
+	/* first, extract the message */
+	s = c->packet.output;
+	while (*s && *s != '|') s++;
+	if (*s) {
+		p = s + 1; *s-- = '\0';
+		while (*p && isspace(*p)) p++;
+		while (s > c->packet.output && isspace(*s))
+			*s-- = '\0';
+	}
+
+	q = pdu_make("PUT.STATE", 0);
+	pdu_extendf(q, "%u", ntohl(c->packet.timestamp));
+	pdu_extendf(q, "%s:%s", c->packet.host, c->packet.service);
+	pdu_extendf(q, "%u", ntohs(c->packet.status) & 0xff);
+	pdu_extendf(q, "%s", c->packet.output);
+	pdu_send(q, db);
+
+	a = pdu_recv(db);
+	if (strcmp(pdu_type(a), "OK") != 0) {
+		logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.STATE) from the kernel: %s",
+		s = pdu_string(a, 1)); free(s);
+		client_free(c);
+		return;
+	}
+
+	while (p && *p) {
+		char *k, *v;
+		k = p; while (*p && !isspace(*p) && *p != '=') p++; *p++ = '\0';
+		v = p; while (*p && !isspace(*p) && *p != ';') p++; *p++ = '\0';
+
+		q = pdu_make("PUT.SAMPLE", 0);
+		pdu_extendf(q, "%u", ntohl(c->packet.timestamp));
+		pdu_extendf(q, "%s:%s:%s", c->packet.host, c->packet.service, k);
+		pdu_extendf(q, "%s", v);
+		pdu_send(q, db);
+
+		a = pdu_recv(db);
+		if (strcmp(pdu_type(a), "OK") != 0) {
+			logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.SAMPLE) from the kernel: %s",
+			s = pdu_string(a, 1)); free(s);
+			client_free(c);
+			return;
+		}
+
+		while (*p && !isspace(*p)) p++;
+		while (*p &&  isspace(*p)) p++;
+	}
+
+	client_free(c);
+}
+
 void* nsca_gateway(void *u)
 {
 	struct epoll_event ev, events[EPOLL_MAX_FD];
 	int n, nfds, epfd, connfd;
 	server_t *svr;
 	void *db;
-	char *s;
 
 	svr = (server_t*)u;
 	if (!svr) {
@@ -110,7 +165,7 @@ void* nsca_gateway(void *u)
 		return NULL;
 	}
 	if (zmq_connect(db, KERNEL_ENDPOINT) != 0) {
-		logger(LOG_CRIT, "NSCA gateway failed to connect to db manager at " KERNEL_ENDPOINT);
+		logger(LOG_CRIT, "NSCA gateway failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}
 
@@ -191,20 +246,7 @@ void* nsca_gateway(void *u)
 					c->bytes += n;
 
 					if (c->bytes == NSCA_PACKET_LEN) {
-						pdu_t *q = pdu_make("STATE", 0);
-						pdu_extendf(q, "%u", ntohl(c->packet.timestamp));
-						pdu_extendf(q, "%s:%s", c->packet.host, c->packet.service);
-						pdu_extendf(q, "%u", ntohs(c->packet.status) & 0xff);
-						pdu_extendf(q, "%s", c->packet.output);
-						pdu_send(q, db);
-
-						pdu_t *a = pdu_recv(db);
-						if (strcmp(pdu_type(a), "OK") != 0) {
-							logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an UPDATE) from the db manager: %s",
-								s = pdu_string(a, 1)); free(s);
-						}
-
-						client_free(c);
+						update_kernel(db, c);
 					}
 				} else {
 					client_free(cache_unset(clients, id));

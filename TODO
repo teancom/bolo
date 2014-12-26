@@ -2,7 +2,5 @@ TODO
 
 - support rollover windows and broadcast for COUNTER / SAMPLE
 - nsca gateway
-  - parse perfdata
-  - needs some basic tests
 - memory usage analysis
 - perf testing
