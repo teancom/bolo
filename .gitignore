@@ -44,6 +44,7 @@ t/03-lsnr
 t/04-ctrl
 t/05-nsca
 t/06-fresh
+t/07-roll
 t/fail*-db
 
 .deps

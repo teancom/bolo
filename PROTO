@@ -115,6 +115,51 @@
 
 
   ##############################################################################
+  PDUs (broadcast):
+
+     (Note: none of these PDUs have responses, because it is a broadcast, or
+      _write-only_ channel.  The kernel doesn't care if anyone is listening)
+
+
+     ---------------------------------------------------------------------------
+
+     STATE                                    ; broadcast in response to *every*
+     <TS>                                     ; [PUT.STATE] PDU, to inform subs
+     <NAME>                                   ; of an update to state (even if the
+     <CODE>                                   ; status didn't change materially).
+     <SUMMARY>
+
+     ---------------------------------------------------------------------------
+
+     EVENT                                    ; like [STATE], except the state is
+     <TS>                                     ; only broadcast when the status
+     <NAME>                                   ; changes significantly (i.e. from
+     <CODE>                                   ; OK to WARNING, or CRITICAL to OK)
+     <SUMMARY>
+
+     ---------------------------------------------------------------------------
+
+     SAMPLE                                   ; broadcast on window rollover.
+     <TS>                                     ; contains all descriptive quantities
+     <NAME>                                   ; of the set.  subscribers can use
+     <N>                                      ; this data to update stored data
+     <MIN>                                    ; (e.g. RRDs) for use later.
+     <MAX>
+     <SUM>
+     <MEAN>
+     <VARIANCE>
+
+     ---------------------------------------------------------------------------
+
+     COUNTER                                  ; broadcast on window rollover.
+     <TS>                                     ; subscribers can store the value
+     <NAME>                                   ; of the counter (e.g. in RRDs)
+     <VALUE>                                  ; for use later.
+
+     ---------------------------------------------------------------------------
+
+
+  ##############################################################################
   PDUs (native listener):
 
      ---------------------------------------------------------------------------

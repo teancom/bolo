@@ -182,6 +182,7 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 	case RECORD_TYPE_SAMPLE:
 		body.sample.last_seen = htonl(payload.sample->last_seen);
+		body.sample.n         = htonll(payload.sample->n);
 		body.sample.min       = htonl(payload.sample->min);
 		body.sample.max       = htonl(payload.sample->max);
 		body.sample.sum       = htonl(payload.sample->sum);
@@ -294,7 +295,7 @@ static int read_record(int fd, uint8_t *type, void **r)
 			return 1;
 
 		payload.sample->last_seen = ntohl(body.sample.last_seen);
-		payload.sample->n         = ntohl(body.sample.n);
+		payload.sample->n         = ntohll(body.sample.n);
 		payload.sample->min       = ntohl(body.sample.min);
 		payload.sample->max       = ntohl(body.sample.max);
 		payload.sample->sum       = ntohl(body.sample.sum);
@@ -622,6 +623,10 @@ static void* cleanup_kernel(void *_)
 	return NULL;
 }
 
+#define window(x, t) ((t) - ((t) % (x)->window->time))
+#define max(a,b) ((a) > (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
 void* kernel(void *u)
 {
 	kernel_t *db = calloc(1, sizeof(kernel_t));
@@ -724,6 +729,25 @@ void* kernel(void *u)
 			} else {
 				counter_t *counter = hash_get(&db->server->db.counters, name);
 				if (counter) {
+					/* check for window closure */
+					if (counter->last_seen > 0 && counter->last_seen != ts
+					 && window(counter, counter->last_seen) != window(counter, ts)) {
+						counter->last_seen = window(counter, counter->last_seen);
+						logger(LOG_INFO, "counter window rollover detected between %i and %i",
+							counter->last_seen, ts);
+						logger(LOG_INFO, "broadcasting [COUNTER] data for %s: ts=%i, value=%i\n",
+							counter->name, counter->last_seen, counter->value);
+
+						a = pdu_make("COUNTER", 0);
+						pdu_extendf(a, "%u", counter->last_seen);
+						pdu_extendf(a, "%s", counter->name);
+						pdu_extendf(a, "%lu", counter->value);
+						pdu_send_and_free(a, db->broadcast);
+						a = NULL;
+
+						counter->value = 0;
+					}
+
 					logger(LOG_INFO, "updating counter %s, ts=%i, incr=%i", name, ts, incr);
 					counter->last_seen = ts;
 					counter->value += incr;
@@ -746,10 +770,47 @@ void* kernel(void *u)
 			} else {
 				sample_t *sample = hash_get(&db->server->db.samples, name);
 				if (sample) {
-					logger(LOG_INFO, "updating sample %s, ts=%i, value=%i", name, ts, v);
-					sample->last_seen = ts;
-					sample->n++;
-					/* wow, this is so incredibly wrong.  FIXME */
+					/* check for window closure */
+					if (sample->last_seen > 0 && sample->last_seen != ts
+					 && window(sample, sample->last_seen) != window(sample, ts)) {
+						sample->last_seen = window(sample, sample->last_seen);
+						logger(LOG_INFO, "sample window rollover detected between %i and %i",
+							sample->last_seen, ts);
+						logger(LOG_INFO, "broadcasting [SAMPLE] data for %s: "
+							"ts=%i, n=%i, min=%e, max=%e, sum=%e, mean=%e, var=%e",
+							sample->name, sample->last_seen, sample->n, sample->min,
+							sample->max, sample->sum, sample->mean, sample->var);
+
+						a = pdu_make("SAMPLE", 0);
+						pdu_extendf(a, "%u", sample->last_seen);
+						pdu_extendf(a, "%s", sample->name);
+						pdu_extendf(a, "%u", sample->n);
+						pdu_extendf(a, "%e", sample->min);
+						pdu_extendf(a, "%e", sample->max);
+						pdu_extendf(a, "%e", sample->sum);
+						pdu_extendf(a, "%e", sample->mean);
+						pdu_extendf(a, "%e", sample->var);
+						pdu_send_and_free(a, db->broadcast);
+						a = NULL;
+
+						sample->last_seen = 0;
+					}
+
+					if (sample->last_seen == 0) {
+						logger(LOG_INFO, "starting sample set %s, ts=%i, value=%e", name, ts, v);
+						sample->last_seen = ts;
+						sample->n = 1;
+						sample->min = sample->max = sample->sum = v;
+						/* FIXME: mean / variance calcs */
+					} else {
+						logger(LOG_INFO, "updating sample set %s, ts=%i, value=%e", name, ts, v);
+						sample->last_seen = ts;
+						sample->n++;
+						sample->min = min(sample->min, v);
+						sample->max = max(sample->max, v);
+						sample->sum += v;
+						/* FIXME: mean / variance calcs */
+					}
 
 					a = pdu_reply(q, "OK", 0);
 
