@@ -43,27 +43,24 @@ void* scheduler(void *u)
 		return NULL;
 	}
 
-	pdu_t *a;
 	uint16_t freshness = s->server->interval.freshness;
 	uint16_t savestate = s->server->interval.savestate;
 	for (;;) {
-		if (freshness == 0) {
+		if (--freshness == 0) {
 			pdu_send_and_free(pdu_make("CHECKFRESH", 0), s->client);
-			a = pdu_recv(s->client);
-			pdu_free(a);
+			pdu_free(pdu_recv(s->client));
 			freshness = s->server->interval.freshness;
-		} else {
-			freshness--;
 		}
 
-		if (savestate == 0) {
+		if (--savestate == 0) {
 			pdu_send_and_free(pdu_make("SAVESTATE", 0), s->client);
-			a = pdu_recv(s->client);
-			pdu_free(a);
+			pdu_free(pdu_recv(s->client));
 			savestate = s->server->interval.savestate;
-		} else {
-			savestate--;
 		}
+
+		pdu_send_and_free(pdu_make("TICK", 0), s->client);
+		pdu_free(pdu_recv(s->client));
+
 		sleep_ms(s->server->interval.tick);
 	}
 

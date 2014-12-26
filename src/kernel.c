@@ -597,6 +597,47 @@ static void dump(db_t *db, const char *file)
 	close(fd);
 }
 
+#define winstart(x, t) ((t) - ((t) % (x)->window->time))
+#define winend(x, t)   (winstart((x), (t)) + (x)->window->time)
+#define max(a,b) ((a) > (b) ? (a) : (b))
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
+static void broadcast_counter(kernel_t *db, counter_t *counter)
+{
+	int32_t ts = winstart(counter, counter->last_seen);
+
+	logger(LOG_INFO, "broadcasting [COUNTER] data for "
+		"%s: ts=%i, value=%i\n",
+		counter->name, ts, counter->value);
+
+	pdu_t *p = pdu_make("COUNTER", 0);
+	pdu_extendf(p, "%u",  ts);
+	pdu_extendf(p, "%s",  counter->name);
+	pdu_extendf(p, "%lu", counter->value);
+	pdu_send_and_free(p, db->broadcast);
+}
+
+static void broadcast_sample(kernel_t *db, sample_t *sample)
+{
+	int32_t ts = winstart(sample, sample->last_seen);
+
+	logger(LOG_INFO, "broadcasting [SAMPLE] data for %s: "
+		"ts=%i, n=%i, min=%e, max=%e, sum=%e, mean=%e, var=%e",
+		sample->name, ts, sample->n, sample->min,
+		sample->max, sample->sum, sample->mean, sample->var);
+
+	pdu_t *p = pdu_make("SAMPLE", 0);
+	pdu_extendf(p, "%u", ts);
+	pdu_extendf(p, "%s", sample->name);
+	pdu_extendf(p, "%u", sample->n);
+	pdu_extendf(p, "%e", sample->min);
+	pdu_extendf(p, "%e", sample->max);
+	pdu_extendf(p, "%e", sample->sum);
+	pdu_extendf(p, "%e", sample->mean);
+	pdu_extendf(p, "%e", sample->var);
+	pdu_send_and_free(p, db->broadcast);
+}
+
 static void* cleanup_kernel(void *_)
 {
 	kernel_t *db = (kernel_t*)_;
@@ -622,10 +663,6 @@ static void* cleanup_kernel(void *_)
 	free(db);
 	return NULL;
 }
-
-#define window(x, t) ((t) - ((t) % (x)->window->time))
-#define max(a,b) ((a) > (b) ? (a) : (b))
-#define min(a,b) ((a) < (b) ? (a) : (b))
 
 void* kernel(void *u)
 {
@@ -731,20 +768,10 @@ void* kernel(void *u)
 				if (counter) {
 					/* check for window closure */
 					if (counter->last_seen > 0 && counter->last_seen != ts
-					 && window(counter, counter->last_seen) != window(counter, ts)) {
-						counter->last_seen = window(counter, counter->last_seen);
+					 && winstart(counter, counter->last_seen) != winstart(counter, ts)) {
 						logger(LOG_INFO, "counter window rollover detected between %i and %i",
-							counter->last_seen, ts);
-						logger(LOG_INFO, "broadcasting [COUNTER] data for %s: ts=%i, value=%i\n",
-							counter->name, counter->last_seen, counter->value);
-
-						a = pdu_make("COUNTER", 0);
-						pdu_extendf(a, "%u", counter->last_seen);
-						pdu_extendf(a, "%s", counter->name);
-						pdu_extendf(a, "%lu", counter->value);
-						pdu_send_and_free(a, db->broadcast);
-						a = NULL;
-
+							winstart(counter, counter->last_seen), ts);
+						broadcast_counter(db, counter);
 						counter->value = 0;
 					}
 
@@ -772,27 +799,10 @@ void* kernel(void *u)
 				if (sample) {
 					/* check for window closure */
 					if (sample->last_seen > 0 && sample->last_seen != ts
-					 && window(sample, sample->last_seen) != window(sample, ts)) {
-						sample->last_seen = window(sample, sample->last_seen);
+					 && winstart(sample, sample->last_seen) != winstart(sample, ts)) {
 						logger(LOG_INFO, "sample window rollover detected between %i and %i",
-							sample->last_seen, ts);
-						logger(LOG_INFO, "broadcasting [SAMPLE] data for %s: "
-							"ts=%i, n=%i, min=%e, max=%e, sum=%e, mean=%e, var=%e",
-							sample->name, sample->last_seen, sample->n, sample->min,
-							sample->max, sample->sum, sample->mean, sample->var);
-
-						a = pdu_make("SAMPLE", 0);
-						pdu_extendf(a, "%u", sample->last_seen);
-						pdu_extendf(a, "%s", sample->name);
-						pdu_extendf(a, "%u", sample->n);
-						pdu_extendf(a, "%e", sample->min);
-						pdu_extendf(a, "%e", sample->max);
-						pdu_extendf(a, "%e", sample->sum);
-						pdu_extendf(a, "%e", sample->mean);
-						pdu_extendf(a, "%e", sample->var);
-						pdu_send_and_free(a, db->broadcast);
-						a = NULL;
-
+							winstart(sample, sample->last_seen), ts);
+						broadcast_sample(db, sample);
 						sample->last_seen = 0;
 					}
 
@@ -852,6 +862,27 @@ void* kernel(void *u)
 			} else {
 				a = pdu_reply(q, "OK", 0);
 			}
+
+		} else if (strcmp(pdu_type(q), "TICK") == 0) {
+			char *name;
+			int32_t ts = time_s() - 15; /* FIXME: make configurable */
+
+			counter_t *counter;
+			for_each_key_value(&db->server->db.counters, name, counter) {
+				if (counter->last_seen == 0 || winend(counter, counter->last_seen) >= ts)
+					continue;
+				broadcast_counter(db, counter);
+				counter->last_seen = 0;
+				counter->value = 0;
+			}
+			sample_t *sample;
+			for_each_key_value(&db->server->db.samples, name, sample) {
+				if (sample->last_seen == 0 || winend(sample, sample->last_seen) >= ts)
+					continue;
+				broadcast_sample(db, sample);
+				sample->last_seen = 0;
+			}
+			a = pdu_reply(q, "OK", 0);
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");

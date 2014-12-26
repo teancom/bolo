@@ -25,6 +25,7 @@ TESTS {
 
 	size_t checkfresh = 0;
 	size_t savestate  = 0;
+	size_t tick       = 0;
 
 	alarm(20);
 	for (;;) {
@@ -36,6 +37,8 @@ TESTS {
 			savestate++;
 		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0) {
 			checkfresh++;
+		} else if (strcmp(pdu_type(q), "TICK") == 0) {
+			tick++;
 		} else {
 			diag("received a [%s] PDU", pdu_type(q));
 			BAIL_OUT("Unepxected PDU from scheduler");
@@ -45,12 +48,13 @@ TESTS {
 		pdu_send_and_free(a, z);
 		pdu_free(q);
 
-		if (checkfresh + savestate > 10)
+		if (tick == 6)
 			break;
 	}
 
-	ok(checkfresh >= 6, "received at least two [CHECKFRESH]");
-	ok(savestate  >= 2, "received at least four [SAVESTATE]");
+	is_int(checkfresh, 6, "received six [CHECKFRESH]");
+	is_int(savestate,  2, "received two [SAVESTATE]");
+	is_int(tick,       6, "received six [TICK]");
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
