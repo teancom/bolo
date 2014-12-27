@@ -1,4 +1,9 @@
 TODO
 
+- EVENT pdu support
+- subscribers!
+  - rrd creator
+  - console event notifier
+  - console grapher
 - memory usage analysis
 - perf testing
