@@ -57,11 +57,11 @@ TESTS {
 	CHECK(zmq_connect(db_client, KERNEL_ENDPOINT) == 0,
 		"failed to connect to kernel socket");
 	CHECK(sub = zmq_socket(svr.zmq, ZMQ_SUB),
-		"failed to create mock db subscriber socket");
+		"failed to create mock kernel subscriber socket");
 	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
-		"failed to set ZMQ_SUBSCRIBE option to '' on db subscriber socket");
+		"failed to set ZMQ_SUBSCRIBE option to '' on kernel subscriber socket");
 	CHECK(zmq_connect(sub, svr.config.broadcast) == 0,
-		"failed to connect to db publisher socket");
+		"failed to connect to kernel publisher socket");
 
 	/* ----------------------------- */
 
@@ -108,7 +108,7 @@ TESTS {
 	pdu_free(p);
 
 
-	/* send test.state.0 initial ok */
+	/* send test.state.0 recovery */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.0", "0", "all good");
 	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent [PUT.STATE] PDU to kernel");
@@ -140,7 +140,7 @@ TESTS {
 
 	/* check the publisher pipeline */
 	p = pdu_recv(sub);
-	is_string(pdu_type(p), "STATE", "db broadcast a [STATE] PDU");
+	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");
 	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name");   free(s);
 	is_string(s = pdu_string(p, 2), ts,                "STATE[1] is last seen ts"); free(s);
 	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness");    free(s);
