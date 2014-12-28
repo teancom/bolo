@@ -9,7 +9,7 @@ TESTS {
 	alarm(5);
 	server_t svr;
 	int rc;
-	void *db_client, *sub;
+	void *client, *sub;
 	pthread_t tid;
 
 	memset(&svr, 0, sizeof(svr));
@@ -52,9 +52,9 @@ TESTS {
 	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
 		"failed to spin up kernel thread");
 	sleep_ms(50);
-	CHECK(db_client = zmq_socket(svr.zmq, ZMQ_DEALER),
+	CHECK(client = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock kernel test socket");
-	CHECK(zmq_connect(db_client, KERNEL_ENDPOINT) == 0,
+	CHECK(zmq_connect(client, KERNEL_ENDPOINT) == 0,
 		"failed to connect to kernel socket");
 	CHECK(sub = zmq_socket(svr.zmq, ZMQ_SUB),
 		"failed to create mock kernel subscriber socket");
@@ -72,10 +72,10 @@ TESTS {
 
 	/* send an invalid PDU */
 	p = pdu_make("@INVALID!", 2, "foo", "bar");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [@INVALID!] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "Invalid PDU", "Error message returned"); free(s);
@@ -83,10 +83,10 @@ TESTS {
 
 	/* get the state of test.state.0 */
 	p = pdu_make("GET.STATE", 1, "test.state.0");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [GET.STATE] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "STATE", "kernel replied with a [STATE]");
 	is_string(s = pdu_string(p, 1), "test.state.0",    "STATE[0] is state name"); free(s);
@@ -98,10 +98,10 @@ TESTS {
 
 	/* send test.state.3 (not configured) initial ok */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.3", "0", "NEW");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [PUT.STATE] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
@@ -110,10 +110,10 @@ TESTS {
 
 	/* send test.state.0 recovery */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.0", "0", "all good");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [PUT.STATE] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with an [OK]");
 	pdu_free(p);
@@ -139,10 +139,10 @@ TESTS {
 
 	/* send test.state.1 continuing crit */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.1", "2", "critically-ness");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent 2nd [PUT.STATE] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with an [OK]");
 	pdu_free(p);
@@ -163,10 +163,10 @@ TESTS {
 	/* dump the state file (to /t/tmp/dump.test) */
 	unlink("t/tmp/dump.test");
 	p = pdu_make("DUMP", 1, "test");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [DUMP] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "DUMP", "kernel replied with a [DUMP]");
 	is_string(s = pdu_string(p, 1), "t/tmp/dump.test", "[DUMP] reply returned file path"); free(s);
@@ -189,10 +189,10 @@ TESTS {
 
 	/* get state of test.state.1 via [STATE] */
 	p = pdu_make("GET.STATE", 1, "test.state.1");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [GET.STATE] query to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "STATE", "kernel replied with a [STATE]");
 	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name"); free(s);
@@ -204,10 +204,10 @@ TESTS {
 
 	/* get non-existent state via [STATE] */
 	p = pdu_make("GET.STATE", 1, "fail.enoent//0");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [GET.STATE] query to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
@@ -215,39 +215,39 @@ TESTS {
 
 	/* increment counter counter1 value a few times */
 	p = pdu_make("PUT.COUNTER", 3, ts, "counter1", "1");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
 	pdu_free(p);
 
 	p = pdu_make("PUT.COUNTER", 3, ts, "counter1", "4");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent second [PUT.COUNTER] to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
 	pdu_free(p);
 
 	/* add samples to res.df:/ */
 	p = pdu_make("PUT.SAMPLE", 3, ts, "res.df:/", "42");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [PUT.SAMPLE] to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
 	pdu_free(p);
 
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 1, "test");
-	rc = pdu_send_and_free(p, db_client);
+	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [SAVESTATE] PDU to kernel");
 
-	p = pdu_recv(db_client);
+	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);

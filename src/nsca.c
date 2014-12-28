@@ -58,7 +58,7 @@ static int nonblocking(int fd)
 	return fcntl(fd, F_SETFL, orig|O_NONBLOCK);
 }
 
-static void update_kernel(void *db, client_t *c)
+static void update_kernel(void *kernel, client_t *c)
 {
 	pdu_t *q, *a;
 	char *s, *p = NULL;
@@ -78,9 +78,9 @@ static void update_kernel(void *db, client_t *c)
 	pdu_extendf(q, "%s:%s", c->packet.host, c->packet.service);
 	pdu_extendf(q, "%u", ntohs(c->packet.status) & 0xff);
 	pdu_extendf(q, "%s", c->packet.output);
-	pdu_send(q, db);
+	pdu_send(q, kernel);
 
-	a = pdu_recv(db);
+	a = pdu_recv(kernel);
 	if (strcmp(pdu_type(a), "OK") != 0) {
 		logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.STATE) from the kernel: %s",
 		s = pdu_string(a, 1)); free(s);
@@ -97,9 +97,9 @@ static void update_kernel(void *db, client_t *c)
 		pdu_extendf(q, "%u", ntohl(c->packet.timestamp));
 		pdu_extendf(q, "%s:%s:%s", c->packet.host, c->packet.service, k);
 		pdu_extendf(q, "%s", v);
-		pdu_send(q, db);
+		pdu_send(q, kernel);
 
-		a = pdu_recv(db);
+		a = pdu_recv(kernel);
 		if (strcmp(pdu_type(a), "OK") != 0) {
 			logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.SAMPLE) from the kernel: %s",
 			s = pdu_string(a, 1)); free(s);
@@ -119,7 +119,7 @@ void* nsca_gateway(void *u)
 	struct epoll_event ev, events[EPOLL_MAX_FD];
 	int n, nfds, epfd, connfd;
 	server_t *svr;
-	void *db;
+	void *kernel;
 
 	svr = (server_t*)u;
 	if (!svr) {
@@ -159,12 +159,12 @@ void* nsca_gateway(void *u)
 		return NULL;
 	}
 
-	db = zmq_socket(svr->zmq, ZMQ_DEALER);
-	if (!db) {
+	kernel = zmq_socket(svr->zmq, ZMQ_DEALER);
+	if (!kernel) {
 		logger(LOG_CRIT, "NSCA gateway failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(db, KERNEL_ENDPOINT) != 0) {
+	if (zmq_connect(kernel, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "NSCA gateway failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}
@@ -246,7 +246,7 @@ void* nsca_gateway(void *u)
 					c->bytes += n;
 
 					if (c->bytes == NSCA_PACKET_LEN) {
-						update_kernel(db, c);
+						update_kernel(kernel, c);
 					}
 				} else {
 					client_free(cache_unset(clients, id));

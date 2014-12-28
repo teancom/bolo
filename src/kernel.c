@@ -345,7 +345,7 @@ static int save_state(db_t *db, const char *file)
 		return -1;
 	}
 
-	logger(LOG_NOTICE, "saving db state to %s", file);
+	logger(LOG_NOTICE, "saving state db to %s", file);
 
 	memset(&header, 0, sizeof(header));
 	memcpy(&header.magic, "BOLO", 4);
@@ -432,7 +432,7 @@ static int read_state(db_t *db, const char *file)
 		return -1;
 	}
 
-	logger(LOG_NOTICE, "reading db state from savefile %s", file);
+	logger(LOG_NOTICE, "reading state db from savefile %s", file);
 	n = read(fd, &header, sizeof(header));
 	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0) {
 		logger(LOG_ERR, "%s does not seem to be a bolo savefile", file);
@@ -544,14 +544,14 @@ static int read_state(db_t *db, const char *file)
 	return 0;
 }
 
-static void check_freshness(kernel_t *db)
+static void check_freshness(kernel_t *k)
 {
 	state_t *state;
 	char *k;
 	uint32_t now = time_s();
 
 	logger(LOG_INFO, "checking freshness");
-	for_each_key_value(&db->server->db.states, k, state) {
+	for_each_key_value(&k->server->db.states, k, state) {
 		if (state->expiry > now) continue;
 
 		int event = !state->stale || state->status != state->type->status;
@@ -564,8 +564,8 @@ static void check_freshness(kernel_t *db)
 		state->summary = strdup(state->type->summary);
 
 		if (event)
-			broadcast_event(db, state);
-		broadcast_state(db, state);
+			broadcast_event(k, state);
+		broadcast_state(k, state);
 	}
 }
 
@@ -611,7 +611,7 @@ static void dump(db_t *db, const char *file)
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
-static void broadcast_state(kernel_t *db, state_t *state)
+static void broadcast_state(kernel_t *k, state_t *state)
 {
 	logger(LOG_INFO, "broadcasting [STATE] data for %s: "
 		"ts=%i, stale=%s, status=%i, summary=%s",
@@ -623,10 +623,10 @@ static void broadcast_state(kernel_t *db, state_t *state)
 	pdu_extendf(p, "%s",  state->stale ? "stale" : "fresh");
 	pdu_extendf(p, "%s",  statstr(state->status));
 	pdu_extendf(p, "%s",  state->summary);
-	pdu_send_and_free(p, db->broadcast);
+	pdu_send_and_free(p, k->broadcast);
 }
 
-static void broadcast_event(kernel_t *db, state_t *state)
+static void broadcast_event(kernel_t *k, state_t *state)
 {
 	logger(LOG_INFO, "broadcasting [EVENT] data for %s: "
 		"ts=%i, stale=%s, status=%i, summary=%s",
@@ -638,10 +638,10 @@ static void broadcast_event(kernel_t *db, state_t *state)
 	pdu_extendf(p, "%s",  state->stale ? "stale" : "fresh");
 	pdu_extendf(p, "%s",  statstr(state->status));
 	pdu_extendf(p, "%s",  state->summary);
-	pdu_send_and_free(p, db->broadcast);
+	pdu_send_and_free(p, k->broadcast);
 }
 
-static void broadcast_counter(kernel_t *db, counter_t *counter)
+static void broadcast_counter(kernel_t *k, counter_t *counter)
 {
 	int32_t ts = winstart(counter, counter->last_seen);
 
@@ -653,10 +653,10 @@ static void broadcast_counter(kernel_t *db, counter_t *counter)
 	pdu_extendf(p, "%u",  ts);
 	pdu_extendf(p, "%s",  counter->name);
 	pdu_extendf(p, "%lu", counter->value);
-	pdu_send_and_free(p, db->broadcast);
+	pdu_send_and_free(p, k->broadcast);
 }
 
-static void broadcast_sample(kernel_t *db, sample_t *sample)
+static void broadcast_sample(kernel_t *k, sample_t *sample)
 {
 	int32_t ts = winstart(sample, sample->last_seen);
 
@@ -674,81 +674,81 @@ static void broadcast_sample(kernel_t *db, sample_t *sample)
 	pdu_extendf(p, "%e", sample->sum);
 	pdu_extendf(p, "%e", sample->mean);
 	pdu_extendf(p, "%e", sample->var);
-	pdu_send_and_free(p, db->broadcast);
+	pdu_send_and_free(p, k->broadcast);
 }
 
 static void* cleanup_kernel(void *_)
 {
-	kernel_t *db = (kernel_t*)_;
-	if (db->listener) {
+	kernel_t *k = (kernel_t*)_;
+	if (k->listener) {
 		logger(LOG_INFO, "kernel cleaning up; closing listening socket");
-		vzmq_shutdown(db->listener, 500);
-		db->listener = NULL;
+		vzmq_shutdown(k->listener, 500);
+		k->listener = NULL;
 	}
-	if (db->broadcast) {
+	if (k->broadcast) {
 		logger(LOG_INFO, "kernel cleaning up; closing broadcast socket");
-		vzmq_shutdown(db->broadcast, 0);
-		db->broadcast = NULL;
+		vzmq_shutdown(k->broadcast, 0);
+		k->broadcast = NULL;
 	}
-	if (db->server) {
+	if (k->server) {
 		logger(LOG_INFO, "kernel cleaning up; saving final state to %s",
-			db->server->config.savefile);
-		if (save_state(&db->server->db, db->server->config.savefile) != 0) {
+			k->server->config.savefile);
+		if (save_state(&k->server->db, k->server->config.savefile) != 0) {
 			logger(LOG_CRIT, "failed to save final state to %s: %s",
-				db->server->config.savefile, strerror(errno));
+				k->server->config.savefile, strerror(errno));
 		}
 	}
 
-	free(db);
+	free(k);
 	return NULL;
 }
 
 void* kernel(void *u)
 {
-	kernel_t *db = calloc(1, sizeof(kernel_t));
-	pthread_cleanup_push(cleanup_kernel, db);
+	kernel_t *k = calloc(1, sizeof(kernel_t));
+	pthread_cleanup_push(cleanup_kernel, k);
 
-	db->server = (server_t*)u;
-	if (!db->server) {
+	k->server = (server_t*)u;
+	if (!k->server) {
 		logger(LOG_CRIT, "kernel failed: server context was NULL");
 		return NULL;
 	}
 
-	db->listener = zmq_socket(db->server->zmq, ZMQ_ROUTER);
-	if (!db->listener) {
+	k->listener = zmq_socket(k->server->zmq, ZMQ_ROUTER);
+	if (!k->listener) {
 		logger(LOG_CRIT, "kernel failed to get a ROUTER socket");
 		return NULL;
 	}
-	if (zmq_bind(db->listener, KERNEL_ENDPOINT) != 0) {
+	if (zmq_bind(k->listener, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "kernel failed to bind to " KERNEL_ENDPOINT);
 		return NULL;
 	}
 
-	if (!db->server->config.broadcast) {
+	if (!k->server->config.broadcast) {
 		logger(LOG_CRIT, "kernel failed: no broadcast bind address specified");
 		return NULL;
 	}
-	db->broadcast = zmq_socket(db->server->zmq, ZMQ_PUB);
-	if (!db->broadcast) {
+	k->broadcast = zmq_socket(k->server->zmq, ZMQ_PUB);
+	if (!k->broadcast) {
 		logger(LOG_CRIT, "kernel failed to get a PUB socket");
 		return NULL;
 	}
-	if (zmq_bind(db->broadcast, db->server->config.broadcast) != 0) {
-		logger(LOG_CRIT, "kernel failed to bind to %s", db->server->config.broadcast);
+	if (zmq_bind(k->broadcast, k->server->config.broadcast) != 0) {
+		logger(LOG_CRIT, "kernel failed to bind to %s", k->server->config.broadcast);
 		return NULL;
 	}
 
-	if (!db->server->config.savefile) {
+	if (!k->server->config.savefile) {
 		logger(LOG_CRIT, "kernel failed: no savefile provided");
 		return NULL;
 	}
-	if (read_state(&db->server->db, db->server->config.savefile) != 0) {
+	if (read_state(&k->server->db, k->server->config.savefile) != 0) {
 		logger(LOG_WARNING, "kernel failed to read state from %s: %s",
-				db->server->config.savefile, strerror(errno));
+				k->server->config.savefile, strerror(errno));
 	}
 
 	pdu_t *q, *a;
-	while ((q = pdu_recv(db->listener)) != NULL) {
+	while ((q = pdu_recv(k->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
 			continue;
@@ -768,7 +768,7 @@ void* kernel(void *u)
 				a = pdu_reply(q, "ERROR", 1, "No summary given");
 
 			} else {
-				state_t *state = hash_get(&db->server->db.states, name);
+				state_t *state = hash_get(&k->server->db.states, name);
 				if (state) {
 					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
 					int event = state->stale || state->status != code;
@@ -782,8 +782,8 @@ void* kernel(void *u)
 
 					a = pdu_reply(q, "OK", 0);
 					if (event)
-						broadcast_event(db, state);
-					broadcast_state(db, state);
+						broadcast_event(k, state);
+					broadcast_state(k, state);
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "State Not Found");
@@ -802,14 +802,14 @@ void* kernel(void *u)
 			if (!name || !*name) {
 				a = pdu_reply(q, "ERROR", 1, "No counter name given");
 			} else {
-				counter_t *counter = hash_get(&db->server->db.counters, name);
+				counter_t *counter = hash_get(&k->server->db.counters, name);
 				if (counter) {
 					/* check for window closure */
 					if (counter->last_seen > 0 && counter->last_seen != ts
 					 && winstart(counter, counter->last_seen) != winstart(counter, ts)) {
 						logger(LOG_INFO, "counter window rollover detected between %i and %i",
 							winstart(counter, counter->last_seen), ts);
-						broadcast_counter(db, counter);
+						broadcast_counter(k, counter);
 						counter->value = 0;
 					}
 
@@ -833,14 +833,14 @@ void* kernel(void *u)
 			if (!name || !*name) {
 				a = pdu_reply(q, "ERROR", 1, "No sample name given");
 			} else {
-				sample_t *sample = hash_get(&db->server->db.samples, name);
+				sample_t *sample = hash_get(&k->server->db.samples, name);
 				if (sample) {
 					/* check for window closure */
 					if (sample->last_seen > 0 && sample->last_seen != ts
 					 && winstart(sample, sample->last_seen) != winstart(sample, ts)) {
 						logger(LOG_INFO, "sample window rollover detected between %i and %i",
 							winstart(sample, sample->last_seen), ts);
-						broadcast_sample(db, sample);
+						broadcast_sample(k, sample);
 						sample->last_seen = 0;
 					}
 
@@ -869,7 +869,7 @@ void* kernel(void *u)
 
 		} else if (strcmp(pdu_type(q), "GET.STATE") == 0) {
 			char *name = pdu_string(q, 1);
-			state_t *state = hash_get(&db->server->db.states, name);
+			state_t *state = hash_get(&k->server->db.states, name);
 			if (!state) {
 				a = pdu_reply(q, "ERROR", 1, "State Not Found");
 			} else {
@@ -883,19 +883,19 @@ void* kernel(void *u)
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
 			char *key  = pdu_string(q, 1);
-			char *file = string(db->server->config.dumpfiles, key);
+			char *file = string(k->server->config.dumpfiles, key);
 			free(key);
 
-			dump(&db->server->db, file);
+			dump(&k->server->db, file);
 			a = pdu_reply(q, "DUMP", 1, file);
 			free(file);
 
 		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0) {
-			check_freshness(db);
+			check_freshness(k);
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
-			if (save_state(&db->server->db, db->server->config.savefile) != 0) {
+			if (save_state(&k->server->db, k->server->config.savefile) != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 			} else {
 				a = pdu_reply(q, "OK", 0);
@@ -906,18 +906,18 @@ void* kernel(void *u)
 			int32_t ts = time_s() - 15; /* FIXME: make configurable */
 
 			counter_t *counter;
-			for_each_key_value(&db->server->db.counters, name, counter) {
+			for_each_key_value(&k->server->db.counters, name, counter) {
 				if (counter->last_seen == 0 || winend(counter, counter->last_seen) >= ts)
 					continue;
-				broadcast_counter(db, counter);
+				broadcast_counter(k, counter);
 				counter->last_seen = 0;
 				counter->value = 0;
 			}
 			sample_t *sample;
-			for_each_key_value(&db->server->db.samples, name, sample) {
+			for_each_key_value(&k->server->db.samples, name, sample) {
 				if (sample->last_seen == 0 || winend(sample, sample->last_seen) >= ts)
 					continue;
-				broadcast_sample(db, sample);
+				broadcast_sample(k, sample);
 				sample->last_seen = 0;
 			}
 			a = pdu_reply(q, "OK", 0);
@@ -926,7 +926,7 @@ void* kernel(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
-		pdu_send_and_free(a, db->listener);
+		pdu_send_and_free(a, k->listener);
 		pdu_free(q);
 	}
 
