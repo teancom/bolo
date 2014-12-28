@@ -76,6 +76,9 @@ typedef struct {
 	void     *broadcast;
 } kernel_t;
 
+static void broadcast_state(kernel_t*, state_t*);
+static void broadcast_event(kernel_t*, state_t*);
+
 static inline const char *statstr(uint8_t s)
 {
 	static const char *names[] = { "OK", "WARNING", "CRITICAL", "UNKNOWN" };
@@ -541,15 +544,17 @@ static int read_state(db_t *db, const char *file)
 	return 0;
 }
 
-static void check_freshness(db_t *db)
+static void check_freshness(kernel_t *db)
 {
 	state_t *state;
 	char *k;
 	uint32_t now = time_s();
 
 	logger(LOG_INFO, "checking freshness");
-	for_each_key_value(&db->states, k, state) {
+	for_each_key_value(&db->server->db.states, k, state) {
 		if (state->expiry > now) continue;
+
+		int event = !state->stale || state->status != state->type->status;
 
 		logger(LOG_INFO, "state %s is stale; marking", k);
 		state->stale   = 1;
@@ -557,6 +562,10 @@ static void check_freshness(db_t *db)
 		state->status  = state->type->status;
 		free(state->summary);
 		state->summary = strdup(state->type->summary);
+
+		if (event)
+			broadcast_event(db, state);
+		broadcast_state(db, state);
 	}
 }
 
@@ -762,7 +771,7 @@ void* kernel(void *u)
 				state_t *state = hash_get(&db->server->db.states, name);
 				if (state) {
 					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
-					int event = state->status != code;
+					int event = state->stale || state->status != code;
 
 					free(state->summary);
 					state->status    = code;
@@ -882,7 +891,7 @@ void* kernel(void *u)
 			free(file);
 
 		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0) {
-			check_freshness(&db->server->db);
+			check_freshness(db);
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {

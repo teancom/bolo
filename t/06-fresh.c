@@ -31,13 +31,19 @@ TESTS {
 	pthread_t tid;
 	CHECK(pthread_create(&tid, NULL, kernel, &svr) == 0,
 		"failed to spin up kernel thread");
-	sleep_ms(50);
 
-	void *z;
+	void *z, *sub;
 	CHECK(z = zmq_socket(svr.zmq, ZMQ_DEALER),
 		"failed to create mock kernel test socket");
 	CHECK(zmq_connect(z, KERNEL_ENDPOINT) == 0,
 		"failed to connect to kernel socket");
+	CHECK(sub = zmq_socket(svr.zmq, ZMQ_SUB),
+		"failed to create kernel subscriber socket");
+	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
+		"failed to set subscriber filter");
+	CHECK(zmq_connect(sub, "inproc://bcast") == 0,
+		"failed to connect to broadcast endpoint");
+	sleep_ms(50);
 
 	/* ----------------------------- */
 
@@ -52,6 +58,7 @@ TESTS {
 	is_string(s = pdu_string(a, 1), "test.state.0", "reply was for intended target"); free(s);
 	is_string(s = pdu_string(a, 2), "1418870107", "last_seen was set from state file"); free(s);
 	is_string(s = pdu_string(a, 3), "fresh", "test.state.0 is still fresh"); free(s);
+	is_string(s = pdu_string(a, 4), "WARNING", "test.state.0 is WARNING"); free(s);
 	is_string(s = pdu_string(a, 5), "its problematic", "summary messsage"); free(s);
 	pdu_free(a);
 
@@ -64,6 +71,24 @@ TESTS {
 	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "OK", "got [OK] reply from kernel");
 	pdu_free(a);
+
+	/* check for EVENT / STATE broadcast PDUs */
+	CHECK(q = pdu_recv(sub), "no broadcast PDU received from kernel");
+	is(s = pdu_type(q), "EVENT", "received an [EVENT] PDU in response to staleness");
+	is(s = pdu_string(a, 1), "test.state.0",  "EVENT[0] is state name"); free(s);
+	is(s = pdu_string(a, 2), "1418870107",    "EVENT[1] is last seen"); free(s);
+	is(s = pdu_string(a, 3), "stale",         "EVENT[2] is stale/fresh"); free(s);
+	is(s = pdu_string(a, 4), "CRITICAL",      "EVENT[3] is new status"); free(s);
+	is(s = pdu_string(a, 5), "no results!!!", "EVENT[4] is summary"); free(s);
+	pdu_free(q);
+	CHECK(q = pdu_recv(sub), "no broadcast PDU received from kernel");
+	is(s = pdu_type(q), "STATE", "received an [STATE] PDU in response to staleness");
+	is(s = pdu_string(a, 1), "test.state.0",  "STATE[0] is state name"); free(s);
+	is(s = pdu_string(a, 2), "1418870107",    "STATE[1] is last seen"); free(s);
+	is(s = pdu_string(a, 3), "stale",         "STATE[2] is stale/fresh"); free(s);
+	is(s = pdu_string(a, 4), "CRITICAL",      "STATE[3] is new status"); free(s);
+	is(s = pdu_string(a, 5), "no results!!!", "STATE[4] is summary"); free(s);
+	pdu_free(q);
 
 	/* check (post-sweep) status */
 	q = pdu_make("GET.STATE", 1, "test.state.0");
@@ -80,5 +105,6 @@ TESTS {
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
+	zmq_close(sub);
 	zmq_close(z);
 }

@@ -1,6 +1,5 @@
 TODO
 
-- EVENT pdu support
 - subscribers!
   - rrd creator
   - console event notifier
