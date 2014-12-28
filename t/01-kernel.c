@@ -120,7 +120,16 @@ TESTS {
 
 	/* check the publisher pipeline */
 	p = pdu_recv(sub);
-	is_string(pdu_type(p), "STATE", "db broadcast a [STATE] PDU");
+	is_string(pdu_type(p), "EVENT", "kernel broadcast an [EVENT] PDU");
+	is_string(s = pdu_string(p, 1), "test.state.0", "EVENT[0] is state name");   free(s);
+	is_string(s = pdu_string(p, 2), ts,             "EVENT[1] is last seen ts"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",        "EVENT[2] is freshness");    free(s);
+	is_string(s = pdu_string(p, 4), "OK",           "EVENT[3] is status");       free(s);
+	is_string(s = pdu_string(p, 5), "all good",     "EVENT[4] is summary");      free(s);
+	pdu_free(p);
+
+	p = pdu_recv(sub);
+	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");
 	is_string(s = pdu_string(p, 1), "test.state.0", "STATE[0] is state name");   free(s);
 	is_string(s = pdu_string(p, 2), ts,             "STATE[1] is last seen ts"); free(s);
 	is_string(s = pdu_string(p, 3), "fresh",        "STATE[2] is freshness");    free(s);
@@ -128,7 +137,7 @@ TESTS {
 	is_string(s = pdu_string(p, 5), "all good",     "STATE[4] is summary");      free(s);
 	pdu_free(p);
 
-	/* send test.state.1 initial crit */
+	/* send test.state.1 continuing crit */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.1", "2", "critically-ness");
 	rc = pdu_send_and_free(p, db_client);
 	is_int(rc, 0, "sent 2nd [PUT.STATE] PDU to kernel");
@@ -139,6 +148,9 @@ TESTS {
 	pdu_free(p);
 
 	/* check the publisher pipeline */
+
+	/* no EVENT pdu, since its an ongoing state */
+
 	p = pdu_recv(sub);
 	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");
 	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name");   free(s);

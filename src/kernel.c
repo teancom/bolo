@@ -602,6 +602,36 @@ static void dump(db_t *db, const char *file)
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
+static void broadcast_state(kernel_t *db, state_t *state)
+{
+	logger(LOG_INFO, "broadcasting [STATE] data for %s: "
+		"ts=%i, stale=%s, status=%i, summary=%s",
+		state->name, state->last_seen, state->stale ? "y" : "n",
+		state->status, state->summary);
+
+	pdu_t *p = pdu_make("STATE", 1, state->name);
+	pdu_extendf(p, "%li", state->last_seen);
+	pdu_extendf(p, "%s",  state->stale ? "stale" : "fresh");
+	pdu_extendf(p, "%s",  statstr(state->status));
+	pdu_extendf(p, "%s",  state->summary);
+	pdu_send_and_free(p, db->broadcast);
+}
+
+static void broadcast_event(kernel_t *db, state_t *state)
+{
+	logger(LOG_INFO, "broadcasting [EVENT] data for %s: "
+		"ts=%i, stale=%s, status=%i, summary=%s",
+		state->name, state->last_seen, state->stale ? "y" : "n",
+		state->status, state->summary);
+
+	pdu_t *p = pdu_make("EVENT", 1, state->name);
+	pdu_extendf(p, "%li", state->last_seen);
+	pdu_extendf(p, "%s",  state->stale ? "stale" : "fresh");
+	pdu_extendf(p, "%s",  statstr(state->status));
+	pdu_extendf(p, "%s",  state->summary);
+	pdu_send_and_free(p, db->broadcast);
+}
+
 static void broadcast_counter(kernel_t *db, counter_t *counter)
 {
 	int32_t ts = winstart(counter, counter->last_seen);
@@ -708,7 +738,7 @@ void* kernel(void *u)
 				db->server->config.savefile, strerror(errno));
 	}
 
-	pdu_t *q, *a, *b = NULL;
+	pdu_t *q, *a;
 	while ((q = pdu_recv(db->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
@@ -732,6 +762,7 @@ void* kernel(void *u)
 				state_t *state = hash_get(&db->server->db.states, name);
 				if (state) {
 					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
+					int event = state->status != code;
 
 					free(state->summary);
 					state->status    = code;
@@ -741,11 +772,9 @@ void* kernel(void *u)
 					state->stale     = 0;
 
 					a = pdu_reply(q, "OK", 0);
-					b = pdu_make("STATE", 1, name);
-					pdu_extendf(b, "%li", state->last_seen);
-					pdu_extendf(b, "%s",  state->stale ? "stale" : "fresh");
-					pdu_extendf(b, "%s",  statstr(state->status));
-					pdu_extendf(b, "%s",  state->summary);
+					if (event)
+						broadcast_event(db, state);
+					broadcast_state(db, state);
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "State Not Found");
@@ -890,11 +919,6 @@ void* kernel(void *u)
 
 		pdu_send_and_free(a, db->listener);
 		pdu_free(q);
-
-		if (b) {
-			pdu_send_and_free(b, db->broadcast);
-			b = NULL;
-		}
 	}
 
 	pthread_cleanup_pop(1);
