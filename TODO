@@ -1,6 +1,7 @@
 TODO
 
 - consistent hashing / dht algo
+- find a good hash function - murmur?
 - subscribers!
   - rrd creator
   - console event notifier
