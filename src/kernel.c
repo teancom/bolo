@@ -547,11 +547,11 @@ static int read_state(db_t *db, const char *file)
 static void check_freshness(kernel_t *k)
 {
 	state_t *state;
-	char *k;
+	char *key;
 	uint32_t now = time_s();
 
 	logger(LOG_INFO, "checking freshness");
-	for_each_key_value(&k->server->db.states, k, state) {
+	for_each_key_value(&k->server->db.states, key, state) {
 		if (state->expiry > now) continue;
 
 		int event = !state->stale || state->status != state->type->status;
