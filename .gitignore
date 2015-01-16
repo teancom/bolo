@@ -36,6 +36,8 @@ bolo
 send_bolo
 stat_bolo
 bolo_nsca
+bolo_rrd
+
 t/tmp
 t/00-config
 t/01-kernel
