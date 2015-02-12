@@ -83,6 +83,11 @@ int main(int argc, char **argv)
 	svr.interval.freshness  = 2;
 	svr.interval.savestate  = 15;
 
+	if (OPTIONS.foreground) {
+		log_open("bolo", "stderr");
+		log_level(LOG_INFO, NULL);
+	}
+
 	rc = configure(OPTIONS.config_file, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to read configuration from %s\nAborting...\n",
@@ -97,15 +102,13 @@ int main(int argc, char **argv)
 	}
 
 	if (OPTIONS.foreground) {
-		free(svr.config.log_facility);
-		svr.config.log_facility = strdup("stderr");
-	}
+		logger(LOG_NOTICE, "starting up (in foreground mode)");
 
-	log_open("bolo", svr.config.log_facility);
-	log_level(0, svr.config.log_level);
-	logger(LOG_NOTICE, "starting up");
+	} else {
+		log_open("bolo", svr.config.log_facility);
+		log_level(0, svr.config.log_level);
+		logger(LOG_NOTICE, "starting up");
 
-	if (!OPTIONS.foreground) {
 		if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
 			logger(LOG_CRIT, "daemonization failed!");
 			return 2;
