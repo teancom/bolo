@@ -199,7 +199,7 @@ int configure(const char *path, server_t *s)
 	if (!p.io) return -1;
 
 #define NEXT if (!lex(&p)) { logger(LOG_CRIT, "%s:%i: unexpected end of configuration\n", p.file, p.line); goto bail; }
-#define ERROR(s) logger(LOG_CRIT, "%s:%i: syntax error: ", p.file, p.line, s); goto bail
+#define ERROR(s) logger(LOG_CRIT, "%s:%i: syntax error: %s", p.file, p.line, s); goto bail
 #define SERVER_STRING(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	free(x); x = strdup(p.value)
 
@@ -402,7 +402,9 @@ int configure(const char *path, server_t *s)
 			break;
 
 		default:
-			ERROR("Unexpected token at top-level");
+			logger(LOG_ERR, "%s:%i: unexpected token '%s' found at top-level",
+				p.file, p.line, p.value);
+			goto bail;
 		}
 	}
 
