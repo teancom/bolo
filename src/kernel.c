@@ -376,7 +376,7 @@ static int save_state(db_t *db, const char *file)
 			close(fd);
 			return -1;
 		}
-		logger(LOG_INFO, "wrote %i of %i bytes for counter record #%i (%s)", n, len, i, name);
+		logger(LOG_INFO, "wrote %i bytes for counter record #%i (%s)", len, i, name);
 		i++;
 	}
 	for_each_key_value(&db->counters, name, counter) {
@@ -387,7 +387,7 @@ static int save_state(db_t *db, const char *file)
 			close(fd);
 			return -1;
 		}
-		logger(LOG_INFO, "wrote %i of %i bytes for counter record #%i (%s)", n, len, i, name);
+		logger(LOG_INFO, "wrote %i bytes for counter record #%i (%s)", len, i, name);
 		i++;
 	}
 	for_each_key_value(&db->samples, name, sample) {
@@ -398,7 +398,7 @@ static int save_state(db_t *db, const char *file)
 			close(fd);
 			return -1;
 		}
-		logger(LOG_INFO, "wrote %i of %i bytes for samples record #%i (%s)", n, len, i, name);
+		logger(LOG_INFO, "wrote %i bytes for samples record #%i (%s)", len, i, name);
 		i++;
 	}
 	n = write(fd, "\0\0", 2);
