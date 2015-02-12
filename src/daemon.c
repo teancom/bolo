@@ -101,12 +101,12 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
+	log_level(0, svr.config.log_level);
 	if (OPTIONS.foreground) {
 		logger(LOG_NOTICE, "starting up (in foreground mode)");
 
 	} else {
 		log_open("bolo", svr.config.log_facility);
-		log_level(0, svr.config.log_level);
 		logger(LOG_NOTICE, "starting up");
 
 		if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
@@ -114,6 +114,7 @@ int main(int argc, char **argv)
 			return 2;
 		}
 	}
+	logger(LOG_INFO, "log level is %s", svr.config.log_level);
 
 	sigset_t sigs;
 	sigemptyset(&sigs);

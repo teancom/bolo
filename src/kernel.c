@@ -753,6 +753,8 @@ void* kernel(void *u)
 			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
 			continue;
 		}
+
+		logger(LOG_DEBUG, "received a [%s] PDU", pdu_type(q));
 		if (strcmp(pdu_type(q), "PUT.STATE") == 0) {
 			char *s;
 
@@ -926,6 +928,7 @@ void* kernel(void *u)
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
+		logger(LOG_DEBUG, "sending back a [%s] PDU", pdu_type(a));
 		pdu_send_and_free(a, k->listener);
 		pdu_free(q);
 	}
