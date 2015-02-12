@@ -4,9 +4,15 @@
 static struct {
 	char *endpoint;
 	int   verbose;
+	int   type;
 } OPTIONS = { 0 };
 
 #define DEBUG OPTIONS.verbose > 0
+
+#define TYPE_UNKNOWN 0
+#define TYPE_STATE   1
+#define TYPE_COUNTER 2
+#define TYPE_SAMPLE  3
 
 int main(int argc, char **argv)
 {
@@ -17,11 +23,12 @@ int main(int argc, char **argv)
 		{ "help",           no_argument, 0, 'h' },
 		{ "verbose",        no_argument, 0, 'v' },
 		{ "endpoint", required_argument, 0, 'e' },
+		{ "type",     required_argument, 0, 't' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:t:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -38,46 +45,112 @@ int main(int argc, char **argv)
 			OPTIONS.endpoint = strdup(optarg);
 			break;
 
+		case 't':
+			if (strcasecmp(optarg, "state") == 0) {
+				OPTIONS.type = TYPE_STATE;
+
+			} else if (strcasecmp(optarg, "counter") == 0) {
+				OPTIONS.type = TYPE_COUNTER;
+
+			} else if (strcasecmp(optarg, "sample") == 0) {
+				OPTIONS.type = TYPE_SAMPLE;
+
+			} else {
+				fprintf(stderr, "invalid type '%s'\n", optarg);
+				return 1;
+			}
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			return 1;
 		}
 	}
 
-	if (argc - optind < 3) {
-		fprintf(stderr, "USAGE: %s [OPTIONS] name code message...\n", argv[0]);
+	pdu_t *pdu;
+
+	int nargs = argc - optind;
+	int32_t now = time_s();
+
+	if (OPTIONS.type == TYPE_STATE) {
+		if (nargs < 3) {
+			fprintf(stderr, "USAGE: %s -t state name code message\n", argv[0]);
+			return 1;
+		}
+
+		int status = UNKNOWN;
+		char *code = argv[optind + 1];
+		if (strcasecmp(code, "0")    == 0
+		 || strcasecmp(code, "ok")   == 0
+		 || strcasecmp(code, "okay") == 0)
+			status = OK;
+
+		else
+		if (strcasecmp(code, "1")  == 0
+		 || strcasecmp(code, "warn")    == 0
+		 || strcasecmp(code, "warning") == 0)
+			status = WARNING;
+
+		else
+		if (strcasecmp(code, "2")        == 0
+		 || strcasecmp(code, "crit")     == 0
+		 || strcasecmp(code, "critical") == 0)
+			status = CRITICAL;
+
+		strings_t *parts = strings_new(optind + argv + 2);
+		char *msg  = strings_join(parts, " ");
+		strings_free(parts);
+
+		pdu = pdu_make("STATE", 0);
+		pdu_extendf(pdu, "%i", now);
+		pdu_extendf(pdu, "%s", argv[optind + 0]);
+		pdu_extendf(pdu, "%u", status);
+		pdu_extendf(pdu, "%s", msg);
+		if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%u|%s]\n",
+			pdu_type(pdu), now, argv[optind + 0], status, msg);
+		free(msg);
+
+	} else if (OPTIONS.type == TYPE_COUNTER) {
+		if (nargs < 1) {
+			fprintf(stderr, "USAGE: %s -t counter name [increment]\n", argv[0]);
+			return 1;
+		}
+
+		int incr = 1;
+		if (argv[optind + 1])
+			incr = atoi(argv[optind + 1]);
+
+		pdu = pdu_make("COUNTER", 0);
+		pdu_extendf(pdu, "%i", now);
+		pdu_extendf(pdu, "%s", argv[optind + 0]);
+		pdu_extendf(pdu, "%u", incr);
+		if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%u]\n",
+			pdu_type(pdu), now, argv[optind + 0], incr);
+
+	} else if (OPTIONS.type == TYPE_SAMPLE) {
+		if (nargs < 2) {
+			fprintf(stderr, "USAGE: %s -t sample name value [value ...]\n", argv[0]);
+			return 1;
+		}
+
+		pdu = pdu_make("SAMPLE", 0);
+		pdu_extendf(pdu, "%i", now);
+		pdu_extendf(pdu, "%s", argv[optind + 0]);
+		pdu_extendf(pdu, "%u", nargs - 1);
+		if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%u",
+			pdu_type(pdu), now, argv[optind + 0], nargs - 1);
+
+		int i;
+		for (i = 0; i < nargs; i++) {
+			pdu_extendf(pdu, "%s", argv[optind + i]);
+			if (DEBUG) fprintf(stderr, "|%s", argv[optind + i]);
+		}
+		if (DEBUG) fprintf(stderr, "]\n");
+
+	} else {
+		fprintf(stderr, "USAGE: %s -t (sample|counter|state) args\n", argv[0]);
 		return 1;
 	}
-
-	char *name = argv[optind + 0];
-	char *code = argv[optind + 1];
-	strings_t *parts = strings_new(optind + argv + 2);
-	char *msg  = strings_join(parts, " ");
-	strings_free(parts);
-
-	int status = UNKNOWN;
-	if (strcasecmp(code, "0") == 0 || strcasecmp(code, "ok") == 0 || strcasecmp(code, "okay") == 0)
-		status = OK;
-	else if (strcasecmp(code, "1") == 0 || strcasecmp(code, "warn") == 0 || strcasecmp(code, "warning") == 0)
-		status = WARNING;
-	else if (strcasecmp(code, "2") == 0 || strcasecmp(code, "crit") == 0 || strcasecmp(code, "critical") == 0)
-		status = CRITICAL;
-
-	if (DEBUG) {
-		fprintf(stderr, "+>> determined name to be '%s'\n", name);
-		fprintf(stderr, "+>> determined status to be %i (from %s)\n", status, code);
-		fprintf(stderr, "+>> determined summary to be '%s'\n", msg);
-	}
-
-	if (!name || !*name) {
-		fprintf(stderr, "invalid name '%s'\n", name);
-		return 2;
-	}
-	if (!msg || !*msg) {
-		fprintf(stderr, "invalid message '%s'\n", msg);
-		return 2;
-	}
-	code = string("%u", status);
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
@@ -97,8 +170,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	if (DEBUG) fprintf(stderr, "+>> sending [SUBMIT|%s|%s|%s] PDU\n", name, code, msg);
-	if (pdu_send_and_free(pdu_make("SUBMIT", 3, name, code, msg), z) != 0) {
+	if (pdu_send_and_free(pdu, z) != 0) {
 		fprintf(stderr, "failed to send results to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
