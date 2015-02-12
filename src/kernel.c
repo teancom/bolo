@@ -228,7 +228,7 @@ static int read_record(int fd, uint8_t *type, void **r)
 		counter_t *counter;
 		sample_t  *sample;
 	} payload;
-	size_t n, want;
+	ssize_t n, want;
 	char buf[4096], *p;
 
 	n = read(fd, &record, sizeof(record));
@@ -422,7 +422,7 @@ static int read_state(db_t *db, const char *file)
 		counter_t *counter;
 		sample_t  *sample;
 	} payload, found;
-	int i, n;
+	unsigned int i, n;
 	uint8_t type;
 
 	int fd = open(file, O_RDONLY);
@@ -548,7 +548,7 @@ static void check_freshness(kernel_t *k)
 {
 	state_t *state;
 	char *key;
-	uint32_t now = time_s();
+	int32_t now = time_s();
 
 	logger(LOG_INFO, "checking freshness");
 	for_each_key_value(&k->server->db.states, key, state) {

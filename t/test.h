@@ -113,7 +113,7 @@ static int binfile_is(const char *path, const char *expect, size_t n, const char
 }
 
 HELPER
-static void write_file(const char *file, const char *contents, size_t n)
+static void write_file(const char *file, const char *contents, ssize_t n)
 {
 	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0644);
 	CHECK(fd >= 0, "failed to open test savefile for writing");

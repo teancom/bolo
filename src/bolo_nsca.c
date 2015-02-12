@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
 	uint8_t status;
 	char *name, *code, *msg, line[8192];
-	size_t n, offset = 0;
+	ssize_t n, offset = 0;
 	while ((n = read(0, line + offset, 8192 - offset)) >= 0) {
 		if (n == 0 && (!*line || *line == '\x17')) break;
 		char *f[4], *p;

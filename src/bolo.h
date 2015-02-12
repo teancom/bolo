@@ -44,7 +44,7 @@ typedef struct {
 } type_t;
 
 typedef struct {
-	uint32_t  time;
+	int32_t  time;
 } window_t;
 
 typedef struct {
