@@ -85,6 +85,18 @@ getline:
 		return 1;
 	}
 
+	if (isdigit(*b)) {
+		while (*b && isdigit(*b)) b++;
+		if (!*b || isspace(*b)) {
+			memcpy(p->value, p->buffer, b-p->buffer);
+			p->token = T_NUMBER;
+
+			while (*b && isspace(*b)) b++;
+			memmove(p->buffer, b, strlen(b)+1);
+			return 1;
+		}
+	}
+
 	if (isalnum(*b) || *b == '/') {
 		b++;
 		while (*b && (isalnum(*b) || ispunct(*b)))
@@ -216,7 +228,7 @@ int configure(const char *path, server_t *s)
 
 		case T_KEYWORD_NSCAPORT:
 			NEXT;
-			if (p.token != T_STRING) { ERROR("Expected string value"); }
+			if (p.token != T_NUMBER) { ERROR("Expected numeric port value"); }
 			s->config.nsca_port = atoi(p.value) & 0xffff;
 			break;
 
@@ -248,7 +260,7 @@ int configure(const char *path, server_t *s)
 			NEXT; if (p.token != T_WINDOWNAME) { ERROR("Expected a window name for `window WINDOWNAME SECONDS` construct"); }
 			win = calloc(1, sizeof(window_t));
 			hash_set(&s->db.windows, p.value, win);
-			NEXT; if (p.token != T_STRING) { ERROR("Expected numeric value for `window` directive"); }
+			NEXT; if (p.token != T_NUMBER) { ERROR("Expected numeric value for `window` directive"); }
 			win->time = atoi(p.value);
 			break;
 
@@ -264,7 +276,7 @@ int configure(const char *path, server_t *s)
 				NEXT; if (p.token == T_CLOSE_BRACE) break;
 				switch (p.token) {
 					case T_KEYWORD_FRESHNESS:
-						NEXT; if (p.token != T_STRING) { ERROR("Expected numeric value for `freshness` directive"); }
+						NEXT; if (p.token != T_NUMBER) { ERROR("Expected numeric value for `freshness` directive"); }
 						type->freshness = atoi(p.value);
 						break;
 
@@ -330,6 +342,12 @@ int configure(const char *path, server_t *s)
 				win = hash_get(&s->db.windows, p.value);
 				NEXT;
 
+			} else if (p.token == T_NUMBER) {
+				/* anonymous window */
+				win = calloc(1, sizeof(window_t));
+				win->time = atoi(p.value);
+				NEXT;
+
 			} else if (default_win) {
 				win = hash_get(&s->db.windows, default_win);
 			}
@@ -337,7 +355,8 @@ int configure(const char *path, server_t *s)
 			if (p.token != T_STRING) { ERROR("Expected string value for `counter` declaration"); }
 
 			if (!win) {
-				logger(LOG_ERR, "%s:%i: failed to determine window for counter '%s'", p.value);
+				logger(LOG_ERR, "%s:%i: failed to determine window for counter '%s'",
+					p.file, p.line, p.value);
 				goto bail;
 			}
 
@@ -356,6 +375,12 @@ int configure(const char *path, server_t *s)
 				win = hash_get(&s->db.windows, p.value);
 				NEXT;
 
+			} else if (p.token == T_NUMBER) {
+				/* anonymous window */
+				win = calloc(1, sizeof(window_t));
+				win->time = atoi(p.value);
+				NEXT;
+
 			} else if (default_win) {
 				win = hash_get(&s->db.windows, default_win);
 			}
@@ -363,7 +388,8 @@ int configure(const char *path, server_t *s)
 			if (p.token != T_STRING) { ERROR("Expected string value for `sample` declaration"); }
 
 			if (!win) {
-				logger(LOG_ERR, "%s:%i: failed to determine window for sample '%s'", p.value);
+				logger(LOG_ERR, "%s:%i: failed to determine window for sample '%s'",
+					p.file, p.line, p.value);
 				goto bail;
 			}
 

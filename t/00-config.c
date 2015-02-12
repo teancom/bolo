@@ -59,6 +59,9 @@ TESTS {
 			"use @hourly\n"
 			"counter counter3\n"
 			"sample  something.hourly\n"
+			"\n"
+			"counter 123 explicit-window\n"
+			"sample  456 explicit-window\n"
 			"", 0);
 
 		int32_t now = time_s();
@@ -143,6 +146,10 @@ TESTS {
 		c = hash_get(&svr.db.counters, "enoent");
 		is_null(c, "counter enoent not created");
 
+		c = hash_get(&svr.db.counters, "explicit-window");
+		isnt_null(c, "counter explicit-window created");
+		is_int(c->window->time, 123, "counter explicit-window got an anon window");
+
 		sample_t *sa;
 		sa = hash_get(&svr.db.samples, "res.cpu.usage");
 		isnt_null(sa, "sample res.cpu.usage created");
@@ -151,19 +158,23 @@ TESTS {
 			hash_get(&svr.db.windows, "@minutely"), "res.cpu.usage is a @minutely sample");
 
 		sa = hash_get(&svr.db.samples, "res.df:/");
-		isnt_null(sa, "sample res.df:/", "resource res.df:/ created");
+		isnt_null(sa, "sample res.df:/ created");
 		is_pointer(sa->window,
 			hash_get(&svr.db.windows, "@hourly"), "res.df:/ is an @hourly sample");
 
 		sa = hash_get(&svr.db.samples, "res.df:/var");
-		isnt_null(sa, "sample res.df:/", "resource res.df:/var created");
+		isnt_null(sa, "sample res.df:/var created");
 		is_pointer(sa->window,
 			hash_get(&svr.db.windows, "@hourly"), "res.df:/var is an @hourly sample");
 
 		sa = hash_get(&svr.db.samples, "something.hourly");
-		isnt_null(sa, "sample res.df:/", "resource something.hourly created");
+		isnt_null(sa, "sample something.hourly created");
 		is_pointer(sa->window,
 			hash_get(&svr.db.windows, "@hourly"), "something.hourly is an @hourly sample");
+
+		sa = hash_get(&svr.db.samples, "explicit-window");
+		isnt_null(sa, "sample explicit-window created");
+		is_int(sa->window->time, 456, "sample explicit-window got an anon window");
 	}
 
 	subtest { /* various configuration errors */
