@@ -6,5 +6,6 @@ TODO
   - rrd creator
   - console event notifier
   - console grapher
+- protocol tests
 - memory usage analysis
 - perf testing
