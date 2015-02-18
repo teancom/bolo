@@ -63,10 +63,10 @@ void* listener(void *u)
 		}
 
 		if (strcmp(pdu_type(q), "STATE") == 0) {
-			char *ts   = string("%u", time_s());
-			char *name = pdu_string(q, 1);
-			char *code = pdu_string(q, 2);
-			char *msg  = pdu_string(q, 3);
+			char *ts   = pdu_string(q, 1);
+			char *name = pdu_string(q, 2);
+			char *code = pdu_string(q, 3);
+			char *msg  = pdu_string(q, 4);
 
 			pdu_send_and_free(pdu_make("PUT.STATE", 4, ts, name, code, msg), l->client);
 			a = pdu_reply(q, "OK", 0);
@@ -77,9 +77,9 @@ void* listener(void *u)
 			free(msg);
 
 		} else if (strcmp(pdu_type(q), "COUNTER") == 0) {
-			char *ts   = string("%u", time_s());
-			char *name = pdu_string(q, 1);
-			char *incr = pdu_string(q, 2);
+			char *ts   = pdu_string(q, 1);
+			char *name = pdu_string(q, 2);
+			char *incr = pdu_string(q, 3);
 			if (!incr) incr = strdup("1");
 
 			pdu_send_and_free(pdu_make("PUT.COUNTER", 3, ts, name, incr), l->client);
@@ -90,16 +90,20 @@ void* listener(void *u)
 			free(incr);
 
 		} else if (strcmp(pdu_type(q), "SAMPLE") == 0) {
-			char *ts   = string("%u", time_s());
-			char *name = pdu_string(q, 1);
-			char *val  = pdu_string(q, 2);
+			size_t i, n;
 
-			pdu_send_and_free(pdu_make("PUT.SAMPLE", 3, ts, name, val), l->client);
+			char *ts   = pdu_string(q, 1);
+			char *name = pdu_string(q, 2);
+			char *s    = pdu_string(q, 3); n = atoi(s); free(s);
+			for (i = 0; i < n; i++) {
+				char *val  = pdu_string(q, 3 + i);
+				pdu_send_and_free(pdu_make("PUT.SAMPLE", 3, ts, name, val), l->client);
+				free(val);
+			}
 			a = pdu_reply(q, "OK", 0);
 
 			free(ts);
 			free(name);
-			free(val);
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
