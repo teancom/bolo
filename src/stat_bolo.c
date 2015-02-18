@@ -91,19 +91,28 @@ static int stat_listenmode(void)
 		return 3;
 	}
 
-	char *s;
-	pdu_t *p;
-	while ((p = pdu_recv(z))) {
-		printf("%s", pdu_type(p));
-		size_t i = 1;
-		for (;;) {
-			if (!(s = pdu_string(p, i++))) break;
-			printf(" %s", s); free(s);
+	signal_handlers();
+	while (!signalled()) {
+		if (DEBUG) fprintf(stderr, "+>> waiting for a broadcast PDU\n");
+
+		ssize_t i;
+		char *s;
+		pdu_t *p;
+
+		while ((p = pdu_recv(z))) {
+			if (DEBUG) fprintf(stderr, "+>> got a [%s] PDU of %i frames\n", pdu_type(p), pdu_size(p));
+			printf("%s", pdu_type(p));
+			for (i = 1; i < pdu_size(p); i++) {
+				printf(" %s", s = pdu_string(p, i));
+				free(s);
+			}
+			printf("\n");
+			pdu_free(p);
+
 		}
-		printf("\n");
-		pdu_free(p);
 	}
 
+	if (DEBUG) fprintf(stderr, "+>> terminating\n");
 	return 0;
 }
 
