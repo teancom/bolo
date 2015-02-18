@@ -16,6 +16,7 @@ stamp-h?
 *.deb
 *.rpm
 *.tmp
+*.db
 
 man/*.1
 man/*.2
