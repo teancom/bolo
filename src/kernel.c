@@ -756,7 +756,7 @@ void* kernel(void *u)
 		}
 
 		logger(LOG_DEBUG, "received a [%s] PDU", pdu_type(q));
-		if (strcmp(pdu_type(q), "PUT.STATE") == 0) {
+		if (strcmp(pdu_type(q), "PUT.STATE") == 0 && pdu_size(q) == 5) {
 			char *s;
 
 			s = pdu_string(q, 1); int32_t ts   = strtol(s, NULL, 10); free(s);
@@ -797,7 +797,7 @@ void* kernel(void *u)
 			free(name);
 			free(msg);
 
-		} else if (strcmp(pdu_type(q), "PUT.COUNTER") == 0) {
+		} else if (strcmp(pdu_type(q), "PUT.COUNTER") == 0 && pdu_size(q) == 4) {
 			char *s;
 			s = pdu_string(q, 1); int32_t ts   = strtol(s, NULL, 10); free(s);
 			s = pdu_string(q, 3); int32_t incr = strtol(s, NULL, 10); free(s);
@@ -829,7 +829,7 @@ void* kernel(void *u)
 				}
 			}
 
-		} else if (strcmp(pdu_type(q), "PUT.SAMPLE") == 0) {
+		} else if (strcmp(pdu_type(q), "PUT.SAMPLE") == 0 && pdu_size(q) == 4) {
 			char *s;
 			s = pdu_string(q, 1); int32_t ts = strtol(s, NULL, 10); free(s);
 			s = pdu_string(q, 3); double v   = strtod(s, NULL);     free(s);
@@ -873,7 +873,7 @@ void* kernel(void *u)
 				}
 			}
 
-		} else if (strcmp(pdu_type(q), "GET.STATE") == 0) {
+		} else if (strcmp(pdu_type(q), "GET.STATE") == 0 && pdu_size(q) == 2) {
 			char *name = pdu_string(q, 1);
 			state_t *state = hash_get(&k->server->db.states, name);
 			if (!state) {
@@ -887,7 +887,7 @@ void* kernel(void *u)
 			}
 			free(name);
 
-		} else if (strcmp(pdu_type(q), "DUMP") == 0) {
+		} else if (strcmp(pdu_type(q), "DUMP") == 0 && pdu_size(q) == 2) {
 			char *key  = pdu_string(q, 1);
 			char *file = string(k->server->config.dumpfiles, key);
 			free(key);
@@ -896,18 +896,18 @@ void* kernel(void *u)
 			a = pdu_reply(q, "DUMP", 1, file);
 			free(file);
 
-		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0) {
+		} else if (strcmp(pdu_type(q), "CHECKFRESH") == 0 && pdu_size(q) == 1) {
 			check_freshness(k);
 			a = pdu_reply(q, "OK", 0);
 
-		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0) {
+		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0 && pdu_size(q) == 1) {
 			if (save_state(&k->server->db, k->server->config.savefile) != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 			} else {
 				a = pdu_reply(q, "OK", 0);
 			}
 
-		} else if (strcmp(pdu_type(q), "TICK") == 0) {
+		} else if (strcmp(pdu_type(q), "TICK") == 0 && pdu_size(q) == 1) {
 			char *name;
 			int32_t ts = time_s() - 15; /* FIXME: make configurable */
 

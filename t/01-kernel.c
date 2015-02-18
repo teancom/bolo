@@ -243,7 +243,7 @@ TESTS {
 	pdu_free(p);
 
 	/* save state (to /t/tmp/save) */
-	p = pdu_make("SAVESTATE", 1, "test");
+	p = pdu_make("SAVESTATE", 0);
 	rc = pdu_send_and_free(p, client);
 	is_int(rc, 0, "sent [SAVESTATE] PDU to kernel");
 

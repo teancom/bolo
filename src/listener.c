@@ -62,7 +62,7 @@ void* listener(void *u)
 			continue;
 		}
 
-		if (strcmp(pdu_type(q), "STATE") == 0) {
+		if (strcmp(pdu_type(q), "STATE") == 0 && pdu_size(q) == 5) {
 			char *ts   = pdu_string(q, 1);
 			char *name = pdu_string(q, 2);
 			char *code = pdu_string(q, 3);
@@ -76,7 +76,7 @@ void* listener(void *u)
 			free(code);
 			free(msg);
 
-		} else if (strcmp(pdu_type(q), "COUNTER") == 0) {
+		} else if (strcmp(pdu_type(q), "COUNTER") == 0 && (pdu_size(q) == 3 || pdu_size(q) == 4)) {
 			char *ts   = pdu_string(q, 1);
 			char *name = pdu_string(q, 2);
 			char *incr = pdu_string(q, 3);
@@ -89,14 +89,14 @@ void* listener(void *u)
 			free(name);
 			free(incr);
 
-		} else if (strcmp(pdu_type(q), "SAMPLE") == 0) {
+		} else if (strcmp(pdu_type(q), "SAMPLE") == 0 && pdu_size(q) >= 5) {
 			size_t i, n;
 
 			char *ts   = pdu_string(q, 1);
 			char *name = pdu_string(q, 2);
 			char *s    = pdu_string(q, 3); n = atoi(s); free(s);
 			for (i = 0; i < n; i++) {
-				char *val  = pdu_string(q, 3 + i);
+				char *val  = pdu_string(q, 4 + i);
 				pdu_send_and_free(pdu_make("PUT.SAMPLE", 3, ts, name, val), l->client);
 				free(val);
 			}
