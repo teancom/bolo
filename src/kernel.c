@@ -556,7 +556,7 @@ static void check_freshness(kernel_t *k)
 
 		int event = !state->stale || state->status != state->type->status;
 
-		logger(LOG_INFO, "state %s is stale; marking", k);
+		logger(LOG_INFO, "state %s is stale; marking", key);
 		state->stale   = 1;
 		state->expiry  = now + state->type->freshness;
 		state->status  = state->type->status;
@@ -645,8 +645,8 @@ static void broadcast_counter(kernel_t *k, counter_t *counter)
 {
 	int32_t ts = winstart(counter, counter->last_seen);
 
-	logger(LOG_INFO, "broadcasting [COUNTER] data for "
-		"%s: ts=%i, value=%i\n",
+	logger(LOG_INFO, "broadcasting [COUNTER] data for %s: "
+		"ts=%i, value=%i",
 		counter->name, ts, counter->value);
 
 	pdu_t *p = pdu_make("COUNTER", 0);
@@ -728,6 +728,7 @@ void* kernel(void *u)
 		logger(LOG_CRIT, "kernel failed: no broadcast bind address specified");
 		return NULL;
 	}
+	logger(LOG_INFO, "binding broadcast socket %s", k->server->config.broadcast);
 	k->broadcast = zmq_socket(k->server->zmq, ZMQ_PUB);
 	if (!k->broadcast) {
 		logger(LOG_CRIT, "kernel failed to get a PUB socket");
@@ -789,6 +790,7 @@ void* kernel(void *u)
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "State Not Found");
+					logger(LOG_INFO, "ignoring update for unknown state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
 				}
 			}
 
@@ -823,6 +825,7 @@ void* kernel(void *u)
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "Counter Not Found");
+					logger(LOG_WARNING, "ignoring update for unknown counter %s, ts=%i, incr=%i", name, ts, incr);
 				}
 			}
 
@@ -866,6 +869,7 @@ void* kernel(void *u)
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "Sample Not Found");
+					logger(LOG_WARNING, "ignoring update for unknown sample set %s, ts=%i, value=%e", name, ts, v);
 				}
 			}
 

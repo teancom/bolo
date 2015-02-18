@@ -22,7 +22,7 @@ void* watcher(void *u)
 			exit(1);
 		}
 
-		logger(LOG_ERR, "watcher received signal %i; terminating\n", sig);
+		logger(LOG_ERR, "watcher received signal %i; terminating", sig);
 		return NULL;
 	}
 }
