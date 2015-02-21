@@ -1,11 +1,10 @@
 TODO
 
+- scheduling agent?
 - consistent hashing / dht algo
 - find a good hash function - murmur?
 - subscribers!
-  - rrd creator
   - console event notifier
   - console grapher
-- protocol tests
 - memory usage analysis
 - perf testing
