@@ -141,7 +141,7 @@ int main(int argc, char **argv)
 			pdu_type(pdu), now, argv[optind + 0], nargs - 1);
 
 		int i;
-		for (i = 0; i < nargs; i++) {
+		for (i = 1; i <= nargs; i++) {
 			pdu_extendf(pdu, "%s", argv[optind + i]);
 			if (DEBUG) fprintf(stderr, "|%s", argv[optind + i]);
 		}
