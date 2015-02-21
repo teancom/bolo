@@ -849,23 +849,14 @@ void* kernel(void *u)
 						sample->last_seen = 0;
 					}
 
-					if (sample->last_seen == 0) {
-						logger(LOG_INFO, "starting sample set %s, ts=%i, value=%e", name, ts, v);
-						sample->last_seen = ts;
-						sample->n = 1;
-						sample->min = sample->max = sample->sum = v;
-						/* FIXME: mean / variance calcs */
+					logger(LOG_INFO, "%s sample set %s, ts=%i, value=%e", (sample->last_seen ? "updating" : "starting"), name, ts, v);
+					if (sample_data(sample, v) != 0) {
+						logger(LOG_ERR, "failed to update sample set %s, ts=%i, value=%e", name, ts, v);
+						a = pdu_reply(q, "ERROR", 1, "Internal error");
 					} else {
-						logger(LOG_INFO, "updating sample set %s, ts=%i, value=%e", name, ts, v);
 						sample->last_seen = ts;
-						sample->n++;
-						sample->min = min(sample->min, v);
-						sample->max = max(sample->max, v);
-						sample->sum += v;
-						/* FIXME: mean / variance calcs */
+						a = pdu_reply(q, "OK", 0);
 					}
-
-					a = pdu_reply(q, "OK", 0);
 
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "Sample Not Found");

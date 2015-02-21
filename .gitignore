@@ -49,6 +49,7 @@ t/05-nsca
 t/06-fresh
 t/07-roll
 t/08-tick
+t/09-sample
 t/fail*-db
 
 .deps

@@ -115,6 +115,8 @@ typedef struct {
 int configure(const char *path, server_t *s);
 int deconfigure(server_t *s);
 
+int sample_data(sample_t *s, double v);
+
 /* threads */
 void* listener(void *u);
 void* nsca_gateway(void *u);

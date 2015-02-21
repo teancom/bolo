@@ -121,7 +121,7 @@ TESTS {
 	is(pdu_string(a, 4), "1.000000e+01", "SAMPLE[3] is minimum value");
 	is(pdu_string(a, 5), "1.000000e+01", "SAMPLE[4] is maximum value");
 	is(pdu_string(a, 6), "3.000000e+01", "SAMPLE[5] is summation value");
-	is(pdu_string(a, 7), "0.000000e+00", "SAMPLE[6] is mean value");
+	is(pdu_string(a, 7), "1.000000e+01", "SAMPLE[6] is mean value");
 	is(pdu_string(a, 8), "0.000000e+00", "SAMPLE[7] is set variance");
 	is_null(pdu_string(a, 9), "there is no SAMPLE[8]");
 

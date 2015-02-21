@@ -18,6 +18,7 @@ CORE_SRC += src/listener.c
 CORE_SRC += src/nsca.c
 CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
+CORE_SRC += src/data.c
 
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
@@ -38,6 +39,7 @@ CTAP_TESTS += t/05-nsca
 CTAP_TESTS += t/06-fresh
 CTAP_TESTS += t/07-roll
 CTAP_TESTS += t/08-tick
+CTAP_TESTS += t/09-sample
 
 CTAP_TESTS += t/fail01-db
 CTAP_TESTS += t/fail02-db
@@ -60,6 +62,7 @@ t_05_nsca_SOURCES   = $(TEST_SRC) t/05-nsca.c
 t_06_fresh_SOURCES  = $(TEST_SRC) t/06-fresh.c
 t_07_roll_SOURCES   = $(TEST_SRC) t/07-roll.c
 t_08_tick_SOURCES   = $(TEST_SRC) t/08-tick.c
+t_09_sample_SOURCES = $(TEST_SRC) t/09-sample.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
 t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c
