@@ -107,6 +107,27 @@ TESTS {
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
 	pdu_free(p);
 
+	/* update a nameless state */
+	p = pdu_make("PUT.STATE", 4, ts, "", "1", "warning...");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.STATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "No state name given", "Error message returned"); free(s);
+	pdu_free(p);
+
+	/* update a good state with an empty summary */
+	p = pdu_make("PUT.STATE", 4, ts, "test.state.0", "1", "");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.STATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "No summary given", "Error message returned"); free(s);
+	pdu_free(p);
 
 	/* send test.state.0 recovery */
 	p = pdu_make("PUT.STATE", 4, ts, "test.state.0", "0", "all good");
@@ -213,6 +234,28 @@ TESTS {
 	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
 	pdu_free(p);
 
+	/* increment a bad counter */
+	p = pdu_make("PUT.COUNTER", 3, ts, "XYZZY.counter", "1");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "Counter Not Found", "Error message returned"); free(s);
+	pdu_free(p);
+
+	/* increment a nameless counter */
+	p = pdu_make("PUT.COUNTER", 3, ts, "", "101");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "No counter name given", "Error message returned"); free(s);
+	pdu_free(p);
+
 	/* increment counter counter1 value a few times */
 	p = pdu_make("PUT.COUNTER", 3, ts, "counter1", "1");
 	rc = pdu_send_and_free(p, client);
@@ -230,6 +273,28 @@ TESTS {
 	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	/* update a bad sample */
+	p = pdu_make("PUT.SAMPLE", 3, ts, "XYZZY.sample", "101");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "Sample Not Found", "Error message returned"); free(s);
+	pdu_free(p);
+
+	/* update a nameless sample */
+	p = pdu_make("PUT.SAMPLE", 3, ts, "", "101");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "No sample name given", "Error message returned"); free(s);
 	pdu_free(p);
 
 	/* add samples to res.df:/ */
@@ -282,7 +347,7 @@ TESTS {
 	          "...."     /* 0:last_seen  +4   91 (to be filled in later) */
 	          "\0\0\0\0" /* 0:value              */
 	          "\0\0\0\5" /*              +8   95 */
-	          "counter1\0"           /*  +9  104 */              /* +25 */
+	          "counter1\0"           /*  +9  103 */              /* +25 */
 
 	      /* SAMPLES */
 	          "\0\x51"   /* 0:len        +2  112 */
