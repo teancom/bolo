@@ -8,7 +8,7 @@ AM_CFLAGS += -Wall
 AM_CFLAGS += -g
 AM_CFLAGS += @GCOV_CFLAGS@
 
-LDADD = -lpthread -lzmq
+LDADD = -lpthread -lzmq -lrrd
 
 CORE_SRC  =
 CORE_SRC += src/bolo.h

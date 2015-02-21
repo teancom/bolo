@@ -1,5 +1,6 @@
 #include "bolo.h"
 #include <getopt.h>
+#include <rrd.h>
 
 static struct {
 	char *endpoint;
@@ -7,6 +8,77 @@ static struct {
 } OPTIONS = { 0 };
 
 #define DEBUG OPTIONS.verbose > 0
+
+static int s_counter_create(const char *filename)
+{
+	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
+		" DS:x:GAUGE:120:U:U"
+		" RRA:LAST:0:1:14400"
+		" RRA:AVERAGE:0.5:60:24"
+		" RRA:MIN:0.5:60:24"
+		" RRA:MAX:0.5:60:24",
+		filename);
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_create(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
+
+static int s_counter_update(const char *filename, const char *ts, const char *v)
+{
+	char *s = string("bolo-rrdupdate %s -t x %s:%s", filename, ts, v);
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_update(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
+
+static int s_sample_create(const char *filename)
+{
+	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
+		" DS:n:GAUGE:120:U:U"
+		" DS:min:GAUGE:120:U:U"
+		" DS:max:GAUGE:120:U:U"
+		" DS:sum:GAUGE:120:U:U"
+		" DS:mean:GAUGE:120:U:U"
+		" DS:var:GAUGE:120:U:U"
+		" RRA:LAST:0:1:14400"
+		" RRA:AVERAGE:0.5:60:24"
+		" RRA:MIN:0.5:60:24"
+		" RRA:MAX:0.5:60:24",
+		filename);
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_create(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
+
+static int s_sample_update(const char *filename, const char *ts, const char *n, const char *min, const char *max, const char *sum, const char *mean, const char *var)
+{
+	char *s = string("bolo-rrdupdate %s -t n:min:max:sum:mean:var %s:%s:%s:%s:%s:%s:%s",
+		filename, ts, n, min, max, sum, mean, var);
+
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_update(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
 
 int main(int argc, char **argv)
 {
@@ -73,6 +145,72 @@ int main(int argc, char **argv)
 	char *s;
 	pdu_t *p;
 	while ((p = pdu_recv(z))) {
+
+		if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4) {
+			char *ts    = pdu_string(p, 1);
+			char *name  = pdu_string(p, 2);
+			char *value = pdu_string(p, 3);
+
+			char *file = string("/tmp/%s.rrd", name);
+			struct stat st;
+			if (stat(file, &st) != 0 && errno == ENOENT) {
+				if (s_counter_create(file) != 0) {
+					perror(file);
+					continue;
+				}
+			}
+
+			if (s_counter_update(file, ts, value) != 0) {
+				perror("rrd update failed");
+				continue;
+			}
+
+			printf("updated %s @%s v=%s\n", name, ts, value);
+			free(ts);
+			free(name);
+			free(value);
+			free(file);
+			continue;
+		}
+
+		if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
+			char *ts    = pdu_string(p, 1);
+			char *name  = pdu_string(p, 2);
+			char *n     = pdu_string(p, 3);
+			char *min   = pdu_string(p, 4);
+			char *max   = pdu_string(p, 5);
+			char *sum   = pdu_string(p, 6);
+			char *mean  = pdu_string(p, 7);
+			char *var   = pdu_string(p, 8);
+
+			char *file = string("/tmp/%s.rrd", name);
+			struct stat st;
+			if (stat(file, &st) != 0 && errno == ENOENT) {
+				if (s_sample_create(file) != 0) {
+					perror(file);
+					continue;
+				}
+			}
+
+			if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
+				perror("rrd update failed");
+				continue;
+			}
+
+			printf("updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
+				name, ts, n, min, max, sum, mean, var);
+			free(ts);
+			free(name);
+			free(n);
+			free(min);
+			free(max);
+			free(sum);
+			free(mean);
+			free(var);
+			free(file);
+			continue;
+		}
+
 		printf("%s", pdu_type(p));
 		size_t i = 1;
 		for (;;) {
