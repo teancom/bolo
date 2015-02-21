@@ -84,7 +84,6 @@ static void update_kernel(void *kernel, client_t *c)
 	if (strcmp(pdu_type(a), "OK") != 0) {
 		logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.STATE) from the kernel: %s",
 		s = pdu_string(a, 1)); free(s);
-		client_free(c);
 		return;
 	}
 
@@ -102,16 +101,13 @@ static void update_kernel(void *kernel, client_t *c)
 		a = pdu_recv(kernel);
 		if (strcmp(pdu_type(a), "OK") != 0) {
 			logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.SAMPLE) from the kernel: %s",
-			s = pdu_string(a, 1)); free(s);
-			client_free(c);
+				s = pdu_string(a, 1)); free(s);
 			return;
 		}
 
 		while (*p && !isspace(*p)) p++;
 		while (*p &&  isspace(*p)) p++;
 	}
-
-	client_free(c);
 }
 
 void* nsca_gateway(void *u)
@@ -247,6 +243,7 @@ void* nsca_gateway(void *u)
 
 					if (c->bytes == NSCA_PACKET_LEN) {
 						update_kernel(kernel, c);
+						client_free(cache_unset(clients, id));
 					}
 				} else {
 					client_free(cache_unset(clients, id));
