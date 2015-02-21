@@ -89,7 +89,7 @@ static int binfile_is(const char *path, const char *expect, size_t n, const char
 	char *actual = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fileno(io), 0);
 	CHECK(actual, "failed to mmap target file for binfile_is() check");
 
-	is_int(len, n, "%s (file length)", msg);
+	is_int(n, len, "%s (file length)", msg);
 	if (memcmp(actual, expect, n) == 0) {
 		ok(1, "%s", msg);
 		munmap(actual, len);
