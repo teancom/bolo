@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pcre.h>
 
 #define PACKED __attribute__((packed))
 
@@ -58,11 +59,27 @@ typedef struct {
 } state_t;
 
 typedef struct {
+	list_t      l;
+	type_t     *type;
+
+	pcre       *re;
+	pcre_extra *re_extra;
+} re_state_t;
+
+typedef struct {
 	window_t *window;
 	char     *name;
 	int32_t   last_seen;
 	uint64_t  value;
 } counter_t;
+
+typedef struct {
+	list_t      l;
+	window_t   *window;
+
+	pcre       *re;
+	pcre_extra *re_extra;
+} re_counter_t;
 
 typedef struct {
 	window_t *window;
@@ -77,9 +94,21 @@ typedef struct {
 } sample_t;
 
 typedef struct {
+	list_t      l;
+	window_t   *window;
+
+	pcre       *re;
+	pcre_extra *re_extra;
+} re_sample_t;
+
+typedef struct {
 	hash_t  states;
 	hash_t  counters;
 	hash_t  samples;
+
+	list_t  state_matches;
+	list_t  counter_matches;
+	list_t  sample_matches;
 
 	hash_t  types;
 	hash_t  windows;

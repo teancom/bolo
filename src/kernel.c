@@ -79,6 +79,75 @@ typedef struct {
 static void broadcast_state(kernel_t*, state_t*);
 static void broadcast_event(kernel_t*, state_t*);
 
+static state_t*   find_state(  db_t*, const char *name);
+static counter_t* find_counter(db_t*, const char *name);
+static sample_t*  find_sample( db_t*, const char *name);
+
+static state_t *find_state(db_t *db, const char *name)
+{
+	state_t *x = hash_get(&db->states, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_state_t *re;
+	for_each_object(re, &db->state_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(state_t));
+			hash_set(&db->states, name, x);
+			x->name    = strdup(name);
+			x->type    = re->type;
+			x->status  = PENDING;
+			x->expiry  = re->type->freshness + time_s();
+			x->summary = strdup("(state is pending results)");
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
+static counter_t *find_counter(db_t *db, const char *name)
+{
+	counter_t *x = hash_get(&db->counters, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_counter_t *re;
+	for_each_object(re, &db->counter_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(counter_t));
+			hash_set(&db->counters, name, x);
+			x->name    = strdup(name);
+			x->window  = re->window;
+			x->value   = 0;
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
+static sample_t *find_sample(db_t *db, const char *name)
+{
+	sample_t *x = hash_get(&db->samples, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_counter_t *re;
+	for_each_object(re, &db->sample_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(sample_t));
+			hash_set(&db->samples, name, x);
+			x->name    = strdup(name);
+			x->window  = re->window;
+			x->n       = 0;
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
 static inline const char *statstr(uint8_t s)
 {
 	static const char *names[] = { "OK", "WARNING", "CRITICAL", "UNKNOWN" };
@@ -473,7 +542,7 @@ static int read_state(db_t *db, const char *file)
 
 		switch (type) {
 		case RECORD_TYPE_STATE:
-			if ((found.state = hash_get(&db->states, payload.state->name)) != NULL) {
+			if ((found.state = find_state(db, payload.state->name)) != NULL) {
 				free(found.state->summary);
 				found.state->summary   = payload.state->summary;
 				found.state->last_seen = payload.state->last_seen;
@@ -491,7 +560,7 @@ static int read_state(db_t *db, const char *file)
 			break;
 
 		case RECORD_TYPE_COUNTER:
-			if ((found.counter = hash_get(&db->counters, payload.counter->name)) != NULL) {
+			if ((found.counter = find_counter(db, payload.counter->name)) != NULL) {
 				found.counter->last_seen = payload.counter->last_seen;
 				found.counter->value     = payload.counter->value;
 
@@ -505,7 +574,7 @@ static int read_state(db_t *db, const char *file)
 			break;
 
 		case RECORD_TYPE_SAMPLE:
-			if ((found.sample = hash_get(&db->samples, payload.sample->name)) != NULL) {
+			if ((found.sample = find_sample(db, payload.sample->name)) != NULL) {
 				found.sample->last_seen = payload.sample->last_seen;
 				found.sample->n         = payload.sample->n;
 				found.sample->min       = payload.sample->min;
@@ -771,7 +840,7 @@ void* kernel(void *u)
 				a = pdu_reply(q, "ERROR", 1, "No summary given");
 
 			} else {
-				state_t *state = hash_get(&k->server->db.states, name);
+				state_t *state = find_state(&k->server->db, name);
 				if (state) {
 					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
 					int event = state->stale || state->status != code;
@@ -806,7 +875,7 @@ void* kernel(void *u)
 			if (!name || !*name) {
 				a = pdu_reply(q, "ERROR", 1, "No counter name given");
 			} else {
-				counter_t *counter = hash_get(&k->server->db.counters, name);
+				counter_t *counter = find_counter(&k->server->db, name);
 				if (counter) {
 					/* check for window closure */
 					if (counter->last_seen > 0 && counter->last_seen != ts
@@ -838,7 +907,7 @@ void* kernel(void *u)
 			if (!name || !*name) {
 				a = pdu_reply(q, "ERROR", 1, "No sample name given");
 			} else {
-				sample_t *sample = hash_get(&k->server->db.samples, name);
+				sample_t *sample = find_sample(&k->server->db, name);
 				if (sample) {
 					/* check for window closure */
 					if (sample->last_seen > 0 && sample->last_seen != ts

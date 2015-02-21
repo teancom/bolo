@@ -26,6 +26,7 @@
 #define T_NUMBER             0x83
 #define T_TYPENAME           0x84
 #define T_WINDOWNAME         0x85
+#define T_MATCH              0x86
 
 typedef struct {
 	FILE       *io;
@@ -95,6 +96,33 @@ getline:
 			memmove(p->buffer, b, strlen(b)+1);
 			return 1;
 		}
+	}
+
+	if (*b == 'm') {
+		b++;
+		if (*b == '/') {
+			a = ++b;
+			while (*b && !isspace(*b)) {
+				if (*b == '/')  break;
+				if (*b == '\\') b++;
+				b++;
+			}
+			if (*b != '/') {
+				logger(LOG_ERR, "%s:%i: unterminated pattern", p->file, p->line);
+				return 0;
+			}
+
+			*b++ = '\0';
+			memcpy(p->value, a, b-a);
+			fprintf(stderr, "pattern is m{%s}\n", p->value);
+			p->token = T_MATCH;
+
+			while (*b && isspace(*b)) b++;
+			memmove(p->buffer, b, strlen(b)+1);
+			fprintf(stderr, "buf[%s]\n", p->buffer);
+			return 1;
+		}
+		b = a;
 	}
 
 	if (isalnum(*b) || *b == '/') {
@@ -191,6 +219,10 @@ getline:
 
 int configure(const char *path, server_t *s)
 {
+	list_init(&s->db.state_matches);
+	list_init(&s->db.counter_matches);
+	list_init(&s->db.sample_matches);
+
 	parser_t p;
 	memset(&p, 0, sizeof(p));
 
@@ -203,15 +235,23 @@ int configure(const char *path, server_t *s)
 #define SERVER_STRING(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	free(x); x = strdup(p.value)
 
-	char *default_type = NULL;
-	char *default_win  = NULL;
+	type_t   *type           = NULL;
+	char     *default_type   = NULL;
 
-	type_t *type = NULL;
-	window_t *win = NULL;
+	window_t *win            = NULL;
+	char     *default_win    = NULL;
 
-	state_t *state = NULL;
-	counter_t *counter = NULL;
-	sample_t *sample = NULL;
+	state_t      *state      = NULL;
+	re_state_t   *re_state   = NULL;
+
+	counter_t    *counter    = NULL;
+	re_counter_t *re_counter = NULL;
+
+	sample_t     *sample     = NULL;
+	re_sample_t  *re_sample  = NULL;
+
+	const char *re_err;
+	int re_off;
 
 	for (;;) {
 		if (!lex(&p)) break;
@@ -318,20 +358,40 @@ int configure(const char *path, server_t *s)
 				type = hash_get(&s->db.types, default_type);
 			}
 
-			if (p.token != T_STRING) { ERROR("Expected string value for `state` declaration"); }
+			if (p.token == T_STRING) {
+				if (!type) {
+					logger(LOG_ERR, "%s:%i: failed to determine state type for '%s'", p.file, p.line, p.value);
+					goto bail;
+				}
 
-			if (!type) {
-				logger(LOG_ERR, "%s:%i: failed to determine state type for '%s'", p.file, p.line, p.value);
-				goto bail;
+				state = calloc(1, sizeof(state_t));
+				hash_set(&s->db.states, p.value, state);
+				state->name    = strdup(p.value);
+				state->type    = type;
+				state->status  = PENDING;
+				state->expiry  = type->freshness + time_s();
+				state->summary = strdup("(state is pending results)");
+
+			} else if (p.token == T_MATCH) {
+				if (!type) {
+					logger(LOG_ERR, "%s:%i: failed to determine state type for /%s/", p.file, p.line, p.value);
+					goto bail;
+				}
+
+				re_state = calloc(1, sizeof(re_state_t));
+				re_state->type = type;
+				re_state->re = pcre_compile(p.value, 0, &re_err, &re_off, NULL);
+				if (!re_state->re) {
+					logger(LOG_ERR, "%s:%i: failed to compile pattern /%s/: %s", p.file, p.line, p.value, re_err);
+					goto bail;
+				}
+
+				re_state->re_extra = pcre_study(re_state->re, 0, &re_err);
+				list_push(&s->db.state_matches, &re_state->l);
+
+			} else {
+				ERROR("Expected name or regex match pattern for `state` declaration");
 			}
-
-			state = calloc(1, sizeof(state_t));
-			hash_set(&s->db.states, p.value, state);
-			state->name    = strdup(p.value);
-			state->type    = type;
-			state->status  = PENDING;
-			state->expiry  = type->freshness + time_s();
-			state->summary = strdup("(state is pending results)");
 
 			break;
 
@@ -352,19 +412,40 @@ int configure(const char *path, server_t *s)
 				win = hash_get(&s->db.windows, default_win);
 			}
 
-			if (p.token != T_STRING) { ERROR("Expected string value for `counter` declaration"); }
+			if (p.token == T_STRING) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for counter '%s'",
+						p.file, p.line, p.value);
+					goto bail;
+				}
 
-			if (!win) {
-				logger(LOG_ERR, "%s:%i: failed to determine window for counter '%s'",
-					p.file, p.line, p.value);
-				goto bail;
+				counter = calloc(1, sizeof(counter_t));
+				hash_set(&s->db.counters, p.value, counter);
+				counter->name   = strdup(p.value);
+				counter->window = win;
+				counter->value  = 0;
+
+			} else if (p.token == T_MATCH) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for counter /%s/",
+						p.file, p.line, p.value);
+					goto bail;
+				}
+
+				re_counter = calloc(1, sizeof(re_counter_t));
+				re_counter->window = win;
+				re_counter->re = pcre_compile(p.value, 0, &re_err, &re_off, NULL);
+				if (!re_counter->re) {
+					logger(LOG_ERR, "%s:%i: failed to compile pattern /%s/: %s", p.file, p.line, p.value, re_err);
+					goto bail;
+				}
+
+				re_counter->re_extra = pcre_study(re_counter->re, 0, &re_err);
+				list_push(&s->db.counter_matches, &re_counter->l);
+
+			} else {
+				ERROR("Expected string value for `counter` declaration");
 			}
-
-			counter = calloc(1, sizeof(counter_t));
-			hash_set(&s->db.counters, p.value, counter);
-			counter->name   = strdup(p.value);
-			counter->window = win;
-			counter->value  = 0;
 
 			break;
 
@@ -385,19 +466,40 @@ int configure(const char *path, server_t *s)
 				win = hash_get(&s->db.windows, default_win);
 			}
 
-			if (p.token != T_STRING) { ERROR("Expected string value for `sample` declaration"); }
+			if (p.token == T_STRING) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for sample '%s'",
+						p.file, p.line, p.value);
+					goto bail;
+				}
 
-			if (!win) {
-				logger(LOG_ERR, "%s:%i: failed to determine window for sample '%s'",
-					p.file, p.line, p.value);
-				goto bail;
+				sample = calloc(1, sizeof(sample_t));
+				hash_set(&s->db.samples, p.value, sample);
+				sample->name   = strdup(p.value);
+				sample->window = win;
+				sample->n = 0;
+
+			} else if (p.token == T_MATCH) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for sample /%s/",
+						p.file, p.line, p.value);
+					goto bail;
+				}
+
+				re_sample = calloc(1, sizeof(re_sample_t));
+				re_sample->window = win;
+				re_sample->re = pcre_compile(p.value, 0, &re_err, &re_off, NULL);
+				if (!re_sample->re) {
+					logger(LOG_ERR, "%s:%i: failed to compile pattern /%s/: %s", p.file, p.line, p.value, re_err);
+					goto bail;
+				}
+
+				re_sample->re_extra = pcre_study(re_sample->re, 0, &re_err);
+				list_push(&s->db.sample_matches, &re_sample->l);
+
+			} else {
+				ERROR("Expected string value for `sample` declaration");
 			}
-
-			sample = calloc(1, sizeof(sample_t));
-			hash_set(&s->db.samples, p.value, sample);
-			sample->name   = strdup(p.value);
-			sample->window = win;
-			sample->n = 0;
 
 			break;
 

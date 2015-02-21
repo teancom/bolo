@@ -62,6 +62,11 @@ TESTS {
 			"\n"
 			"counter 123 explicit-window\n"
 			"sample  456 explicit-window\n"
+			"\n"
+			"# pattern matching\n"
+			"counter @minutely m/tick./\n"
+			"sample  300       m/web.*/\n"
+			"state   :cloud    m/cloud\\d+\\./\n"
 			"", 0);
 
 		int32_t now = time_s();
@@ -114,6 +119,12 @@ TESTS {
 		is_int(s->status, PENDING,          "site/online status is PENDING");
 		ok(!s->stale,                       "site/online is not (yet) stale");
 
+		ok(!list_isempty(&svr.db.state_matches), "have pattern matched states");
+		re_state_t *re_s = list_head(&svr.db.state_matches, re_state_t, l);
+		is_pointer(re_s->type,
+			hash_get(&svr.db.types, ":cloud"), "pattern match is a :cloud check");
+
+
 		window_t *w;
 		w = hash_get(&svr.db.windows, "@minutely");
 		isnt_null(w, "window @minutely created");
@@ -125,6 +136,7 @@ TESTS {
 
 		w = hash_get(&svr.db.windows, "@enoent");
 		is_null(w, "window @enoent not created");
+
 
 		counter_t *c;
 		c = hash_get(&svr.db.counters, "counter1");
@@ -149,6 +161,12 @@ TESTS {
 		c = hash_get(&svr.db.counters, "explicit-window");
 		isnt_null(c, "counter explicit-window created");
 		is_int(c->window->time, 123, "counter explicit-window got an anon window");
+
+		ok(!list_isempty(&svr.db.counter_matches), "have pattern matched counters");
+		re_counter_t *re_c = list_head(&svr.db.counter_matches, re_counter_t, l);
+		is_pointer(re_c->window,
+			hash_get(&svr.db.windows, "@minutely"), "pattern match is @minutely");
+
 
 		sample_t *sa;
 		sa = hash_get(&svr.db.samples, "res.cpu.usage");
@@ -175,6 +193,10 @@ TESTS {
 		sa = hash_get(&svr.db.samples, "explicit-window");
 		isnt_null(sa, "sample explicit-window created");
 		is_int(sa->window->time, 456, "sample explicit-window got an anon window");
+
+		ok(!list_isempty(&svr.db.sample_matches), "have pattern matched samples");
+		re_sample_t *re_sa = list_head(&svr.db.sample_matches, re_sample_t, l);
+		is_int(re_sa->window->time, 300, "pattern match is a 5m sample set");
 	}
 
 	subtest { /* various configuration errors */
