@@ -5,6 +5,7 @@
 static struct {
 	char *endpoint;
 	int   verbose;
+	char *root;
 } OPTIONS = { 0 };
 
 #define DEBUG OPTIONS.verbose > 0
@@ -84,16 +85,18 @@ int main(int argc, char **argv)
 {
 	OPTIONS.verbose  = 0;
 	OPTIONS.endpoint = NULL;
+	OPTIONS.root     = NULL;
 
 	struct option long_opts[] = {
 		{ "help",           no_argument, 0, 'h' },
 		{ "verbose",        no_argument, 0, 'v' },
 		{ "endpoint", required_argument, 0, 'e' },
+		{ "root",     required_argument, 0, 'r' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -110,6 +113,11 @@ int main(int argc, char **argv)
 			OPTIONS.endpoint = strdup(optarg);
 			break;
 
+		case 'r':
+			free(OPTIONS.root);
+			OPTIONS.root = strdup(optarg);
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			return 1;
@@ -118,6 +126,8 @@ int main(int argc, char **argv)
 
 	if (!OPTIONS.endpoint)
 		OPTIONS.endpoint = strdup("tcp://127.0.0.1:2997");
+	if (!OPTIONS.root)
+		OPTIONS.root = strdup("/var/lib/bolo/rrd");
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
@@ -151,7 +161,7 @@ int main(int argc, char **argv)
 			char *name  = pdu_string(p, 2);
 			char *value = pdu_string(p, 3);
 
-			char *file = string("/tmp/%s.rrd", name);
+			char *file = string("%s/%s.rrd", OPTIONS.root, name);
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_counter_create(file) != 0) {
