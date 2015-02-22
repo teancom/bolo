@@ -165,13 +165,13 @@ int main(int argc, char **argv)
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_counter_create(file) != 0) {
-					perror(file);
+					fprintf(stderr, "failed to create %s: %s\n", file, rrd_get_error());
 					continue;
 				}
 			}
 
 			if (s_counter_update(file, ts, value) != 0) {
-				perror("rrd update failed");
+				fprintf(stderr, "failed to update %s: %s\n", file, rrd_get_error());
 				continue;
 			}
 
@@ -197,13 +197,13 @@ int main(int argc, char **argv)
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_sample_create(file) != 0) {
-					perror(file);
+					fprintf(stderr, "failed to create %s: %s\n", file, rrd_get_error());
 					continue;
 				}
 			}
 
 			if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
-				perror("rrd update failed");
+				fprintf(stderr, "failed to update %s: %s\n", file, rrd_get_error());
 				continue;
 			}
 
