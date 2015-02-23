@@ -102,22 +102,6 @@
 
      ---------------------------------------------------------------------------
 
-     GET.KEYS              VALUES            ; retrieve the values of a set of
-     <KEY 1>               <KEY 1>           ; config hash keys.
-     ...                   <VALUE 1>
-     <KEY N>               ...
-                           <KEY N>
-                           <VALUE N>
-
-     ---------------------------------------------------------------------------
-
-     SEARCH.KEYS           KEYS              ; search the config hash for keys
-     <PATTERN>             <KEY 1>           ; matching the given pattern.
-                           ...
-                           <KEY N>
-
-     ---------------------------------------------------------------------------
-
      DUMP                  DUMP              ; dumps all stats in a YAML file,
                            <FILE>
 
@@ -216,6 +200,22 @@
 
      ---------------------------------------------------------------------------
 
+     SET.KEYS              OK                ; set new keys in the config hash.
+     <KEY 1>                                 ; semantics of the keys are entirely
+     <VALUE 1>                               ; left up to the discretion of the
+     ...                                     ; site administrator.
+     <KEY N>
+     <VALUE N>
+
+     ---------------------------------------------------------------------------
+
+     DEL.KEYS              OK                ; delete keys from the config hash.
+     <KEY 1>
+     ...
+     <KEY N>
+
+     ---------------------------------------------------------------------------
+
 
   ##############################################################################
   PDUs (controller):
@@ -228,6 +228,22 @@
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
                            <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     GET.KEYS              VALUES            ; retrieve the values of a set of
+     <KEY 1>               <KEY 1>           ; config hash keys.
+     ...                   <VALUE 1>
+     <KEY N>               ...
+                           <KEY N>
+                           <VALUE N>
+
+     ---------------------------------------------------------------------------
+
+     SEARCH.KEYS           KEYS              ; search the config hash for keys
+     <PATTERN>             <KEY 1>           ; matching the given pattern.
+                           ...
+                           <KEY N>
 
      ---------------------------------------------------------------------------
 
