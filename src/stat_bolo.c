@@ -361,7 +361,7 @@ static int stat_querymode(void)
 			}
 
 			if (DEBUG) fprintf(stderr, "+>> sending [SEARCH.KEYS] PDU\n");
-			if (pdu_send_and_free(pdu_make("SEARCH.KEYS", 1, a), z) != 0) {
+			if (pdu_send_and_free(pdu_make("SEARCH.KEYS", 1, c), z) != 0) {
 				fprintf(stderr, "failed to send [SEARCH.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
 				return 3;
 			}

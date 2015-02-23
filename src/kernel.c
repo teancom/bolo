@@ -1065,14 +1065,13 @@ void* kernel(void *u)
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "SEARCH.KEYS") == 0 && pdu_size(q) == 2) {
-			char *s;
+			char *pattern;
 			const char *re_err;
 			int re_off;
 			pcre *re;
 
-			s = pdu_string(q, 1);
-			re = pcre_compile(s, 0, &re_err, &re_off, NULL);
-			free(s);
+			pattern = pdu_string(q, 1);
+			re = pcre_compile(pattern, 0, &re_err, &re_off, NULL);
 
 			if (!re) {
 				a = pdu_reply(q, "ERROR", 1, re_err);
@@ -1082,12 +1081,15 @@ void* kernel(void *u)
 
 				char *key, *value;
 				for_each_key_value(&k->server->keys, key, value) {
+					logger(LOG_DEBUG, "checking key '%s' against m/%s/", key, pattern);
 					if (pcre_exec(re, re_extra, key, strlen(key), 0, 0, NULL, 0) != 0)
 						continue;
 
+					logger(LOG_INFO, "key '%s' matched m/%s/, adding to reply PDU", key, pattern);
 					pdu_extendf(a, "%s", key);
 				}
 			}
+			free(pattern);
 
 		} else if (strcmp(pdu_type(q), "DUMP") == 0 && pdu_size(q) == 2) {
 			char *key  = pdu_string(q, 1);
