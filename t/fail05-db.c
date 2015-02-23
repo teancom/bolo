@@ -15,6 +15,7 @@ TESTS {
 	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\x1\0\0T\x92""e\xe0\0\0\0\2"
 		"\0%T\x92=[", 22); /* SHORT record header.  ZOMG! */
+	unlink(svr.config.keysfile = "t/tmp/keys");
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

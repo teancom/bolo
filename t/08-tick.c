@@ -11,6 +11,7 @@ TESTS {
 		"broadcast inproc://bcast\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		"savefile  t/tmp/save\n"
+		"keysfile  t/tmp/keys\n"
 		"window @default 2\n"
 		"sample  @default sample1\n"
 		"counter @default counter1\n"
@@ -19,6 +20,8 @@ TESTS {
 		"failed to configure bolo");
 	/* there is no savefile */
 	unlink(svr.config.savefile);
+	/* there is no keysfile */
+	unlink(svr.config.keysfile);
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

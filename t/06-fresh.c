@@ -11,6 +11,7 @@ TESTS {
 		"broadcast inproc://bcast\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		"savefile  t/tmp/save\n"
+		"keysfile  t/tmp/keys\n"
 		"type :local { freshness 1 critical \"no results!!!\"\n}\n"
 		"use :local\n"
 		"state test.state.0\n"
@@ -24,6 +25,8 @@ TESTS {
 		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"
 		"\0'\0\1T\x92=[\1\0test.state.0\0its problematic\0"
 		"\0\0", 96);
+	/* there is no keysfile */
+	unlink(svr.config.keysfile);
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

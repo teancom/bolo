@@ -14,6 +14,7 @@ TESTS {
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",
 		"BOLO\0\1\0\0", 8); /* TRUNCATED!  OOPS! */
+	unlink(svr.config.keysfile = "t/tmp/keys");
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");

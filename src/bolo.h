@@ -117,6 +117,7 @@ typedef struct {
 typedef struct {
 	void   *zmq;
 	db_t    db;
+	hash_t  keys;
 
 	struct {
 		char     *listener;
@@ -131,6 +132,7 @@ typedef struct {
 		char     *runas_user;
 		char     *runas_group;
 		char     *savefile;
+		char     *keysfile;
 		char     *dumpfiles;
 	} config;
 

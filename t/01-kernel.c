@@ -2,6 +2,7 @@
 
 #define TEST_CONFIG_FILE "t/tmp/bolo.cfg"
 #define TEST_SAVE_FILE   "t/tmp/save"
+#define TEST_KEYS_FILE   "t/tmp/keys"
 
 TESTS {
 	mkdir("t/tmp", 0755);
@@ -16,6 +17,7 @@ TESTS {
 	write_file(TEST_CONFIG_FILE,
 		"broadcast inproc://bcast\n"
 		"savefile  " TEST_SAVE_FILE "\n"
+		"keysfile  " TEST_KEYS_FILE "\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		""
 		"type :default {\n"
@@ -44,6 +46,12 @@ TESTS {
 		              "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 		              "res.df:/\0"                           /* 81 */
 		"\0\0", 16 + 39 + 39 + 25 + 81 + 2);
+	write_file(TEST_KEYS_FILE,
+		"# comments\n"                     /* 11 */
+		"key1 = 1\n"                       /*  9 */
+		"host01.ip = 1.2.3.4\n"            /* 20 */
+		"host01.netmask = 255.255.255.0\n" /* 31 */
+		"", 11 + 9 + 20 + 31);
 
 	CHECK(configure("t/tmp/bolo.cfg", &svr) == 0,
 		"failed to read configuration file " TEST_CONFIG_FILE);
@@ -380,6 +388,149 @@ TESTS {
 
 	binfile_is("t/tmp/save", s, 195,
 		"save file (binary)"); free(s);
+
+	/* get a single key */
+	p = pdu_make("GET.KEYS", 1, "host01.ip");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 3, "[VALUES] reply PDU is 3 frames long");
+	is_string(s = pdu_string(p, 1), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
+	is_string(s = pdu_string(p, 2), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
+	pdu_free(p);
+
+	/* get multiple keys */
+	p = pdu_make("GET.KEYS", 2, "host01.netmask", "host01.ip");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
+	is_string(s = pdu_string(p, 1), "host01.netmask", "GET.KEYS returned the host01.netmask key"); free(s);
+	is_string(s = pdu_string(p, 2), "255.255.255.0", "host01.netmask == 255.255.255.0"); free(s);
+	is_string(s = pdu_string(p, 3), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
+	is_string(s = pdu_string(p, 4), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
+	pdu_free(p);
+
+	/* get some non-existent keys */
+	p = pdu_make("GET.KEYS", 4,
+			"host01.netmask", "host01.ip",
+			"host02.netmask", "host02.ip");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
+	is_string(s = pdu_string(p, 1), "host01.netmask", "GET.KEYS returned the host01.netmask key"); free(s);
+	is_string(s = pdu_string(p, 2), "255.255.255.0", "host01.netmask == 255.255.255.0"); free(s);
+	is_string(s = pdu_string(p, 3), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
+	is_string(s = pdu_string(p, 4), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
+	pdu_free(p);
+
+	/* do a literal key search */
+	p = pdu_make("SEARCH.KEYS", 1, "host01");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [SEARCH.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "KEYS", "kernel replied with a [KEYS] PDU");
+	is_int(pdu_size(p), 3, "[KEYS] reply PDU is 3 frames long");
+	is_string(s = pdu_string(p, 1), "host01.netmask", "SEARCH.KEYS returned the host01.netmask key"); free(s);
+	is_string(s = pdu_string(p, 2), "host01.ip", "SEARCH.KEYS returned the host01.ip key"); free(s);
+	pdu_free(p);
+
+	/* do a more complicated pattern key search */
+	p = pdu_make("SEARCH.KEYS", 1, "(host|service)0[1357].(ip|address)");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [SEARCH.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "KEYS", "kernel replied with a [KEYS] PDU");
+	is_int(pdu_size(p), 2, "[KEYS] reply PDU is 2 frames long");
+	is_string(s = pdu_string(p, 1), "host01.ip", "SEARCH.KEYS returned the host01.ip key"); free(s);
+	pdu_free(p);
+
+	/* set a key */
+	p = pdu_make("SET.KEYS", 4, "key-the-first", "value1", "key-the-second", "value2");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [SET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with an [OK] PDU");
+	pdu_free(p);
+
+	/* retrieve our key */
+	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
+	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
+	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
+	is_string(s = pdu_string(p, 3), "key-the-second", "retrieved key-the-second"); free(s);
+	is_string(s = pdu_string(p, 4), "value2", "retrieved value2"); free(s);
+	pdu_free(p);
+
+	/* overwrite our key */
+	p = pdu_make("SET.KEYS", 2, "key-the-second", "OVERRIDE");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [SET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with an [OK] PDU");
+	pdu_free(p);
+
+	/* retrieve overwritten key */
+	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
+	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
+	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
+	is_string(s = pdu_string(p, 3), "key-the-second", "retrieved key-the-second"); free(s);
+	is_string(s = pdu_string(p, 4), "OVERRIDE", "retrieved OVERRIDE"); free(s);
+	pdu_free(p);
+
+	/* delete key */
+	p = pdu_make("DEL.KEYS", 1, "key-the-second");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [DEL.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with an [OK] PDU");
+	pdu_free(p);
+
+	/* get deleted key */
+	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received a reply PDU from kernel");
+	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
+	is_int(pdu_size(p), 3, "[VALUES] reply PDU is 3 frames long");
+	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
+	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
+	pdu_free(p);
 
 	/* ----------------------------- */
 	pthread_cancel(tid);

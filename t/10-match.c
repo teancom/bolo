@@ -2,6 +2,7 @@
 
 #define TEST_CONFIG_FILE "t/tmp/bolo.cfg"
 #define TEST_SAVE_FILE   "t/tmp/save"
+#define TEST_KEYS_FILE   "t/tmp/keys"
 
 TESTS {
 	mkdir("t/tmp", 0755);
@@ -16,6 +17,7 @@ TESTS {
 	write_file(TEST_CONFIG_FILE,
 		"broadcast inproc://bcast\n"
 		"savefile  " TEST_SAVE_FILE "\n"
+		"keysfile  " TEST_KEYS_FILE "\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		""
 		"type :default {\n"
@@ -42,6 +44,7 @@ TESTS {
 		              "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
 		              "res.df:/\0"                           /* 81 */
 		"\0\0", 16 + 39 + 39 + 39 + 25 + 81 + 2);
+	unlink(TEST_KEYS_FILE);
 
 	CHECK(configure("t/tmp/bolo.cfg", &svr) == 0,
 		"failed to read configuration file " TEST_CONFIG_FILE);

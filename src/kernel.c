@@ -613,6 +613,61 @@ static int read_state(db_t *db, const char *file)
 	return 0;
 }
 
+static int save_keys(hash_t *keys, const char *file)
+{
+	FILE *io = fopen(file, "w");
+	if (!io) {
+		logger(LOG_ERR, "kernel failed to open keys file %s for writing: %s",
+				file, strerror(errno));
+		return -1;
+	}
+
+	logger(LOG_NOTICE, "saving keys to %s", file);
+
+	char *key, *value;
+	for_each_key_value(keys, key, value)
+		fprintf(io, "%s = %s\n", key, value);
+	fclose(io);
+	return 0;
+}
+
+static int read_keys(hash_t *keys, const char *file)
+{
+	FILE *io = fopen(file, "r");
+	if (!io) {
+		logger(LOG_ERR, "kernel failed to open %s for reading: %s",
+			file, strerror(errno));
+		return -1;
+	}
+
+	logger(LOG_NOTICE, "reading keys from %s", file);
+
+	char buf[8192];
+	while (fgets(buf, 8192, io)) {
+		char *k, *v, *nl;
+		k = buf;
+
+		while (*k && isspace(*k)) k++;
+		if (*k == '#') continue;
+
+		v = k;
+		while (*v && !isspace(*v)) v++;
+		*v++ = '\0';
+		while (*v && isspace(*v)) v++;
+		if (*v++ != '=') continue;
+		while (*v && isspace(*v)) v++;
+
+		nl = v;
+		while (*nl && *nl != '\n') nl++;
+		*nl = '\0';
+
+		hash_set(keys, k, strdup(v));
+	}
+
+	fclose(io);
+	return 0;
+}
+
 static void check_freshness(kernel_t *k)
 {
 	state_t *state;
@@ -766,6 +821,13 @@ static void* cleanup_kernel(void *_)
 			logger(LOG_CRIT, "failed to save final state to %s: %s",
 				k->server->config.savefile, strerror(errno));
 		}
+
+		logger(LOG_INFO, "kernel cleaning up; saving keys to %s",
+			k->server->config.keysfile);
+		if (save_keys(&k->server->keys, k->server->config.keysfile) != 0) {
+			logger(LOG_CRIT, "failed to save keys to %s: %s",
+				k->server->config.keysfile, strerror(errno));
+		}
 	}
 
 	free(k);
@@ -815,6 +877,15 @@ void* kernel(void *u)
 	if (read_state(&k->server->db, k->server->config.savefile) != 0) {
 		logger(LOG_WARNING, "kernel failed to read state from %s: %s",
 				k->server->config.savefile, strerror(errno));
+	}
+
+	if (!k->server->config.keysfile) {
+		logger(LOG_CRIT, "kernel failed: no keysfile provided");
+		return NULL;
+	}
+	if (read_keys(&k->server->keys, k->server->config.keysfile) != 0) {
+		logger(LOG_WARNING, "kernel failed to read keys from %s: %s",
+				k->server->config.keysfile, strerror(errno));
 	}
 
 	pdu_t *q, *a;
@@ -947,6 +1018,69 @@ void* kernel(void *u)
 			}
 			free(name);
 
+		} else if (strcmp(pdu_type(q), "GET.KEYS") == 0 && pdu_size(q) > 1) {
+			a = pdu_reply(q, "VALUES", 0);
+			int i; char *key, *value;
+
+			for (i = 1; i < pdu_size(q); i++) {
+				key = pdu_string(q, i);
+				value = hash_get(&k->server->keys, key);
+				if (value) {
+					pdu_extendf(a, "%s", key);
+					pdu_extendf(a, "%s", value);
+				}
+				free(key);
+			}
+
+		} else if (strcmp(pdu_type(q), "SET.KEYS") == 0 && pdu_size(q) > 2 && (pdu_size(q) - 1) % 2 == 0) {
+			char *key, *value;
+			int i;
+			for (i = 1; i < pdu_size(q); i += 2) {
+				key   = pdu_string(q, i);
+				value = pdu_string(q, i + 1);
+
+				hash_set(&k->server->keys, key, value);
+				free(key);
+				/* don't have to free v; it belongs to the hash now */
+			}
+
+			a = pdu_reply(q, "OK", 0);
+
+		} else if (strcmp(pdu_type(q), "DEL.KEYS") == 0 && pdu_size(q) > 1) {
+			int i;
+			char *key;
+			for (i = 1; i < pdu_size(q); i++) {
+				key = pdu_string(q, i);
+				free(hash_set(&k->server->keys, key, NULL));
+				free(key);
+			}
+			a = pdu_reply(q, "OK", 0);
+
+		} else if (strcmp(pdu_type(q), "SEARCH.KEYS") == 0 && pdu_size(q) == 2) {
+			char *s;
+			const char *re_err;
+			int re_off;
+			pcre *re;
+
+			s = pdu_string(q, 1);
+			re = pcre_compile(s, 0, &re_err, &re_off, NULL);
+			free(s);
+
+			if (!re) {
+				a = pdu_reply(q, "ERROR", 1, re_err);
+			} else {
+				a = pdu_reply(q, "KEYS", 0);
+				pcre_extra *re_extra = pcre_study(re, 0, &re_err);
+
+				char *key, *value;
+				for_each_key_value(&k->server->keys, key, value) {
+					if (pcre_exec(re, re_extra, key, strlen(key), 0, 0, NULL, 0) != 0)
+						continue;
+
+					pdu_extendf(a, "%s", key);
+				}
+			}
+
 		} else if (strcmp(pdu_type(q), "DUMP") == 0 && pdu_size(q) == 2) {
 			char *key  = pdu_string(q, 1);
 			char *file = string(k->server->config.dumpfiles, key);
@@ -962,6 +1096,8 @@ void* kernel(void *u)
 
 		} else if (strcmp(pdu_type(q), "SAVESTATE") == 0 && pdu_size(q) == 1) {
 			if (save_state(&k->server->db, k->server->config.savefile) != 0) {
+				a = pdu_reply(q, "ERROR", 1, "Internal Error");
+			} else if (save_keys(&k->server->keys, k->server->config.keysfile) != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 			} else {
 				a = pdu_reply(q, "OK", 0);

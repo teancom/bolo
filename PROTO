@@ -22,9 +22,11 @@
                    |      | [PUT.STATE]        |            \
    ----------------'      | [PUT.COUNTER]      |             '----------------------
                           | [PUT.SAMPLE]       |
-   ----------------.      |                    |                     .----------------
-                   |      |    .-------------------.                 |
-       LISTENER    |      |    |      kernel       |  [GET.STATE]    |   CONTROLLER
+                          | [SET.KEYS]         |
+                          | [DEL.KEYS]         |
+   ----------------.      |                    |      [GET.STATE]    .----------------
+                   |      |    .-------------------.  [GET.KEYS]     |
+       LISTENER    |      |    |      kernel       |  [SEARCH.KEYS]  |   CONTROLLER
      tcp://*:2999  |------'--->|  inproc://kernel  |<----------------|  tcp://*:2998
                    |           '-------------------'  [DUMP]         |
    ----------------'                    ^                            '----------------
@@ -76,12 +78,48 @@
 
      ---------------------------------------------------------------------------
 
+     SET.KEYS              OK                ; set new keys in the config hash.
+     <COUNT>                                 ; semantics of the keys are entirely
+     <KEY 1>                                 ; left up to the discretion of the
+     <VALUE 1>                               ; site administrator.
+     ...
+     <KEY N>
+     <VALUE N>
+
+     ---------------------------------------------------------------------------
+
+     DEL.KEYS              OK                ; delete keys from the config hash.
+     <COUNT>
+     <KEY 1>
+     ...
+     <KEY N>
+
+     ---------------------------------------------------------------------------
+
      GET.STATE             STATE             ; retrieve a single state, by name,
      <NAME>                <NAME>            ; from the current database
                            <LAST-SEEN>
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
                            <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     GET.KEYS              VALUES            ; retrieve the values of a set of
+     <COUNT>               <COUNT>           ; config hash keys.
+     <KEY 1>               <KEY 1>
+     ...                   <VALUE 1>
+     <KEY N>               ...
+                           <KEY N>
+                           <VALUE N>
+
+     ---------------------------------------------------------------------------
+
+     SEARCH.KEYS           KEYS              ; search the config hash for keys
+     <PATTERN>             <COUNT>           ; matching the given pattern.
+                           <KEY 1>
+                           ...
+                           <KEY N>
 
      ---------------------------------------------------------------------------
 

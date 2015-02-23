@@ -19,6 +19,7 @@
 #define T_KEYWORD_COUNTER    0x0f
 #define T_KEYWORD_SAMPLE     0x10
 #define T_KEYWORD_NSCAPORT   0x11
+#define T_KEYWORD_KEYSFILE   0x12
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -140,6 +141,7 @@ getline:
 			KEYWORD("pidfile",    PIDFILE);
 			KEYWORD("log",        LOG);
 			KEYWORD("savefile",   SAVEFILE);
+			KEYWORD("keysfile",   KEYSFILE);
 			KEYWORD("dumpfiles",  DUMPFILES);
 			KEYWORD("type",       TYPE);
 			KEYWORD("window",     WINDOW);
@@ -264,6 +266,7 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_GROUP:      SERVER_STRING(s->config.runas_group); break;
 		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
+		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
 		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);   break;
 
 		case T_KEYWORD_NSCAPORT:
@@ -545,10 +548,11 @@ int deconfigure(server_t *s)
 	free(s->config.listener);     s->config.listener     = NULL;
 	free(s->config.controller);   s->config.controller   = NULL;
 	free(s->config.broadcast);    s->config.broadcast   = NULL;
-	free(s->config.pidfile);      s->config.savefile     = NULL;
+	free(s->config.pidfile);      s->config.pidfile      = NULL;
 	free(s->config.runas_user);   s->config.runas_user   = NULL;
 	free(s->config.runas_group);  s->config.runas_group  = NULL;
 	free(s->config.savefile);     s->config.savefile     = NULL;
+	free(s->config.keysfile);     s->config.keysfile     = NULL;
 	free(s->config.dumpfiles);    s->config.dumpfiles    = NULL;
 	free(s->config.log_level);    s->config.log_level    = NULL;
 	free(s->config.log_facility); s->config.log_facility = NULL;

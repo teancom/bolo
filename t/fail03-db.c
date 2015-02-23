@@ -13,6 +13,7 @@ TESTS {
 	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	unlink(svr.config.savefile = "t/tmp/save");
+	unlink(svr.config.keysfile = "t/tmp/keys");
 
 	CHECK(svr.zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
