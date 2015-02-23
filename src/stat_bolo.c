@@ -205,6 +205,186 @@ static int stat_querymode(void)
 			fprintf(stdout, "%s\n", s = pdu_string(p, 5)); free(s); /* summary   */
 			pdu_free(p);
 
+		} else if (strcasecmp(a, "set.keys") == 0) {
+			if (DEBUG) fprintf(stderr, "+>> arguments remaining: %s\n", c);
+			while (*c && isspace(*c)) c++;
+			if (!*c) {
+				fprintf(stderr, "missing arguments to `set.keys' call\n");
+				fprintf(stderr, "usage: set.keys key1 value1 key2 value2 ...\n");
+				continue;
+			}
+
+			int n = 0;
+			p = pdu_make("SET.KEYS", 0);
+			while (*c) {
+				a = c; while (*a && !isspace(*a)) a++;
+				b = a; while (*b &&  isspace(*b)) b++;
+				*a = '\0';
+
+				n++;
+				pdu_extendf(p, "%s", a);
+				c = b;
+			}
+
+			if (n % 2 != 0) {
+				fprintf(stderr, "odd number of arguments to `set.keys' call\n");
+				fprintf(stderr, "usage: set.keys key1 value1 key2 value2 ...\n");
+				pdu_free(p);
+				continue;
+			}
+
+			if (DEBUG) fprintf(stderr, "+>> sending [SET.KEYS] PDU\n");
+			if (pdu_send_and_free(p, z) != 0) {
+				fprintf(stderr, "failed to send [SET.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
+			p = pdu_recv(z);
+			if (!p) {
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
+
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				fprintf(stderr, "error: %s\n", s = pdu_string(p, 1)); free(s);
+				pdu_free(p);
+				continue;
+			}
+			pdu_free(p);
+
+		} else if (strcasecmp(a, "get.keys") == 0) {
+			if (DEBUG) fprintf(stderr, "+>> arguments remaining: %s\n", c);
+			while (*c && isspace(*c)) c++;
+			if (!*c) {
+				fprintf(stderr, "missing arguments to `get.keys' call\n");
+				fprintf(stderr, "usage: get.keys key1 key2 ...\n");
+				continue;
+			}
+
+			p = pdu_make("GET.KEYS", 0);
+			while (*c) {
+				a = c; while (*a && !isspace(*a)) a++;
+				b = a; while (*b &&  isspace(*b)) b++;
+				*a = '\0';
+
+				pdu_extendf(p, "%s", a);
+				c = b;
+			}
+
+			if (DEBUG) fprintf(stderr, "+>> sending [GET.KEYS] PDU\n");
+			if (pdu_send_and_free(p, z) != 0) {
+				fprintf(stderr, "failed to send [GET.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
+			p = pdu_recv(z);
+			if (!p) {
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
+
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				fprintf(stderr, "error: %s\n", s = pdu_string(p, 1)); free(s);
+				pdu_free(p);
+				continue;
+			}
+
+			int i;
+			for (i = 1; i < pdu_size(p); i += 2) {
+				a = pdu_string(p, i);
+				b = pdu_string(p, i + 1);
+
+				fprintf(stdout, "%s = %s\n", a, b);
+
+				free(a);
+				free(b);
+			}
+			pdu_free(p);
+
+		} else if (strcasecmp(a, "del.keys") == 0) {
+			if (DEBUG) fprintf(stderr, "+>> arguments remaining: %s\n", c);
+			while (*c && isspace(*c)) c++;
+			if (!*c) {
+				fprintf(stderr, "missing argument to `del.keys' call\n");
+				fprintf(stderr, "usage: del.keys key1 key2 ...\n");
+				continue;
+			}
+
+			p = pdu_make("DEL.KEYS", 0);
+			while (*c) {
+				a = c; while (*a && !isspace(*a)) a++;
+				b = a; while (*b &&  isspace(*b)) b++;
+				*a = '\0';
+
+				pdu_extendf(p, "%s", a);
+				c = b;
+			}
+
+			if (DEBUG) fprintf(stderr, "+>> sending [DEL.KEYS] PDU\n");
+			if (pdu_send_and_free(p, z) != 0) {
+				fprintf(stderr, "failed to send [DEL.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
+			p = pdu_recv(z);
+			if (!p) {
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
+
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				fprintf(stderr, "error: %s\n", s = pdu_string(p, 1)); free(s);
+				pdu_free(p);
+				continue;
+			}
+			pdu_free(p);
+
+		} else if (strcasecmp(a, "search.keys") == 0) {
+			if (DEBUG) fprintf(stderr, "+>> arguments remaining: %s\n", c);
+			while (*c && isspace(*c)) c++;
+			if (!*c) {
+				fprintf(stderr, "missing pattern argument to `search.keys' call\n");
+				fprintf(stderr, "usage: search.keys <pattern>\n");
+				continue;
+			}
+
+			a = c; while (*a && !isspace(*a)) a++;
+			b = a; while (*b &&  isspace(*b)) b++;
+			*a = '\0';
+			if (*b) {
+				fprintf(stderr, "too many arguments to `search.keys' call\n");
+				fprintf(stderr, "usage: search.keys <pattern>\n");
+				continue;
+			}
+
+			if (DEBUG) fprintf(stderr, "+>> sending [SEARCH.KEYS] PDU\n");
+			if (pdu_send_and_free(pdu_make("SEARCH.KEYS", 1, a), z) != 0) {
+				fprintf(stderr, "failed to send [SEARCH.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
+			p = pdu_recv(z);
+			if (!p) {
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				fprintf(stderr, "error: %s\n", s = pdu_string(p, 1)); free(s);
+				pdu_free(p);
+				continue;
+			}
+
+			int i;
+			for (i = 1; i < pdu_size(p); i++) {
+				fprintf(stdout, "%s\n", s = pdu_string(p, i));
+				free(s);
+			}
+			pdu_free(p);
+
 		} else if (strcasecmp(a, "dump") == 0) {
 			if (*c) fprintf(stderr, "ignoring useless arguments to `dump' command\n");
 
