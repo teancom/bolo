@@ -1045,6 +1045,7 @@ void* kernel(void *u)
 				key   = pdu_string(q, i);
 				value = pdu_string(q, i + 1);
 
+				logger(LOG_INFO, "set key %s = '%s'", key, value);
 				hash_set(&k->server->keys, key, value);
 				free(key);
 				/* don't have to free v; it belongs to the hash now */
@@ -1057,6 +1058,7 @@ void* kernel(void *u)
 			char *key;
 			for (i = 1; i < pdu_size(q); i++) {
 				key = pdu_string(q, i);
+				logger(LOG_INFO, "deleting key %s", key);
 				free(hash_set(&k->server->keys, key, NULL));
 				free(key);
 			}
@@ -1131,6 +1133,8 @@ void* kernel(void *u)
 			a = pdu_reply(q, "OK", 0);
 
 		} else {
+			logger(LOG_WARNING, "kernel received an invalid [%s] PDU, of %i frames",
+				pdu_type(q), pdu_size(q));
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 

@@ -105,6 +105,7 @@ static pdu_t* set_keys_pdu(int argc, char **argv)
 	int i;
 	char *k, *v;
 
+	if (DEBUG) fprintf(stderr, "+>> built PDU [%s", pdu_type(pdu));
 	for (i = 0; i < argc; i++) {
 		k = v = argv[i];
 		while (*v && *v != '=') v++;

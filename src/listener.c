@@ -105,6 +105,8 @@ void* listener(void *u)
 			free(name);
 
 		} else {
+			logger(LOG_WARNING, "listener received an invalid [%s] PDU, of %i frames",
+				pdu_type(q), pdu_size(q));
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
