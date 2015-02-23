@@ -152,7 +152,6 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	char *s;
 	pdu_t *p;
 	while ((p = pdu_recv(z))) {
 
@@ -180,10 +179,8 @@ int main(int argc, char **argv)
 			free(name);
 			free(value);
 			free(file);
-			continue;
-		}
 
-		if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
+		} else if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
 			char *ts    = pdu_string(p, 1);
 			char *name  = pdu_string(p, 2);
 			char *n     = pdu_string(p, 3);
@@ -218,16 +215,8 @@ int main(int argc, char **argv)
 			free(mean);
 			free(var);
 			free(file);
-			continue;
 		}
 
-		printf("%s", pdu_type(p));
-		size_t i = 1;
-		for (;;) {
-			if (!(s = pdu_string(p, i++))) break;
-			printf(" %s", s); free(s);
-		}
-		printf("\n");
 		pdu_free(p);
 	}
 
