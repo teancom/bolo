@@ -69,6 +69,7 @@ void* listener(void *u)
 			char *msg  = pdu_string(q, 4);
 
 			pdu_send_and_free(pdu_make("PUT.STATE", 4, ts, name, code, msg), l->client);
+			pdu_t *p = pdu_recv(l->client); pdu_free(p);
 			a = pdu_reply(q, "OK", 0);
 
 			free(ts);
@@ -83,6 +84,7 @@ void* listener(void *u)
 			if (!incr) incr = strdup("1");
 
 			pdu_send_and_free(pdu_make("PUT.COUNTER", 3, ts, name, incr), l->client);
+			pdu_t *p = pdu_recv(l->client); pdu_free(p);
 			a = pdu_reply(q, "OK", 0);
 
 			free(ts);
@@ -90,19 +92,69 @@ void* listener(void *u)
 			free(incr);
 
 		} else if (strcmp(pdu_type(q), "SAMPLE") == 0 && pdu_size(q) > 3) {
-			size_t i, n;
+			size_t i;
 
+			char *err  = NULL;
 			char *ts   = pdu_string(q, 1);
 			char *name = pdu_string(q, 2);
 			for (i = 3; i < pdu_size(q); i++) {
 				char *val  = pdu_string(q, i);
 				pdu_send_and_free(pdu_make("PUT.SAMPLE", 3, ts, name, val), l->client);
+				pdu_t *p = pdu_recv(l->client);
+				if (strcmp(pdu_type(p), "ERROR") == 0) {
+					free(err);
+					err = pdu_string(p, 1);
+				}
+				pdu_free(p);
 				free(val);
 			}
-			a = pdu_reply(q, "OK", 0);
+			if (err) {
+				a = pdu_reply(q, "ERROR", 1, err);
+				free(err);
+			} else {
+				a = pdu_reply(q, "OK", 0);
+			}
 
 			free(ts);
 			free(name);
+
+		} else if (strcmp(pdu_type(q), "SET.KEYS") == 0 && pdu_size(q) > 2 && (pdu_size(q) - 1) % 2 == 0) {
+			size_t i;
+			pdu_t *p = pdu_make("SET.KEYS", 0);
+			for (i = 1; i < pdu_size(q); i++) {
+				char *s = pdu_string(q, i);
+				pdu_extendf(p, "%s", s);
+				free(s);
+			}
+			pdu_send_and_free(p, l->client);
+			p = pdu_recv(l->client);
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				char *err = pdu_string(p, 1);
+				a = pdu_reply(q, "ERROR", 1, err);
+				free(err);
+			} else {
+				a = pdu_reply(q, "OK", 0);
+			}
+			pdu_free(p);
+
+		} else if (strcmp(pdu_type(q), "DEL.KEYS") == 0 && pdu_size(q) > 1) {
+			size_t i;
+			pdu_t *p = pdu_make("DEL.KEYS", 0);
+			for (i = 1; i < pdu_size(q); i++) {
+				char *s = pdu_string(q, i);
+				pdu_extendf(p, "%s", s);
+				free(s);
+			}
+			pdu_send_and_free(p, l->client);
+			p = pdu_recv(l->client);
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				char *err = pdu_string(p, 1);
+				a = pdu_reply(q, "ERROR", 1, err);
+				free(err);
+			} else {
+				a = pdu_reply(q, "OK", 0);
+			}
+			a = pdu_reply(q, "OK", 0);
 
 		} else {
 			logger(LOG_WARNING, "listener received an invalid [%s] PDU, of %i frames",

@@ -13,7 +13,8 @@ static struct {
 #define TYPE_STATE   1
 #define TYPE_COUNTER 2
 #define TYPE_SAMPLE  3
-#define TYPE_KEY     4
+#define TYPE_SETKEY  4
+#define TYPE_DELKEY  5
 
 static pdu_t* state_pdu(int argc, char **argv, char *ts)
 {
@@ -114,7 +115,24 @@ static pdu_t* set_keys_pdu(int argc, char **argv)
 
 		pdu_extendf(pdu, "%s", k);
 		pdu_extendf(pdu, "%s", v);
+		if (DEBUG) fprintf(stderr, "|%s|%s", k, v);
 	}
+	if (DEBUG) fprintf(stderr, "]\n");
+
+	return pdu;
+}
+
+static pdu_t* del_keys_pdu(int argc, char **argv)
+{
+	pdu_t *pdu = pdu_make("DEL.KEYS", 0);
+	int i;
+
+	if (DEBUG) fprintf(stderr, "+>> built PDU [%s", pdu_type(pdu));
+	for (i = 0; i < argc; i++) {
+		pdu_extendf(pdu, "%s", argv[i]);
+		if (DEBUG) fprintf(stderr, "|%s", argv[i]);
+	}
+	if (DEBUG) fprintf(stderr, "]\n");
 
 	return pdu;
 }
@@ -188,8 +206,11 @@ int main(int argc, char **argv)
 			} else if (strcasecmp(optarg, "stream") == 0) {
 				OPTIONS.type = TYPE_STREAM;
 
-			} else if (strcasecmp(optarg, "key") == 0) {
-				OPTIONS.type = TYPE_KEY;
+			} else if (strcasecmp(optarg, "setkey") == 0) {
+				OPTIONS.type = TYPE_SETKEY;
+
+			} else if (strcasecmp(optarg, "delkey") == 0) {
+				OPTIONS.type = TYPE_DELKEY;
 
 			} else {
 				fprintf(stderr, "invalid type '%s'\n", optarg);
@@ -232,15 +253,22 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-	} else if (OPTIONS.type == TYPE_KEY) {
+	} else if (OPTIONS.type == TYPE_SETKEY) {
 		pdu = set_keys_pdu(argc - optind, argv + optind);
 		if (!pdu) {
-			fprintf(stderr, "USAGE: %s -t key key1=value1 key2=value2\n", argv[0]);
+			fprintf(stderr, "USAGE: %s -t setkey key1=value1 key2=value2 ...\n", argv[0]);
+			return 1;
+		}
+
+	} else if (OPTIONS.type == TYPE_DELKEY) {
+		pdu = del_keys_pdu(argc - optind, argv + optind);
+		if (!pdu) {
+			fprintf(stderr, "USAGE: %s -t delkey key1 key2 ...\n", argv[0]);
 			return 1;
 		}
 
 	} else {
-		fprintf(stderr, "USAGE: %s -t (sample|counter|state|key) args\n", argv[0]);
+		fprintf(stderr, "USAGE: %s -t (sample|counter|state|setkey|delkey) args\n", argv[0]);
 		return 1;
 	}
 
@@ -283,8 +311,11 @@ int main(int argc, char **argv)
 			} else if (strcmp(l->strings[0], "SAMPLE") == 0) {
 				pdu = sample_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
-			} else if (strcmp(l->strings[0], "KEY") == 0) {
-				pdu = set_keys_pdu(l->num - 2, l->strings + 2);
+			} else if (strcmp(l->strings[0], "SETKEY") == 0) {
+				pdu = set_keys_pdu(l->num - 1, l->strings + 1);
+
+			} else if (strcmp(l->strings[0], "DELKEY") == 0) {
+				pdu = del_keys_pdu(l->num - 1, l->strings + 1);
 
 			} else {
 				pdu = NULL;
