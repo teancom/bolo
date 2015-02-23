@@ -107,10 +107,9 @@ TESTS {
 		pdu_free(q);
 
 	/* send a SAMPLE update */
-	ok(pdu_send_and_free(pdu_make("SAMPLE", 4,
+	ok(pdu_send_and_free(pdu_make("SAMPLE", 3,
 			"12345",                /* timestamp */
 			"host.example.com:cpu"  /* sample name */,
-			"1",                    /* number of values */
 			"42.7"),                /* sample value */
 		z) == 0, "sent [SAMPLE] to listener");
 

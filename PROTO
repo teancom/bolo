@@ -71,25 +71,22 @@
      PUT.SAMPLE            OK                ; update a sample set with an
      <TIMESTAMP>                             ; arbitrary number of new samples,
      <NAME>                                  ; recalculating min/max/mean/variance
-     <COUNT>                                 ; as necessary
-     <SAMPLE 1>
+     <SAMPLE 1>                              ; as necessary
      ...
      <SAMPLE N>
 
      ---------------------------------------------------------------------------
 
      SET.KEYS              OK                ; set new keys in the config hash.
-     <COUNT>                                 ; semantics of the keys are entirely
-     <KEY 1>                                 ; left up to the discretion of the
-     <VALUE 1>                               ; site administrator.
-     ...
+     <KEY 1>                                 ; semantics of the keys are entirely
+     <VALUE 1>                               ; left up to the discretion of the
+     ...                                     ; site administrator.
      <KEY N>
      <VALUE N>
 
      ---------------------------------------------------------------------------
 
      DEL.KEYS              OK                ; delete keys from the config hash.
-     <COUNT>
      <KEY 1>
      ...
      <KEY N>
@@ -106,8 +103,7 @@
      ---------------------------------------------------------------------------
 
      GET.KEYS              VALUES            ; retrieve the values of a set of
-     <COUNT>               <COUNT>           ; config hash keys.
-     <KEY 1>               <KEY 1>
+     <KEY 1>               <KEY 1>           ; config hash keys.
      ...                   <VALUE 1>
      <KEY N>               ...
                            <KEY N>
@@ -116,16 +112,14 @@
      ---------------------------------------------------------------------------
 
      SEARCH.KEYS           KEYS              ; search the config hash for keys
-     <PATTERN>             <COUNT>           ; matching the given pattern.
-                           <KEY 1>
+     <PATTERN>             <KEY 1>           ; matching the given pattern.
                            ...
                            <KEY N>
 
      ---------------------------------------------------------------------------
 
      DUMP                  DUMP              ; dumps all stats in a YAML file,
-     <KEY>                 <FILE>            ; <KEY> is a randomized string of
-                                             ; up to 16 characters (truncated)
+                           <FILE>
 
      ---------------------------------------------------------------------------
 
