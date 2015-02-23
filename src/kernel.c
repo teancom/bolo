@@ -623,10 +623,16 @@ static int save_keys(hash_t *keys, const char *file)
 	}
 
 	logger(LOG_NOTICE, "saving keys to %s", file);
+	fprintf(io, "# generated %lu\n", time_ms());
 
+	unsigned long n = 0;
 	char *key, *value;
-	for_each_key_value(keys, key, value)
+	for_each_key_value(keys, key, value) {
+		if (!value) continue;
 		fprintf(io, "%s = %s\n", key, value);
+		n++;
+	}
+	fprintf(io, "# %lu keys\n", n);
 	fclose(io);
 	return 0;
 }
