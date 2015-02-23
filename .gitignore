@@ -52,6 +52,7 @@ t/08-tick
 t/09-sample
 t/10-match
 t/fail*-db
+t/vx-pdu
 
 .deps
 config.log

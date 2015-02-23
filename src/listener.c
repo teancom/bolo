@@ -119,15 +119,8 @@ void* listener(void *u)
 			free(name);
 
 		} else if (strcmp(pdu_type(q), "SET.KEYS") == 0 && pdu_size(q) > 2 && (pdu_size(q) - 1) % 2 == 0) {
-			size_t i;
-			pdu_t *p = pdu_make("SET.KEYS", 0);
-			for (i = 1; i < pdu_size(q); i++) {
-				char *s = pdu_string(q, i);
-				pdu_extendf(p, "%s", s);
-				free(s);
-			}
-			pdu_send_and_free(p, l->client);
-			p = pdu_recv(l->client);
+			pdu_send_and_free(vx_pdu_dup(q, NULL), l->client);
+			pdu_t *p = pdu_recv(l->client);
 			if (strcmp(pdu_type(p), "ERROR") == 0) {
 				char *err = pdu_string(p, 1);
 				a = pdu_reply(q, "ERROR", 1, err);

@@ -19,6 +19,7 @@ CORE_SRC += src/nsca.c
 CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
 CORE_SRC += src/data.c
+CORE_SRC += src/util.c
 
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
@@ -49,6 +50,8 @@ CTAP_TESTS += t/fail04-db
 CTAP_TESTS += t/fail05-db
 CTAP_TESTS += t/fail06-db
 
+CTAP_TESTS += t/vx-pdu
+
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
@@ -72,6 +75,8 @@ t_fail03_db_SOURCES = $(TEST_SRC) t/fail03-db.c
 t_fail04_db_SOURCES = $(TEST_SRC) t/fail04-db.c
 t_fail05_db_SOURCES = $(TEST_SRC) t/fail05-db.c
 t_fail06_db_SOURCES = $(TEST_SRC) t/fail06-db.c
+
+t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
 .PHONY: coverage-clean coverage-report coverage clean-local-cov
 clean-local: clean-local-gcda

@@ -124,16 +124,7 @@ void* controller(void *u)
 			}
 
 		} else if (strcmp(pdu_type(q), "GET.KEYS") == 0) {
-			pdu_t *pdu = pdu_make("GET.KEYS", 0);
-
-			char *s;
-			int i;
-			for (i = 1; i < pdu_size(q); i++) {
-				s = pdu_string(q, i);
-				pdu_extendf(pdu, "%s", s); free(s);
-			}
-
-			rc = pdu_send_and_free(pdu, c->client);
+			rc = pdu_send_and_free(vx_pdu_dup(q, NULL), c->client);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 
@@ -145,24 +136,16 @@ void* controller(void *u)
 
 				} else {
 					a = pdu_reply(q, "VALUES", 0);
-					for (i = 1; i < pdu_size(res); i++) {
-						pdu_extendf(a, "%s", s = pdu_string(res, i));
-						free(s);
+					rc = vx_pdu_copy(a, res, 1, 0);
+					if (rc != 0) {
+						pdu_free(a);
+						a = pdu_reply(q, "ERROR", 1, "Internal Error");
 					}
 				}
 			}
 
 		} else if (strcmp(pdu_type(q), "DEL.KEYS") == 0) {
-			pdu_t *pdu = pdu_make("DEL.KEYS", 0);
-
-			char *s;
-			int i;
-			for (i = 1; i < pdu_size(q); i++) {
-				s = pdu_string(q, i);
-				pdu_extendf(pdu, "%s", s); free(s);
-			}
-
-			rc = pdu_send_and_free(pdu, c->client);
+			rc = pdu_send_and_free(vx_pdu_dup(q, NULL), c->client);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 
@@ -178,16 +161,7 @@ void* controller(void *u)
 			}
 
 		} else if (strcmp(pdu_type(q), "SEARCH.KEYS") == 0) {
-			pdu_t *pdu = pdu_make("SEARCH.KEYS", 0);
-
-			char *s;
-			int i;
-			for (i = 1; i < pdu_size(q); i++) {
-				s = pdu_string(q, i);
-				pdu_extendf(pdu, "%s", s); free(s);
-			}
-
-			rc = pdu_send_and_free(pdu, c->client);
+			rc = pdu_send_and_free(vx_pdu_dup(q, NULL), c->client);
 			if (rc != 0) {
 				a = pdu_reply(q, "ERROR", 1, "Internal Error");
 
@@ -199,9 +173,10 @@ void* controller(void *u)
 
 				} else {
 					a = pdu_reply(q, "KEYS", 0);
-					for (i = 1; i < pdu_size(res); i++) {
-						pdu_extendf(a, "%s", s = pdu_string(res, i));
-						free(s);
+					rc = vx_pdu_copy(a, res, 1, 0);
+					if (rc != 0) {
+						pdu_free(a);
+						a = pdu_reply(q, "ERROR", 1, "Internal Error");
 					}
 				}
 			}
