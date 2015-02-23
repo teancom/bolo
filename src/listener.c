@@ -92,7 +92,7 @@ void* listener(void *u)
 			free(incr);
 
 		} else if (strcmp(pdu_type(q), "SAMPLE") == 0 && pdu_size(q) > 3) {
-			size_t i;
+			int i;
 
 			char *err  = NULL;
 			char *ts   = pdu_string(q, 1);
