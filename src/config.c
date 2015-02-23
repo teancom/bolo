@@ -115,12 +115,10 @@ getline:
 
 			*b++ = '\0';
 			memcpy(p->value, a, b-a);
-			fprintf(stderr, "pattern is m{%s}\n", p->value);
 			p->token = T_MATCH;
 
 			while (*b && isspace(*b)) b++;
 			memmove(p->buffer, b, strlen(b)+1);
-			fprintf(stderr, "buf[%s]\n", p->buffer);
 			return 1;
 		}
 		b = a;
