@@ -38,12 +38,6 @@ TESTS {
 			"looks good, 42.5\% usage"),  /* summary message */
 		z) == 0, "sent [STATE] to listener");
 
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %x >>", x); free(x);
-
 		/* go be the kernel */
 		q = pdu_recv(kernel);
 		isnt_null(q, "received a packet as the kernel");
@@ -57,18 +51,18 @@ TESTS {
 			"failed to send OK reply to our [PUT.STATE]");
 		pdu_free(q);
 
+		/* go be the client */
+		a = pdu_recv(z);
+		isnt_null(a, "received a reply from the listener");
+		is_string(pdu_type(a), "OK", "listener replied [OK]");
+		x = pdu_string(a, 1); if (x) diag("<< %x >>", x); free(x);
+
 	/* send a COUNTER update */
 	ok(pdu_send_and_free(pdu_make("COUNTER", 3,
 			"12345",                      /* timestamp */
 			"host.example.com:logins",    /* counter name */
 			"3"),                         /* increment value */
 		z) == 0, "sent [COUNTER] to listener");
-
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 
 		/* go be the kernel */
 		q = pdu_recv(kernel);
@@ -82,17 +76,17 @@ TESTS {
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
 
-	/* send a COUNTER update without explicit increment */
-	ok(pdu_send_and_free(pdu_make("COUNTER", 2,
-			"12345",                      /* timestamp */
-			"host.example.com:logins"),   /* counter name */
-		z) == 0, "sent [COUNTER] to listener");
-
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
+
+	/* send a COUNTER update without explicit increment */
+	ok(pdu_send_and_free(pdu_make("COUNTER", 2,
+			"12345",                      /* timestamp */
+			"host.example.com:logins"),   /* counter name */
+		z) == 0, "sent [COUNTER] to listener");
 
 		/* go be the kernel */
 		q = pdu_recv(kernel);
@@ -106,18 +100,18 @@ TESTS {
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
 
+		/* go be the client */
+		a = pdu_recv(z);
+		isnt_null(a, "received a reply from the listener");
+		is_string(pdu_type(a), "OK", "listener replied [OK]");
+		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
+
 	/* send a SAMPLE update */
 	ok(pdu_send_and_free(pdu_make("SAMPLE", 3,
 			"12345",                /* timestamp */
 			"host.example.com:cpu"  /* sample name */,
 			"42.7"),                /* sample value */
 		z) == 0, "sent [SAMPLE] to listener");
-
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 
 		/* go be the kernel */
 		q = pdu_recv(kernel);
@@ -130,6 +124,12 @@ TESTS {
 		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
 			"failed to send OK reply to our [PUT.SAMPLE]");
 		pdu_free(q);
+
+		/* go be the client */
+		a = pdu_recv(z);
+		isnt_null(a, "received a reply from the listener");
+		is_string(pdu_type(a), "OK", "listener replied [OK]");
+		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 
 	/* try a bad PDU */
 	ok(pdu_send_and_free(pdu_make("ZORK", 0), z) == 0, "sent [ZORK] to listener");
