@@ -2,6 +2,7 @@
 
 AUTOMAKE_OPTIONS = foreign subdir-objects
 ACLOCAL_AMFLAGS = -I build
+EXTRA_DIST =
 
 AM_CFLAGS =
 AM_CFLAGS += -Wall
@@ -20,6 +21,15 @@ CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
 CORE_SRC += src/data.c
 CORE_SRC += src/util.c
+
+EXTRA_DIST += README.md
+EXTRA_DIST += PROTO
+EXTRA_DIST += bootstrap
+EXTRA_DIST += bolo.cfg
+
+EXTRA_DIST += util/packet
+EXTRA_DIST += util/savefile
+EXTRA_DIST += util/sender
 
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
@@ -78,7 +88,10 @@ t_fail06_db_SOURCES = $(TEST_SRC) t/fail06-db.c
 
 t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
-.PHONY: coverage-clean coverage-report coverage clean-local-cov
+.PHONY: coverage-clean coverage-report coverage clean-local-cov distclean-local
+distclean-local:
+	rm -rf t/tmp
+
 clean-local: clean-local-gcda
 clean-local-gcda:
 	touch sac.gcda

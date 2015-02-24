@@ -1,0 +1,12 @@
+#!/usr/bin/make -f
+
+CFLAGS=-Wall -g
+
+.PHONY: override_dh_strip
+
+override_dh_strip:
+	dh_strip -pbolo-server  --dbg-package=bolo-server-dbg
+	dh_strip -pbolo-clients --dbg-package=bolo-clients-dbg
+
+%:
+	dh $@

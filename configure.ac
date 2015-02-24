@@ -1,7 +1,7 @@
 # configure.ac
 
 AC_PREREQ(2.68)
-AC_INIT([Bolo Monitoring System], [0.0.1], [bugs@niftylogic.com])
+AC_INIT([Bolo], [0.2.0], [bugs@niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])

@@ -1,0 +1,53 @@
+Source: bolo
+Section: admin
+Priority: optional
+Maintainer: Package Monkey <packages@niftylogic.com>
+Homepage: http://packages.niftylogic.com/forge
+Standards-Version: 3.9.3
+Build-Depends: debhelper (>= 8),
+               libctap,
+               libctap-dev,
+               libvigor-dev,
+               libvigor1,
+               libzmq3-dev,
+
+Package: bolo-server
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, libvigor1
+Recommends: bolo-clients
+Description: Monitoring System Server
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides the server implementation.
+
+Package: bolo-server-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: bolo-server (= ${binary:Version}), ${misc:Depends}
+Description: Debugging Symbols for Monitoring System Server
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides debugging symbols for bolo.
+
+Package: bolo-clients
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}, libvigor1
+Description: Monitoring System Clients
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides client programs for bolo.
+
+Package: bolo-clients-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: bolo-clients (= ${binary:Version}), ${misc:Depends}
+Description: Debugging Symbols for Monitoring System Clients
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides debugging symbols for bolo clients.

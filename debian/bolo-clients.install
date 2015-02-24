@@ -1,0 +1,4 @@
+/usr/bin/bolo_nsca
+/usr/bin/bolo_rrd
+/usr/bin/send_bolo
+/usr/bin/stat_bolo
