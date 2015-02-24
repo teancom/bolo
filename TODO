@@ -1,7 +1,12 @@
 TODO
 
-- handle blank lines in `send_bolo -t stream` more gracefully
+- better input validation for `send_bolo -t stream`
+  - missing params
+  - blank lines
 - man pages
+- package example configs
+- init script for bolo
+- dump should probably dump counters and samples as well
 - scheduling agent?
 - consistent hashing / dht algo
 - find a good hash function - murmur?
