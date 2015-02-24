@@ -1,8 +1,5 @@
 TODO
 
-- better input validation for `send_bolo -t stream`
-  - missing params
-  - blank lines
 - man pages
 - package example configs
 - init script for bolo

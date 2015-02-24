@@ -270,31 +270,45 @@ int main(int argc, char **argv)
 
 	} else {
 		char buf[8192];
-		while (fgets(buf, 8192, stdin)) {
-			char *nl = strrchr(buf, '\n');
-			if (*nl)
-				*nl = '\0';
+		for (;;) {
+			if (isatty(0)) fprintf(stderr, "> ");
+			if (fgets(buf, 8192, stdin) == NULL)
+				break;
 
-			strings_t *l = strings_split(buf, strlen(buf), " ", SPLIT_NORMAL);
-			if (strcmp(l->strings[0], "STATE") == 0) {
+			char *a = strrchr(buf, '\n');
+			if (a) *a = '\0';
+
+			a = buf;
+			while (*a && isspace(*a)) a++;
+			if (!*a) continue;
+
+			strings_t *l = strings_split(a, strlen(a), " ", SPLIT_NORMAL);
+			if (strcasecmp(l->strings[0], "STATE") == 0) {
 				pdu = state_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
-			} else if (strcmp(l->strings[0], "COUNTER") == 0) {
+			} else if (strcasecmp(l->strings[0], "COUNTER") == 0) {
 				pdu = counter_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
-			} else if (strcmp(l->strings[0], "SAMPLE") == 0) {
+			} else if (strcasecmp(l->strings[0], "SAMPLE") == 0) {
 				pdu = sample_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
-			} else if (strcmp(l->strings[0], "KEY") == 0) {
+			} else if (strcasecmp(l->strings[0], "KEY") == 0) {
 				pdu = set_keys_pdu(l->num - 1, l->strings + 1);
 
 			} else {
 				pdu = NULL;
-				if (DEBUG)
-					fprintf(stderr, "+>> unrecognized line: '%s'\n", buf);
+				if (DEBUG) fprintf(stderr, "+>> unrecognized line: '%s'\n", a);
+				if (isatty(0)) fprintf(stderr, "unrecognized command: %s\n", l->strings[0]);
+				strings_free(l);
+				continue;
 			}
-			strings_free(l);
 
+			if (!pdu) {
+				if (isatty(0))
+					fprintf(stderr, "missing parameters to %s command\n", l->strings[0]);
+			}
+
+			strings_free(l);
 			if (pdu) {
 				rc = send_pdu(z, pdu);
 				if (rc) break;
