@@ -50,7 +50,7 @@ static pdu_t* state_pdu(int argc, char **argv, char *ts)
 	pdu_extendf(pdu, "%u", status);
 	pdu_extendf(pdu, "%s", msg);
 	if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%u|%s]\n",
-		pdu_type(pdu), time_s(), argv[optind + 0], status, msg);
+		pdu_type(pdu), time_s(), argv[0], status, msg);
 	free(msg);
 
 	return pdu;
