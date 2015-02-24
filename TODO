@@ -1,5 +1,7 @@
 TODO
 
+- handle blank lines in `send_bolo -t stream` more gracefully
+- man pages
 - scheduling agent?
 - consistent hashing / dht algo
 - find a good hash function - murmur?
