@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	pdu_t *pdu;
+	pdu_t *pdu = NULL;
 
 	if (OPTIONS.type == TYPE_STATE) {
 		pdu = state_pdu(argc - optind, argv + optind, NULL);
