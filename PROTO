@@ -13,8 +13,8 @@
 
    Architecture:
 
-                                                [STATE]
-                                                [EVENT]      .----------------------
+                                                [TRANSITION]
+                                                [STATE]      .----------------------
    ----------------.                            [COUNTER]   /
                    |                            [SAMPLE]   /        (clients)
      NSCA gateway  |                           .--------->         tcp://*:2997
@@ -139,7 +139,7 @@
 
      ---------------------------------------------------------------------------
 
-     EVENT                                    ; like [STATE], except the state is
+     TRANSITION                               ; like [STATE], except the state is
      <TS>                                     ; only broadcast when the status
      <NAME>                                   ; changes significantly (i.e. from
      <CODE>                                   ; OK to WARNING, or CRITICAL to OK)

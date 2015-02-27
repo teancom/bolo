@@ -110,12 +110,12 @@ TESTS {
 
 	/* check the publisher pipeline */
 	p = pdu_recv(sub);
-	is_string(pdu_type(p), "EVENT", "kernel broadcast an [EVENT] PDU");
-	is_string(s = pdu_string(p, 1), "test.state.0", "EVENT[0] is state name");   free(s);
-	is_string(s = pdu_string(p, 2), ts,             "EVENT[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "fresh",        "EVENT[2] is freshness");    free(s);
-	is_string(s = pdu_string(p, 4), "OK",           "EVENT[3] is status");       free(s);
-	is_string(s = pdu_string(p, 5), "all good",     "EVENT[4] is summary");      free(s);
+	is_string(pdu_type(p), "TRANSITION", "kernel broadcast an [TRANSITION] PDU");
+	is_string(s = pdu_string(p, 1), "test.state.0", "TRANSITION[0] is state name");   free(s);
+	is_string(s = pdu_string(p, 2), ts,             "TRANSITION[1] is last seen ts"); free(s);
+	is_string(s = pdu_string(p, 3), "fresh",        "TRANSITION[2] is freshness");    free(s);
+	is_string(s = pdu_string(p, 4), "OK",           "TRANSITION[3] is status");       free(s);
+	is_string(s = pdu_string(p, 5), "all good",     "TRANSITION[4] is summary");      free(s);
 	pdu_free(p);
 
 	p = pdu_recv(sub);
@@ -139,7 +139,7 @@ TESTS {
 
 	/* check the publisher pipeline */
 
-	/* no EVENT pdu, since its an ongoing state */
+	/* no TRANSITION pdu, since its an ongoing state */
 
 	p = pdu_recv(sub);
 	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");

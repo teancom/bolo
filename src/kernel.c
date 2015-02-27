@@ -758,12 +758,12 @@ static void broadcast_state(kernel_t *k, state_t *state)
 
 static void broadcast_event(kernel_t *k, state_t *state)
 {
-	logger(LOG_INFO, "broadcasting [EVENT] data for %s: "
+	logger(LOG_INFO, "broadcasting [TRANSITION] data for %s: "
 		"ts=%i, stale=%s, status=%i, summary=%s",
 		state->name, state->last_seen, state->stale ? "y" : "n",
 		state->status, state->summary);
 
-	pdu_t *p = pdu_make("EVENT", 1, state->name);
+	pdu_t *p = pdu_make("TRANSITION", 1, state->name);
 	pdu_extendf(p, "%li", state->last_seen);
 	pdu_extendf(p, "%s",  state->stale ? "stale" : "fresh");
 	pdu_extendf(p, "%s",  statstr(state->status));

@@ -75,14 +75,14 @@ TESTS {
 	is_string(pdu_type(a), "OK", "got [OK] reply from kernel");
 	pdu_free(a);
 
-	/* check for EVENT / STATE broadcast PDUs */
+	/* check for TRANSITION / STATE broadcast PDUs */
 	CHECK(q = pdu_recv(sub), "no broadcast PDU received from kernel");
-	is(s = pdu_type(q), "EVENT", "received an [EVENT] PDU in response to staleness");
-	is(s = pdu_string(a, 1), "test.state.0",  "EVENT[0] is state name"); free(s);
-	is(s = pdu_string(a, 2), "1418870107",    "EVENT[1] is last seen"); free(s);
-	is(s = pdu_string(a, 3), "stale",         "EVENT[2] is stale/fresh"); free(s);
-	is(s = pdu_string(a, 4), "CRITICAL",      "EVENT[3] is new status"); free(s);
-	is(s = pdu_string(a, 5), "no results!!!", "EVENT[4] is summary"); free(s);
+	is(s = pdu_type(q), "TRANSITION", "received an [TRANSITION] PDU in response to staleness");
+	is(s = pdu_string(a, 1), "test.state.0",  "TRANSITION[0] is state name"); free(s);
+	is(s = pdu_string(a, 2), "1418870107",    "TRANSITION[1] is last seen"); free(s);
+	is(s = pdu_string(a, 3), "stale",         "TRANSITION[2] is stale/fresh"); free(s);
+	is(s = pdu_string(a, 4), "CRITICAL",      "TRANSITION[3] is new status"); free(s);
+	is(s = pdu_string(a, 5), "no results!!!", "TRANSITION[4] is summary"); free(s);
 	pdu_free(q);
 	CHECK(q = pdu_recv(sub), "no broadcast PDU received from kernel");
 	is(s = pdu_type(q), "STATE", "received an [STATE] PDU in response to staleness");
