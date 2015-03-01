@@ -181,6 +181,37 @@ void* controller(void *u)
 				}
 			}
 
+		} else if (strcmp(pdu_type(q), "GET.EVENTS") == 0 && pdu_size(q) == 2) {
+			char *ts = pdu_string(q, 1);
+			rc = pdu_send_and_free(pdu_make("GET.EVENTS", 2,
+				s = string("%04x%04x", rand(), rand()),
+				ts), c->client);
+			free(s);
+			free(ts);
+			if (rc != 0) {
+				a = pdu_reply(q, "ERROR", 1, "Internal Error");
+
+			} else {
+				res = pdu_recv(c->client);
+				if (strcmp(pdu_type(res), "ERROR") == 0) {
+					a = pdu_reply(q, "ERROR", 1, s = pdu_string(res, 1)); free(s);
+				} else {
+					s = pdu_string(res, 1);
+					int fd = open(s = pdu_string(res, 1), O_RDONLY);
+					unlink(s); free(s);
+
+					long off = lseek(fd, 0, SEEK_END);
+					lseek(fd, 0, SEEK_SET);
+
+					char *data = mmap(NULL, off, PROT_READ, MAP_PRIVATE, fd, 0);
+					if (data == MAP_FAILED) {
+						a = pdu_reply(q, "ERROR", 1, "Internal Error");
+					} else {
+						a = pdu_reply(q, "EVENTS", 1, data);
+					}
+					close(fd);
+				}
+			}
 
 		} else {
 			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");

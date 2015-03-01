@@ -30,7 +30,6 @@ TESTS {
 	char *s;
 
 	/* send an invalid PDU */
-	alarm(5);
 	p = pdu_make("@INVALID!", 2, "foo", "baz");
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [@INVALID!] PDU to controller");
@@ -40,10 +39,8 @@ TESTS {
 	is_string(pdu_type(p), "ERROR", "controller replied with an [ERROR]");
 	is_string(s = pdu_string(p, 1), "Invalid PDU", "Error message returned"); free(s);
 	pdu_free(p);
-	alarm(0);
 
 	/* send a state PDU */
-	alarm(5);
 	p = pdu_make("STATE", 1, "random.metric");
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [STATE] PDU to controller");
@@ -64,10 +61,8 @@ TESTS {
 	is_string(s = pdu_string(p, 5), "foo",   "controller relayed result frame 5"); free(s);
 	is_null(pdu_string(p, 6), "controller only relays 5 frames (there is no 6th)");
 	pdu_free(p);
-	alarm(0);
 
 	/* send a dump PDU */
-	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [DUMP] PDU to controller");
@@ -85,10 +80,8 @@ TESTS {
 		"this is the\ncontent stuff\n",
 		"controller returns contents of file"); free(s);
 	pdu_free(p);
-	alarm(0);
 
 	/* DUMP failure from kernel */
-	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [DUMP] PDU to controller");
@@ -104,11 +97,9 @@ TESTS {
 	is_string(s = pdu_string(p, 1), "stuff broke",
 		"controller relayed error message"); free(s);
 	pdu_free(p);
-	alarm(0);
 
 
 	/* DUMP failure from kernel (enoent) */
-	alarm(5);
 	p = pdu_make("DUMP", 0);
 	is_int(pdu_send_and_free(p, z), 0,
 		"sent [DUMP] PDU to controller");
@@ -125,11 +116,48 @@ TESTS {
 	is_string(s = pdu_string(p, 1), "Internal Error",
 		"controller generated error message"); free(s);
 	pdu_free(p);
-	alarm(0);
+
+
+	/* FIXME: send a GET.KEYS PDU */
+	/* FIXME: send a DEL.KEYS PDU */
+	/* FIXME: send a SEARCH.KEYS PDU */
+
+
+	/* send a GET.EVENTS PDU */
+	ok(pdu_send_and_free(pdu_make("GET.EVENTS", 1, "0"), z) == 0,
+		"sent [GET.EVENTS] to listener");
+
+		/* go be the kernel */
+		q = pdu_recv(kernel);
+		isnt_null(q, "received a packet as the kernel");
+		is(pdu_type(q), "GET.EVENTS", "packet is a [GET.EVENTS] packet");
+		isnt_null(s = pdu_string(p, 1), "GET.EVENTS[0] is not null");
+		ok(strlen(s) >= 4, "GET.EVENTS[1] is at least 4 characters long");
+		free(s);
+
+		is_string(s = pdu_string(p, 2), "0", "GET.EVENTS[1] is timestamp");
+		free(s);
+
+		write_file("t/tmp/file.name", "X\n", 2);
+		CHECK(pdu_send_and_free(pdu_reply(q, "EVENTS", 1,
+			"t/tmp/file.name"), kernel) == 0,
+			"failed to send EVENTS reply to our [GET.EVENTS]");
+		pdu_free(q);
+
+		/* go be the client */
+		p = pdu_recv(z);
+		isnt_null(p, "received a reply from the listener");
+		is(pdu_type(p), "EVENTS", "listener replied [EVENTS]");
+		is(s = pdu_string(p, 1), "X\n", "listener read t/tmp/file.name and returned it");
+		free(s);
+
 
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
 	zmq_close(z);
+
+	alarm(0);
+	done_testing();
 }

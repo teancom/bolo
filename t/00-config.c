@@ -16,6 +16,8 @@ TESTS {
 			"broadcast  tcp://*:6868\n"
 			"nsca.port  5669\n"
 			"\n"
+			"max.events 8h\n"
+			"\n"
 			"user       monitor\n"
 			"group      amgs\n"
 			"pidfile    /var/run/bolo.pid\n"
@@ -85,6 +87,8 @@ TESTS {
 		is(svr.config.dumpfiles,     "/tmp/dump.\%s",  "dumpfiles set");
 
 		is_int(svr.config.nsca_port, 5669, "nsca.port set");
+		is_int(svr.config.events_max, 8 * 3600, "max.events set to 8h (in seconds)");
+		is_int(svr.config.events_keep, EVENTS_KEEP_TIME, "max.events is a timeframe");
 
 		type_t *t;
 		t = hash_get(&svr.db.types, ":test");

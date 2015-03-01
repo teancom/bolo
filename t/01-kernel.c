@@ -189,6 +189,34 @@ TESTS {
 	is_string(s = pdu_string(p, 5), "critically-ness", "STATE[4] is summary");      free(s);
 	pdu_free(p);
 
+	/* send an event */
+	p = pdu_make("NEW.EVENT", 3, "12345", "my.sample.event", "this is the extra data");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [NEW.EVENT] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with an [OK]");
+	pdu_free(p);
+
+	/* check the publisher pipeline for our event */
+	p = pdu_recv(sub);
+	is_string(pdu_type(p), "EVENT", "kernel broadcast an [EVENT] PDU");
+	is_string(s = pdu_string(p, 1), "12345",                  "EVENT[0] is timestamp");  free(s);
+	is_string(s = pdu_string(p, 2), "my.sample.event",        "EVENT[1] is event name"); free(s);
+	is_string(s = pdu_string(p, 3), "this is the extra data", "EVENT[2] is extra data"); free(s);
+	pdu_free(p);
+
+	/* send a malformed event */
+	p = pdu_make("NEW.EVENT", 2, "12345", "malformed.event");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [NEW.EVENT] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	pdu_free(p);
+
 	/* dump the state file (to /t/tmp/dump.test) */
 	unlink("t/tmp/dump.test");
 	p = pdu_make("DUMP", 1, "test");

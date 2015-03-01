@@ -13,6 +13,7 @@
 
    Architecture:
 
+                                                [EVENT]
                                                 [TRANSITION]
                                                 [STATE]      .----------------------
    ----------------.                            [COUNTER]   /
@@ -23,6 +24,7 @@
    ----------------'      | [PUT.COUNTER]      |             '----------------------
                           | [PUT.SAMPLE]       |
                           | [SET.KEYS]         |      [GET.STATE]
+                          | [NEW.EVENT]        |      [GET.EVENTS]
    ----------------.      |                    |      [GET.KEYS]     .----------------
                    |      |    .-------------------.  [DEL.KEYS]     |
        LISTENER    |      |    |      kernel       |  [SEARCH.KEYS]  |   CONTROLLER
@@ -30,12 +32,12 @@
                    |           '-------------------'  [DUMP]         |
    ----------------'                    ^                            '----------------
                                         |  [TICK]
-                                        |  [CHECKFRESH]
-                                        |  [SAVESTATE]
-                                        |
-                               .-----------------.
-                               |    scheduler    |
-                               '-----------------'
+   [STATE]                              |  [CHECKFRESH]
+   [COUNTER]                            |  [SAVESTATE]
+   [SAMPLE]                             |
+   [SET.KEYS]                  .-----------------.
+   [DEL.KEYS]                  |    scheduler    |
+   [EVENT]                     '-----------------'
 
 
   ##############################################################################
@@ -85,6 +87,19 @@
 
      ---------------------------------------------------------------------------
 
+     NEW.EVENT              OK               ; submit a new event, happing at a
+     <TIMESTAMP>                             ; specified time.  name and extra
+     <NAME>                                  ; data have no special meaning to
+     <EXTRA DATA>                            ; the bolo kernel.
+
+     ---------------------------------------------------------------------------
+
+     GET.EVENTS            EVENTS            ; get a list of events that occurred
+     <KEY>                 <FILE>            ; on or after timestamp.  Data will
+     <TIMESTAMP>                             ; be dumped to a file, as YAML.
+
+     ---------------------------------------------------------------------------
+
      GET.STATE             STATE             ; retrieve a single state, by name,
      <NAME>                <NAME>            ; from the current database
                            <LAST-SEEN>
@@ -94,8 +109,8 @@
 
      ---------------------------------------------------------------------------
 
-     DUMP                  DUMP              ; dumps all stats in a YAML file,
-                           <FILE>
+     DUMP                  DUMP              ; dumps all stats in a YAML file.
+     <KEY>                 <FILE>
 
      ---------------------------------------------------------------------------
 
@@ -166,6 +181,13 @@
 
      ---------------------------------------------------------------------------
 
+     EVENT                                    ; broadcast when a [NEW.EVENT] PDU
+     <TS>                                     ; is received.
+     <NAME>
+     <EXTRA>
+
+     ---------------------------------------------------------------------------
+
 
   ##############################################################################
   PDUs (native listener):
@@ -208,6 +230,13 @@
 
      ---------------------------------------------------------------------------
 
+     EVENT                 OK                ; submit a new event to bolo.
+     <TS>
+     <NAME>
+     <EXTRA>
+
+     ---------------------------------------------------------------------------
+
 
   ##############################################################################
   PDUs (controller):
@@ -220,6 +249,13 @@
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
                            <SUMMARY MSG>
+
+     ---------------------------------------------------------------------------
+
+     GET.EVENTS            EVENTS            ; retrieve the currently buffered
+     <TIMESTAMP>           <YAML-DATA>       ; event data, optionally limiting
+                                             ; to only events on or after a
+                                             ; given timestamp (if > 0)
 
      ---------------------------------------------------------------------------
 

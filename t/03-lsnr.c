@@ -131,6 +131,31 @@ TESTS {
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 
+	/* send an EVENT */
+	ok(pdu_send_and_free(pdu_make("EVENT", 3,
+			"11223344",
+			"my.event.name",
+			"{special:'data'}"),
+		z) == 0, "sent an [EVENT] to listener");
+
+		/* go be the kernel */
+		q = pdu_recv(kernel);
+		isnt_null(q, "received a packet as the kernel");
+		is(pdu_type(q), "NEW.EVENT", "packet is a [NEW.EVENT] packet");
+		is(pdu_string(q, 1), "11223344",         "NEW.EVENT[0] is timestamp");
+		is(pdu_string(q, 2), "my.event.name",    "NEW.EVENT[1] is name");
+		is(pdu_string(q, 3), "{special:'data'}", "NEW.EVENT[2] is extra data");
+
+		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
+			"failed to send OK reply to our [NEW.EVENT]");
+		pdu_free(q);
+
+		/* go be the client */
+		a = pdu_recv(z);
+		isnt_null(a, "received a reply from the listener");
+		is_string(pdu_type(a), "OK", "listener replied [OK]");
+		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
+
 	/* try a bad PDU */
 	ok(pdu_send_and_free(pdu_make("ZORK", 0), z) == 0, "sent [ZORK] to listener");
 	a = pdu_recv(z);

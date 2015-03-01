@@ -20,6 +20,7 @@
 #define T_KEYWORD_SAMPLE     0x10
 #define T_KEYWORD_NSCAPORT   0x11
 #define T_KEYWORD_KEYSFILE   0x12
+#define T_KEYWORD_MAXEVENTS  0x13
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -28,6 +29,7 @@
 #define T_TYPENAME           0x84
 #define T_WINDOWNAME         0x85
 #define T_MATCH              0x86
+#define T_TIME               0x87
 
 typedef struct {
 	FILE       *io;
@@ -97,6 +99,24 @@ getline:
 			memmove(p->buffer, b, strlen(b)+1);
 			return 1;
 		}
+
+		int mult = 0;
+		switch (*b) {
+			case 'd': mult = 86400; break;
+			case 'h': mult = 3600;  break;
+			case 'm': mult = 60;    break;
+			case 's': mult = 1;     break;
+		}
+		if (mult > 0) {
+			*b = '\0';
+			char *n = string("%i", atoi(p->buffer) * mult);
+			memcpy(p->value, n, strlen(n) + 1); free(n);
+			p->token = T_TIME;
+
+			while (*b && isspace(*b)) b++;
+			memmove(p->buffer, b, strlen(b)+1);
+			return 1;
+		}
 	}
 
 	if (*b == 'm') {
@@ -148,6 +168,7 @@ getline:
 			KEYWORD("counter",    COUNTER);
 			KEYWORD("sample",     SAMPLE);
 			KEYWORD("use",        USE);
+			KEYWORD("max.events", MAXEVENTS);
 
 			if (!p->token) {
 				memcpy(p->value, p->buffer, b-p->buffer);
@@ -222,6 +243,7 @@ int configure(const char *path, server_t *s)
 	list_init(&s->db.state_matches);
 	list_init(&s->db.counter_matches);
 	list_init(&s->db.sample_matches);
+	list_init(&s->db.events);
 
 	parser_t p;
 	memset(&p, 0, sizeof(p));
@@ -266,6 +288,14 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
 		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
 		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);   break;
+
+		case T_KEYWORD_MAXEVENTS:
+			NEXT;
+			if      (p.token == T_NUMBER)  s->config.events_keep = EVENTS_KEEP_NUMBER;
+			else if (p.token == T_TIME)    s->config.events_keep = EVENTS_KEEP_TIME;
+			else { ERROR("Expected number or time spec max.events"); }
+			s->config.events_max = atoi(p.value);
+			break;
 
 		case T_KEYWORD_NSCAPORT:
 			NEXT;

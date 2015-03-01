@@ -102,9 +102,18 @@ typedef struct {
 } re_sample_t;
 
 typedef struct {
+	list_t     l;
+	int32_t    timestamp;
+	char      *name;
+	char      *extra;
+} event_t;
+
+typedef struct {
 	hash_t  states;
 	hash_t  counters;
 	hash_t  samples;
+
+	list_t  events;
 
 	list_t  state_matches;
 	list_t  counter_matches;
@@ -113,6 +122,9 @@ typedef struct {
 	hash_t  types;
 	hash_t  windows;
 } db_t;
+
+#define EVENTS_KEEP_NUMBER 0
+#define EVENTS_KEEP_TIME   1
 
 typedef struct {
 	void   *zmq;
@@ -133,7 +145,11 @@ typedef struct {
 		char     *runas_group;
 		char     *savefile;
 		char     *keysfile;
+		char     *eventsfile;
 		char     *dumpfiles;
+
+		int       events_max;
+		int       events_keep;
 	} config;
 
 	struct {
@@ -158,5 +174,6 @@ void* scheduler(void *u);
 /* utilities - candidates for libvigor */
 pdu_t *vx_pdu_dup(pdu_t *orig, const char *type);
 int vx_pdu_copy(pdu_t *to, pdu_t *from, int start, int n);
+int vx_timespec_parse(char *s, int modulo);
 
 #endif

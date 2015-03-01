@@ -385,6 +385,37 @@ static int stat_querymode(void)
 			}
 			pdu_free(p);
 
+		} else if (strcasecmp(a, "get.events") == 0) {
+			char *ts = "0";
+			if (*c) {
+				ts = c;
+				while (*c && isdigit(*c)) c++;
+				*c = '\0';
+			}
+
+			if (DEBUG) fprintf(stderr, "+>> sending [GET.EVENTS] PDU\n");
+			if (pdu_send_and_free(pdu_make("GET.EVENTS", 1, ts), z) != 0) {
+				fprintf(stderr, "failed to send [GET.EVENTS] PDU to %s; command aborted\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> awauting response PDU...\n");
+			p = pdu_recv(z);
+			if (!p) {
+				fprintf(stderr, "no response received from %s\n", OPTIONS.endpoint);
+				return 3;
+			}
+			if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(p));
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				fprintf(stderr, "error: %s\n", s = pdu_string(p, 1)); free(s);
+				continue;
+			}
+			if (strcmp(pdu_type(p), "EVENTS") != 0) {
+				fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(p), OPTIONS.endpoint);
+				return 4;
+			}
+			fprintf(stdout, "%s", s = pdu_string(p, 1)); free(s);
+			pdu_free(p);
+
 		} else if (strcasecmp(a, "dump") == 0) {
 			if (*c) fprintf(stderr, "ignoring useless arguments to `dump' command\n");
 

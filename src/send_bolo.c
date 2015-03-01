@@ -14,6 +14,7 @@ static struct {
 #define TYPE_COUNTER 2
 #define TYPE_SAMPLE  3
 #define TYPE_KEY     4
+#define TYPE_EVENT   5
 
 static pdu_t* state_pdu(int argc, char **argv, char *ts)
 {
@@ -121,6 +122,31 @@ static pdu_t* set_keys_pdu(int argc, char **argv)
 	return pdu;
 }
 
+static pdu_t* event_pdu(int argc, char **argv, const char *ts)
+{
+	if (argc < 1)
+		return NULL;
+
+	pdu_t *pdu = pdu_make("EVENT", 0);
+	if (ts) pdu_extendf(pdu, "%s", ts);
+	else    pdu_extendf(pdu, "%i", time_s());
+
+	pdu_extendf(pdu, "%s", argv[0]);
+	char *extra = "";
+	if (argc >= 2) {
+		strings_t *sl = strings_new(argv + 1);
+		extra = strings_join(sl, " ");
+		strings_free(sl);
+	}
+	pdu_extendf(pdu, "%s", extra);
+
+	if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%s]\n",
+		pdu_type(pdu), time_s(), argv[0], extra ? extra : "");
+	free(extra);
+
+	return pdu;
+}
+
 static int send_pdu(void *z, pdu_t *pdu)
 {
 	if (pdu_send_and_free(pdu, z) != 0) {
@@ -193,6 +219,9 @@ int main(int argc, char **argv)
 			} else if (strcasecmp(optarg, "key") == 0) {
 				OPTIONS.type = TYPE_KEY;
 
+			} else if (strcasecmp(optarg, "event") == 0) {
+				OPTIONS.type = TYPE_EVENT;
+
 			} else {
 				fprintf(stderr, "invalid type '%s'\n", optarg);
 				return 1;
@@ -241,8 +270,15 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
+	} else if (OPTIONS.type == TYPE_EVENT) {
+		pdu = event_pdu(argc - optind, argv + optind, NULL);
+		if (!pdu) {
+			fprintf(stderr, "USAGE: %s -t event name [extra description ...]\n", argv[0]);
+			return 1;
+		}
+
 	} else {
-		fprintf(stderr, "USAGE: %s -t (sample|counter|state|key) args\n", argv[0]);
+		fprintf(stderr, "USAGE: %s -t (sample|counter|state|key|event) args\n", argv[0]);
 		return 1;
 	}
 
@@ -294,6 +330,9 @@ int main(int argc, char **argv)
 
 			} else if (strcasecmp(l->strings[0], "KEY") == 0) {
 				pdu = set_keys_pdu(l->num - 1, l->strings + 1);
+
+			} else if (strcasecmp(l->strings[0], "EVENT") == 0) {
+				pdu = event_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 			} else {
 				pdu = NULL;
