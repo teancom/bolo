@@ -160,7 +160,7 @@ void* nsca_gateway(void *u)
 		logger(LOG_CRIT, "NSCA gateway failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(kernel, KERNEL_ENDPOINT) != 0) {
+	if (vx_vzmq_connect(kernel, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "NSCA gateway failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}

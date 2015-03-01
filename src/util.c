@@ -21,3 +21,24 @@ int vx_pdu_copy(pdu_t *to, pdu_t *from, int start, int n)
 	}
 	return 0;
 }
+
+int vx_vzmq_connect(void *z, const char *endpoint)
+{
+	strings_t *names = vzmq_resolve(endpoint, AF_UNSPEC);
+	if (names->num == 0) {
+		errno = ENOENT;
+		return 1;
+	}
+
+	int rc;
+	unsigned int i;
+	for (i = 0; i < names->num; i++) {
+		logger(LOG_DEBUG, "trying endpoint %s (from %s)", names->strings[i], endpoint);
+		rc = zmq_connect(z, names->strings[i]);
+		if (rc == 0)
+			break;
+	}
+
+	strings_free(names);
+	return rc;
+}

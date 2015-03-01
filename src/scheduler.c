@@ -38,7 +38,7 @@ void* scheduler(void *u)
 		return NULL;
 	}
 
-	if (zmq_connect(s->client, KERNEL_ENDPOINT) != 0) {
+	if (vx_vzmq_connect(s->client, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "scheduler failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}

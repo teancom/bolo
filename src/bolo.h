@@ -176,5 +176,6 @@ void* scheduler(void *u);
 pdu_t *vx_pdu_dup(pdu_t *orig, const char *type);
 int vx_pdu_copy(pdu_t *to, pdu_t *from, int start, int n);
 int vx_timespec_parse(char *s, int modulo);
+int vx_vzmq_connect(void *z, const char *endpoint);
 
 #endif

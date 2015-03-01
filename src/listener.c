@@ -39,7 +39,7 @@ void* listener(void *u)
 		logger(LOG_CRIT, "listener failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(l->client, KERNEL_ENDPOINT) != 0) {
+	if (vx_vzmq_connect(l->client, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "listener failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}

@@ -40,7 +40,7 @@ void* controller(void *u)
 		logger(LOG_CRIT, "controller failed to get a DEALER socket");
 		return NULL;
 	}
-	if (zmq_connect(c->client, KERNEL_ENDPOINT) != 0) {
+	if (vx_vzmq_connect(c->client, KERNEL_ENDPOINT) != 0) {
 		logger(LOG_CRIT, "controller failed to connect to kernel at " KERNEL_ENDPOINT);
 		return NULL;
 	}

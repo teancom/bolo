@@ -86,7 +86,7 @@ static int stat_listenmode(void)
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
-	if (zmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		fprintf(stderr, "failed to connect to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
@@ -134,7 +134,7 @@ static int stat_querymode(void)
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
-	if (zmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		fprintf(stderr, "failed to connect to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
