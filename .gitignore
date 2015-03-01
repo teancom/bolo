@@ -51,6 +51,7 @@ t/07-roll
 t/08-tick
 t/09-sample
 t/10-match
+t/11-events
 t/fail*-db
 t/vx-pdu
 

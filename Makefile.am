@@ -52,6 +52,7 @@ CTAP_TESTS += t/07-roll
 CTAP_TESTS += t/08-tick
 CTAP_TESTS += t/09-sample
 CTAP_TESTS += t/10-match
+CTAP_TESTS += t/11-events
 
 CTAP_TESTS += t/fail01-db
 CTAP_TESTS += t/fail02-db
@@ -78,6 +79,7 @@ t_07_roll_SOURCES   = $(TEST_SRC) t/07-roll.c
 t_08_tick_SOURCES   = $(TEST_SRC) t/08-tick.c
 t_09_sample_SOURCES = $(TEST_SRC) t/09-sample.c
 t_10_match_SOURCES  = $(TEST_SRC) t/10-match.c
+t_11_events_SOURCES = $(TEST_SRC) t/11-events.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
 t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c

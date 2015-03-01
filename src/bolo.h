@@ -114,6 +114,7 @@ typedef struct {
 	hash_t  samples;
 
 	list_t  events;
+	int     events_count;
 
 	list_t  state_matches;
 	list_t  counter_matches;

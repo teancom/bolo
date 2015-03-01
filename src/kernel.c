@@ -846,7 +846,7 @@ static void dump_events(db_t *db, const char *file, int32_t since)
 
 	event_t *ev;
 	for_each_object(ev, &db->events, l) {
-		if (ev->timestamp >= since)
+		if (ev->timestamp < since)
 			continue;
 
 		fprintf(io, "- name:  %s\n", ev->name);
@@ -856,6 +856,40 @@ static void dump_events(db_t *db, const char *file, int32_t since)
 
 	fclose(io);
 	close(fd);
+}
+
+static void event_free(event_t *ev)
+{
+	if (!ev) return;
+	list_delete(&ev->l);
+	free(ev->name);
+	free(ev->extra);
+	free(ev);
+}
+
+static void buffer_event(db_t *db, event_t *ev, int max, int keep)
+{
+	if (max > 0) {
+		list_push(&db->events, &ev->l);
+		db->events_count++;
+
+		if (keep == EVENTS_KEEP_NUMBER) {
+			while (db->events_count > max) {
+				event_free(list_head(&db->events, event_t, l));
+				db->events_count--;
+			}
+
+		} else {
+			int32_t now  = ev->timestamp;
+
+			for (;;) {
+				ev = list_head(&db->events, event_t, l);
+				if (ev->timestamp > now - max) break;
+				event_free(ev);
+				db->events_count--;
+			}
+		}
+	}
 }
 
 #define winstart(x, t) ((t) - ((t) % (x)->window->time))
@@ -1150,9 +1184,10 @@ void* kernel(void *u)
 			char *s = pdu_string(q, 1); ev->timestamp = strtol(s, NULL, 10); free(s);
 			ev->name  = pdu_string(q, 2);
 			ev->extra = pdu_string(q, 3);
-			list_push(&k->server->db.events, &ev->l);
-
 			broadcast_event(k, ev);
+
+			buffer_event(&k->server->db, ev,
+				k->server->config.events_max, k->server->config.events_keep);
 			a = pdu_reply(q, "OK", 0);
 
 		} else if (strcmp(pdu_type(q), "GET.EVENTS") == 0 && pdu_size(q) == 3) {
