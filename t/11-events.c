@@ -55,7 +55,7 @@ TESTS {
 
 	/* ----------------------------- */
 
-	pdu_t *q, *a;
+	pdu_t *a;
 	char *s;
 
 	/* put three events */
