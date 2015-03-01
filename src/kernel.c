@@ -5,6 +5,7 @@
 #define RECORD_TYPE_STATE    0x1
 #define RECORD_TYPE_COUNTER  0x2
 #define RECORD_TYPE_SAMPLE   0x3
+#define RECORD_TYPE_EVENT    0x4
 
 #define binf_record_type(b) ((b)->flags & RECORD_TYPE_MASK)
 
@@ -69,6 +70,10 @@ typedef struct PACKED {
 	double    var;
 	double    var_;
 } binf_sample_t;
+
+typedef struct PACKED {
+	uint32_t  timestamp;
+} binf_event_t;
 
 typedef struct {
 	server_t *server;
@@ -162,12 +167,14 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		binf_state_t   state;
 		binf_counter_t counter;
 		binf_sample_t  sample;
+		binf_event_t   event;
 	} body;
 	union {
 		void      *unknown;
 		state_t   *state;
 		counter_t *counter;
 		sample_t  *sample;
+		event_t   *event;
 	} payload;
 	size_t n, want, so_far = 0;
 	const char *s;
@@ -191,6 +198,12 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 	case RECORD_TYPE_SAMPLE:
 		record.len += sizeof(body.sample);
 		record.len += strlen(payload.sample->name) + 1;
+		break;
+
+	case RECORD_TYPE_EVENT:
+		record.len += sizeof(body.event);
+		record.len += strlen(payload.event->name)  + 1;
+		record.len += strlen(payload.event->extra) + 1;
 		break;
 
 	default:
@@ -277,6 +290,31 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 		break;
 
+	case RECORD_TYPE_EVENT:
+		body.event.timestamp = htonl(payload.event->timestamp);
+
+		n = write(fd, &body.event, want = sizeof(body.event));
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		s = payload.event->name;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		s = payload.event->extra;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		break;
+
 	default:
 		return -1;
 	}
@@ -291,12 +329,14 @@ static int read_record(int fd, uint8_t *type, void **r)
 		binf_state_t   state;
 		binf_counter_t counter;
 		binf_sample_t  sample;
+		binf_event_t   event;
 	} body;
 	union {
 		void      *unknown;
 		state_t   *state;
 		counter_t *counter;
 		sample_t  *sample;
+		event_t   *event;
 	} payload;
 	ssize_t n, want;
 	char buf[4096], *p;
@@ -389,6 +429,30 @@ static int read_record(int fd, uint8_t *type, void **r)
 		*r = payload.sample;
 		return 0;
 
+	case RECORD_TYPE_EVENT:
+		payload.event = calloc(1, sizeof(event_t));
+
+		n = read(fd, &body.event, want = sizeof(body.event));
+		if (n != want)
+			return 1;
+
+		payload.event->timestamp = ntohl(body.event.timestamp);
+		want = record.len - sizeof(record) - sizeof(body.sample);
+		if (want > 4095)
+			return 1;
+		n = read(fd, buf, want);
+		if (n != want)
+			return 1;
+		buf[n] = '\0';
+		for (p = buf; *p++; );
+		if (p - buf + 1 == want)
+			return 1;
+		payload.event->name  = strdup(buf);
+		payload.event->extra = strdup(p);
+
+		*r = payload.event;
+		return 0;
+
 	default:
 		return 1;
 	}
@@ -403,6 +467,7 @@ static int save_state(db_t *db, const char *file)
 	state_t   *state;
 	counter_t *counter;
 	sample_t  *sample;
+	event_t   *event;
 
 	char *name;
 	int i, n;
@@ -427,6 +492,7 @@ static int save_state(db_t *db, const char *file)
 	for_each_key_value(&db->states,   name, state)   header.count++;
 	for_each_key_value(&db->counters, name, counter) header.count++;
 	for_each_key_value(&db->samples,  name, sample)  header.count++;
+	for_each_object(event, &db->events, l)           header.count++;
 	header.count = htonl(header.count);
 
 	logger(LOG_INFO, "writing %i bytes for the binary file header", sizeof(header));
@@ -471,6 +537,18 @@ static int save_state(db_t *db, const char *file)
 		logger(LOG_INFO, "wrote %i bytes for samples record #%i (%s)", len, i, name);
 		i++;
 	}
+	event_t *ev;
+	for_each_object(ev, &db->events, l) {
+		n = write_record(fd, &len, RECORD_TYPE_EVENT, ev);
+		if (n != 0) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for event record #%i (%s); savefile %s is probably corrupt now",
+				n, len, i, ev->name, file);
+			close(fd);
+			return -1;
+		}
+		logger(LOG_INFO, "wrote %i bytes for event record #%i (%s)", len, i, ev->name);
+		i++;
+	}
 	n = write(fd, "\0\0", 2);
 	if (n != 2) {
 		logger(LOG_ERR, "failed to write trailer bytes; savefile %s is probably corrupt now",
@@ -491,6 +569,7 @@ static int read_state(db_t *db, const char *file)
 		state_t   *state;
 		counter_t *counter;
 		sample_t  *sample;
+		event_t   *event;
 	} payload, found;
 	unsigned int i, n;
 	uint8_t type;
@@ -593,6 +672,10 @@ static int read_state(db_t *db, const char *file)
 			free(payload.sample->name);
 			free(payload.sample);
 			payload.sample = NULL;
+			break;
+
+		case RECORD_TYPE_EVENT:
+			list_push(&db->events, &payload.event->l);
 			break;
 
 		default:

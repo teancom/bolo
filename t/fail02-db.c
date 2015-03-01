@@ -10,6 +10,7 @@ TESTS {
 	pthread_t tid;
 
 	memset(&svr, 0, sizeof(svr));
+	list_init(&svr.db.events);
 	svr.config.broadcast = "inproc://bcast";
 	svr.config.dumpfiles = "t/tmp/dump.%s";
 	write_file(svr.config.savefile = "t/tmp/save",

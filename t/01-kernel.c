@@ -353,12 +353,12 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(195, sizeof(char));
+	s = calloc(242, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4    0 */
 	          "\0\1"     /* H:version    +2    4 */
 	          "\0\0"     /* H:flags      +2    6 */
 	          "...."     /* H:timestamp  +4    8 (to be filled in later) */
-	          "\0\0\0\4" /* H:count      +4   12 */              /* +16 */
+	          "\0\0\0\5" /* H:count      +4   12 */              /* +16 */
 
 	      /* STATES */
 	          "\0\x20"   /* 0:len        +2   16 */
@@ -406,15 +406,24 @@ TESTS {
 	          "\0\0\0\0" /* 0:var_               */
 	          "\0\0\0\0" /*              +8  176 */
 	          "res.df:/\0"           /*  +9  184 */              /* +81 */
-                                     /*      193 */
-	          "\0\0", 195);
+	      /* EVENTS */
+	          "\0\x2f"   /* 0:len        +2  193 */
+	          "\0\4"     /* 0:flags      +2  195 */
+	          "\0\0"     /* 0:timestamp          */
+	          "\x30\x39" /*              +4  197 */
+	          "my.sample.event\0"    /* +16  201 */
+	          "this is the extr"     /* +16  217 */
+	          "a data\0"             /*  +7  233 */
+	                                 /*      240 */
+
+	          "\0\0", 242);
 	*(uint32_t*)(s+  8) = htonl(time);
 	*(uint32_t*)(s+ 20) = htonl(time);
 	*(uint32_t*)(s+ 52) = htonl(time);
 	*(uint32_t*)(s+ 91) = htonl(time);
 	*(uint32_t*)(s+116) = htonl(time);
 
-	binfile_is("t/tmp/save", s, 195,
+	binfile_is("t/tmp/save", s, 242,
 		"save file (binary)"); free(s);
 
 	/* get a single key */
