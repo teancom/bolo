@@ -1,0 +1,168 @@
+=head1 NAME
+
+bolo.conf - Bolo configuration file
+
+=head1 SYNOPSIS
+
+B</etc/bolo.conf>
+
+=head1 DESCRIPTION
+
+B<bolo>(8) reads its configuration from I</etc/bolo.conf> (unless a
+different file is specified via the B<-c> option).  This configuration file
+consists of I<global declarations> that govern how B<bolo> behaves,
+I<type and window definitions>, and I<state, sample and counter declarations>.
+
+Comments start with the '#' character and continue to the end of the line.
+Blank lines are ignored.
+
+=head2 Global Declarations
+
+The following configuration directives are recognized:
+
+=over
+
+=item B<listener> tcp://*:2999
+
+What address and port to bind on, and listen for inbound data
+submission from monitored hosts.  Note: if you wish to specify
+a single interface, you must specify it as an IP address.
+
+=item B<controller> tcp://127.0.0.1:2998
+
+What address and port to bind on, and listen for inbound
+query and control requests from management hosts.  The default
+bind on loopback (127.0.0.1) was chosen for security.
+
+=item B<broadcast> tcp://*:2997
+
+What address and port to bind on, and broadcast data via.
+Subscribers will need to connect to this endpoint to do their
+jobs.  As with B<listener> and B<controller>, specific interfaces
+can be bound, but must be specified by IP address.
+
+=item B<log> info daemon
+
+Controls how B<bolo> logs, where it sends log messages, and what
+messages are allowed to be logged.
+
+The first token is the log level, one of debug, info, notice,
+warning, error, alert, critical, or emergency.
+
+The second token is the syslog facility to log to, one of daemon,
+or local0-local7.
+
+=item B<savefile> /var/lib/bolo/save.db
+
+B<bolo> will periodically save its state, counter, sample and event
+data to this file, to avoid data loss in the event of application
+or host outages.
+
+=item B<keysfile> /var/lib/bolo/keys.db
+
+The keysfile is like the savefile, except that user-provided configuration
+data (via KEY statements through B<send_bolo>(1)) will be written there.
+
+=item B<dumpfiles> /var/tmp/mon.%s
+
+When B<stat_bolo>(1) initiates a DUMP to get all of the state, event and
+metric data from B<bolo>, that information is written to disk, using this
+pattern to generate randomized temporary files.  The first `%s' will be
+replaced with a random value.  Subsequent `%s' tokens are ignored.
+
+=back
+
+=head2 Type Definitions
+
+Each `type' stanza defines a named state type, which supplies
+some configuration to each state tracked.  State type names
+must always start with a colon (:), and can consist only of
+alphanumeric characters, hyphens (-) and underscores (_).
+Each type name must be unique.
+
+NOTE: No state types will be defined by default.
+
+Each type must define a B<freshness>, the number of seconds B<bolo> will
+wait for a new STATE result before it decides that the state is stale, and
+triggers a non-OK state synthetically.
+
+Each type must also indicate what state to trigger on staleness, via the
+B<critical>, B<warning> or B<unknown> keywords.  For example, to trigger a
+staleness warning with the message "no results from last poll" after 5
+minutes of nothing:
+
+    type :local-check {
+      freshness 300
+      warning "no results from last poll"
+    }
+
+=head2 Window Definitions
+
+When B<bolo> receives metric data, it will attempt to buffer
+and aggregate that data, according to the defined window.
+
+For sampled data, datapoints are collected until the window
+rolls over, and then an aggregate (average, variance, etc.)
+for that window and those data points is broadcast.
+
+For counter data, the value of the counter will increment
+until the window rolls over.
+
+Each window has a name and a timeframe specified in seconds.
+All window names start with the at-sign (@), and may consist
+only of alphanumeric characters, hyphens (-) and underscores (_).
+Each window name must be unique.
+
+For example, to define two windows, one for hourly aggregation and another
+for minutely aggregation:
+
+    window @minutely 60
+    window @hourly   3600
+
+=head2 State Declarations
+
+B<bolo> requires you to identify what states it should manage.
+This can be done either directly (one definition per state
+name) or indirectly (via a pattern match).  Each definition
+must tie the state name to a state type (defined above)
+
+Here, we define a single :local-check state, named www-health:
+
+    state :local-check www-health
+
+Often, however, you'll want to define a pattern, to match
+more than one state name, and save yourself the typing.
+Here, we instruct B<bolo> to accept all CPU-related states:
+
+    state :local-check m/cpu/
+
+=head2 Sample & Counter Declarations
+
+Like states, samples and counters must be defined in order
+for B<bolo> to properly aggregate them.  This can also be done
+directly, or via pattern matching:
+
+    sample @minutely a-single-sample
+    sample @minutely m/:sar:/          # Matches host1:sar:df,
+                                       #         host2:sar:cpu, etc
+
+    counter @minutely m/transacts/
+    counter @minutely m/^http-40\d$/   # Matches http-403 and http-404,
+                                       # but not http-200 or  http-415.
+
+You can also save some more typing with the `use' keyword,
+which elects a metric window to be the default, for sample
+and counter definitions that don't explicitly associate one:
+
+    use @hourly
+    counter hourly-counter1
+    counter m/-hourly$/
+    sample  hourly-transactions
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

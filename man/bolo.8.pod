@@ -1,0 +1,94 @@
+=head1 NAME
+
+bolo - Bolo Monitoring System Daemon
+
+=head1 SYNOPSIS
+
+B<bolo> [options]
+
+B<bolo> -c /path/to/bolo.conf
+
+B<bolo> -F
+
+=head1 DESCRIPTION
+
+#INTRO
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-c>, B<--config> I</path/to/bolo.conf>
+
+Specify the path to an alternate configuration file.  If not given, the
+default configuration file (/etc/bolo.conf) is used instead.
+
+=item B<-F>, B<--foreground>
+
+Normally, B<bolo> forks into the background and detaches from the
+controlling terminal, so that it can run as a system service.  This flag
+disabled that behavior.  As a side effect, all logging will be forced to go
+to standard output, regardless of what syslog facility is specified in the
+configuration file.
+
+=back
+
+=head1 FILES
+
+=over
+
+=item B</etc/bolo.conf>
+
+Defaults configuration file that B<bolo> reads on start up.
+See B<bolo.conf>(5) for details.
+
+=item B</var/run/bolo.pid>
+
+In daemon mode (the default, unless B<-F> is given), B<bolo> will write its
+process ID to this file, so that other programs (like B</etc/init.d/bolo>)
+can determine if the B<bolo> process is alive, and send signals to it.
+
+This can be changed via B<bolo.conf>(5).
+
+=item B</var/lib/bolo/save.db>
+
+B<bolo> will periodically write everything it knows about states, events,
+counters and samples to this file, so that the information persists across
+program restarts, daemon crashes and system reboots.
+
+This can be changed via B<bolo.conf>(5).
+
+=back
+
+=head1 NETWORK PRESENCE
+
+B<bolo> binds to to three separate endpoints when it starts up.
+
+The B<listener>, which normally binds to I<tcp://*:2999>, fields incoming
+requests submitting data.  This port should be open to all monitored hosts
+and devices.  B<bolo> cannot be queried via the listener endpoint.
+
+The B<broadcast> endpoint (normally bound on I<tcp://*:2998>), is where
+subscribers will connect when they wish to begin receiving broadcast data.
+This port should only be open to other parts of your monitoring system,
+since, by its nature, it will send out lots of potentially sensitive
+information.
+
+Finally, the B<controller> endpoint (I<tcp://127.0.0.1:2998>, by default),
+allows clients like B<stat_bolo>(1) to query specific state and event
+information.  Take great care when deciding what parts of your network can
+access this port, since it affords lots of control over the bolo kernel.
+
+All three of these endpoints can be changed via B<bolo.conf>(5).
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

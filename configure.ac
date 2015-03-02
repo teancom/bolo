@@ -21,5 +21,5 @@ AC_HAVE_LIBRARY(zmq,,      AC_MSG_ERROR(Missing 0MQ library))
 AC_HAVE_LIBRARY(pcre,,     AC_MSG_ERROR(Missing PCRE library))
 AC_HAVE_LIBRARY(rrd,,      AC_MSG_ERROR(Missing RRD library))
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile src/bits.h])
 AC_OUTPUT

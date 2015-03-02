@@ -1,1 +1,4 @@
+examples/bolo.conf etc
 /usr/sbin/bolo
+/usr/share/man/man8/bolo.8
+/usr/share/man/man5/bolo.conf.5

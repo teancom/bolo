@@ -36,24 +36,44 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			logger(LOG_DEBUG, "handling -h/-?/--help");
+			printf("stat_bolo v%s\n", BOLO_VERSION);
+			printf("Usage: stat_bolo [-?hVvl] [-e tcp://host:port]\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -V, --version        show version information and exit\n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -l, --listen         print all broadcast events\n");
+			printf("  -e, --endpoint       bolo endpoint to connect to\n");
+			exit(0);
+
+		case 'V':
+			logger(LOG_DEBUG, "handling -V/--version");
+			printf("stat_bolo v%s\n"
+			       "Copyright (C) 2015 James Hunt\n",
+			       BOLO_VERSION);
+			exit(0);
 
 		case 'v':
+			logger(LOG_DEBUG, "handling -v/--verbose");
 			OPTIONS.verbose++;
 			break;
 
 		case 'e':
+			logger(LOG_DEBUG, "handling -e/--endpoint; changing from '%s' to '%s'",
+					OPTIONS.endpoint, optarg);
 			free(OPTIONS.endpoint);
 			OPTIONS.endpoint = strdup(optarg);
 			break;
 
 		case 'l':
+			logger(LOG_DEBUG, "handling -l/--listen");
 			OPTIONS.mode = MODE_LISTEN;
 			break;
 
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
-			return 1;
+			exit(1);
 		}
 	}
 

@@ -17,6 +17,8 @@
 
 #define PACKED __attribute__((packed))
 
+#include "bits.h"
+
 #define OK       0
 #define WARNING  1
 #define CRITICAL 2

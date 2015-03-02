@@ -1,0 +1,45 @@
+=head1 NAME
+
+bolo2rrd - Bolo RRD Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2rrd> -r /path/to/rrds -e tcp://host:port
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2rrd> is a subscriber that listens to SAMPLE data broadcast by B<bolo>
+and stores it in round-robin database files.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2999>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-r>, B<--root> I</path/to/rrds>
+
+What directory to create RRD files in.  Defaults to I</var/lib/bolo/rrd>.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

@@ -1,0 +1,45 @@
+#!/bin/sh -e
+
+#
+# bolo-server postinst
+#
+# author:  James Hunt <james@niftylogic.com>
+# created: 2015-03-01
+#
+
+LIBDIR=/var/lib/bolo
+
+create_dir() {
+	dir="$1"
+	name="$2"
+
+	if [ ! -d $dir ]; then
+		echo "Creating $name $dir"
+		mkdir -p $dir
+	fi
+}
+
+case "$1" in
+configure)
+	if [ -x "/etc/init.d/bolo" ]; then
+		# start the server
+		if [ -x /usr/sbin/invoke-rc.d ]; then
+			invoke-rc.d bolo start || true
+		else
+			/etc/init.d/bolo start || true
+		fi
+	fi
+
+	if [ -x /sbin/bolo ]; then
+		create_dir $LIBDIR "bolo data directory"
+	fi
+
+	;;
+*)
+	exit 0
+	;;
+esac
+
+#DEBHELPER#
+
+exit 0

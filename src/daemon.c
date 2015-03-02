@@ -33,33 +33,52 @@ int main(int argc, char **argv)
 	OPTIONS.foreground  = 0;
 
 	struct option long_opts[] = {
-		{ "help",             no_argument, 0, 'h' },
-		{ "foreground",       no_argument, 0, 'F' },
-		{ "config",     required_argument, 0, 'c' },
+		{ "help",             no_argument, NULL, 'h' },
+		{ "version",          no_argument, NULL, 'V' },
+		{ "foreground",       no_argument, NULL, 'F' },
+		{ "config",     required_argument, NULL, 'c' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?Fc:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?VFc:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			logger(LOG_DEBUG, "handling -h/-?/--help");
+			printf("bolo v%s\n", BOLO_VERSION);
+			printf("Usage: bolo [-?hVF] [-c filename]\n\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -V, --version        show version information and exit\n");
+			printf("  -F, --foreground     don't daemonize, run in the foreground\n");
+			printf("  -c filename          set configuration file (default: " DEFAULT_CONFIG_FILE ")\n");
+			exit(0);
+
+		case 'V':
+			logger(LOG_DEBUG, "handling -V/--version");
+			printf("bolo v%s\n"
+			       "Copyright (C) 2015 James Hunt\n",
+			       BOLO_VERSION);
+			exit(0);
 
 		case 'F':
+			logger(LOG_DEBUG, "handling -F/--foreground; turning off daemonize behavior");
 			OPTIONS.foreground = 1;
 			break;
 
 		case 'c':
+			logger(LOG_DEBUG, "handling -c/--config; replacing '%s' with '%s'",
+				OPTIONS.config_file, optarg);
 			free(OPTIONS.config_file);
 			OPTIONS.config_file = strdup(optarg);
 			break;
 
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
-			return 1;
+			exit(1);
 		}
 	}
 

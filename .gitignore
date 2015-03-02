@@ -34,10 +34,10 @@ local
 .commit
 
 bolo
+bolo2rrd
+bolo_nsca
 send_bolo
 stat_bolo
-bolo_nsca
-bolo_rrd
 
 t/tmp
 t/00-config
@@ -54,6 +54,8 @@ t/10-match
 t/11-events
 t/fail*-db
 t/vx-pdu
+
+src/bits.h
 
 .deps
 config.log

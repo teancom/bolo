@@ -1,0 +1,91 @@
+=head1 NAME
+
+stat_bolo - Bolo Monitoring System Controller
+
+=head1 SYNOPSIS
+
+B<stat_bolo> [-l] [-e tcp://host:port]
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<stat_bolo> is a clent that connects to a B<bolo> daemon and either submits
+commands or listens the the broadcast stream.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+What endpoint to connect to.  Defaults to I<tcp://127.0.0.1:2998>
+(controller endpoint) for command mode, and I<tcp://127.0.0.1:2997>
+for listen mode (B<-l>).
+
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 COMMAND MODE
+
+In command mode, B<stat_bolo> accepts commands on standard input, and
+communicates them to the bolo daemon via its controller endpoint (which
+should be specified via the B<-e> option.
+
+The following commands are understood:
+
+=over
+
+=item B<stat> STATE-NAME
+
+Retrieve the current status and summary message of the given state.
+
+=item B<set.keys> KEY1 VALUE1 [KEY2 VALUE2 ...]
+
+Set one or more keys and their values.
+
+=item B<get.keys> KEY1 [KEY2 ...]
+
+Retrieve the value for one or more keys, by name.
+
+=item B<del.keys> KEY1 [KEY2 ...]
+
+Delete the named keys from the B<bolo> keystore.
+
+=item B<search.keys> PATTERN
+
+List out keys that match the given pattern.
+
+=item B<get.events> [SINCE]
+
+Retrieve and print the list of buffered events that occurred on or after
+the given timestamp.  If there is no timestamp, all events are retrieved.
+
+=item B<dump>
+
+Dump the state data, as YAML.
+
+=back
+
+=head1 LISTEN MODE
+
+In listen mode, B<stat_bolo> connects to the bolo broadcast endpoint and
+then prints each frame received to standard output.  PDU boundaries are
+terminated by newlines.
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

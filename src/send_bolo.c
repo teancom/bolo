@@ -40,6 +40,9 @@ static pdu_t* state_pdu(int argc, char **argv, char *ts)
 	 || strcasecmp(code, "critical") == 0)
 		status = CRITICAL;
 
+	else
+		status = UNKNOWN;
+
 	strings_t *parts = strings_new(argv + 2);
 	char *msg  = strings_join(parts, " ");
 	strings_free(parts);
@@ -178,32 +181,53 @@ int main(int argc, char **argv)
 	OPTIONS.endpoint = strdup("tcp://127.0.0.1:2999");
 
 	struct option long_opts[] = {
-		{ "help",           no_argument, 0, 'h' },
-		{ "verbose",        no_argument, 0, 'v' },
-		{ "endpoint", required_argument, 0, 'e' },
-		{ "type",     required_argument, 0, 't' },
+		{ "help",           no_argument, NULL, 'h' },
+		{ "version",        no_argument, NULL, 'V' },
+		{ "verbose",        no_argument, NULL, 'v' },
+		{ "endpoint", required_argument, NULL, 'e' },
+		{ "type",     required_argument, NULL, 't' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:t:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?Vv+e:t:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			logger(LOG_DEBUG, "handling -h/-?/--help");
+			printf("send_bolo v%s\n", BOLO_VERSION);
+			printf("Usage: send_bolo [-?hVv] [-e tcp://host:port] [-t (state|counter|sample|key|event|stream)]\n\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -V, --version        show version information and exit\n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -t, --type           what mode to run in (defaults to stream)\n");
+			printf("  -e, --endpoint       bolo listener endpoint to connect to\n");
+			exit(0);
+
+		case 'V':
+			logger(LOG_DEBUG, "handling -V/--version");
+			printf("send_bolo v%s\n"
+			       "Copyright (C) 2015 James Hunt\n",
+			       BOLO_VERSION);
+			exit(0);
 
 		case 'v':
+			logger(LOG_DEBUG, "handling -v/--verbose");
 			OPTIONS.verbose++;
 			break;
 
 		case 'e':
+			logger(LOG_DEBUG, "handling -e/--endpoint; replacing '%s' with '%s'",
+				OPTIONS.endpoint, optarg);
 			free(OPTIONS.endpoint);
 			OPTIONS.endpoint = strdup(optarg);
 			break;
 
 		case 't':
+			logger(LOG_DEBUG, "handling -t/--type; setting to '%s'", optarg);
 			if (strcasecmp(optarg, "state") == 0) {
 				OPTIONS.type = TYPE_STATE;
 
@@ -224,13 +248,13 @@ int main(int argc, char **argv)
 
 			} else {
 				fprintf(stderr, "invalid type '%s'\n", optarg);
-				return 1;
+				exit(1);
 			}
 			break;
 
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
-			return 1;
+			exit(1);
 		}
 	}
 

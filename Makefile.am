@@ -25,8 +25,7 @@ CORE_SRC += src/util.c
 EXTRA_DIST += README.md
 EXTRA_DIST += PROTO
 EXTRA_DIST += bootstrap
-EXTRA_DIST += bolo.cfg
-
+EXTRA_DIST += man examples
 EXTRA_DIST += util/packet
 EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
@@ -34,11 +33,11 @@ EXTRA_DIST += util/sender
 sbin_PROGRAMS = bolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo_rrd
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo2rrd
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
-bolo_rrd_SOURCES  = $(CORE_SRC) src/rrd.c
+bolo2rrd_SOURCES  = $(CORE_SRC) src/rrd.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/00-config
@@ -89,6 +88,22 @@ t_fail05_db_SOURCES = $(TEST_SRC) t/fail05-db.c
 t_fail06_db_SOURCES = $(TEST_SRC) t/fail06-db.c
 
 t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
+
+dist_man_MANS  =
+dist_man_MANS += man/bolo.8
+dist_man_MANS += man/bolo.conf.5
+dist_man_MANS += man/send_bolo.1
+dist_man_MANS += man/stat_bolo.1
+dist_man_MANS += man/bolo2rrd.1
+
+man/%.1: man/%.1.pod
+	./man/build $< @PACKAGE_VERSION@ > $@
+man/%.5: man/%.5.pod
+	./man/build $< @PACKAGE_VERSION@ > $@
+man/%.7: man/%.7.pod
+	./man/build $< @PACKAGE_VERSION@ > $@
+man/%.8: man/%.8.pod
+	./man/build $< @PACKAGE_VERSION@ > $@
 
 .PHONY: coverage-clean coverage-report coverage clean-local-cov distclean-local
 distclean-local:
