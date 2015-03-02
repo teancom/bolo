@@ -7,13 +7,17 @@ Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 8),
                libctap,
                libctap-dev,
+               libpcre3,
+               libpcre3-dev,
+               librrd-dev,
+               librrd4,
                libvigor-dev,
                libvigor1,
-               libzmq3-dev,
+               libzmq3-dev
 
 Package: bolo-server
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, libvigor1
+Depends: libvigor1, ${misc:Depends}, ${shlibs:Depends}
 Recommends: bolo-clients
 Description: Monitoring System Server
  bolo is a lightweight and scalable monitoring system that can
@@ -34,7 +38,7 @@ Description: Debugging Symbols for Monitoring System Server
 
 Package: bolo-clients
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, libvigor1
+Depends: libvigor1, ${misc:Depends}, ${shlibs:Depends}
 Description: Monitoring System Clients
  bolo is a lightweight and scalable monitoring system that can
  track samples, counters, states and configuration data.
