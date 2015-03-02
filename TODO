@@ -1,10 +1,6 @@
 TODO
 
-- man pages
-- package example configs
-- init script for bolo
 - dump should probably dump counters and samples as well
-- scheduling agent?
 - consistent hashing / dht algo
 - find a good hash function - murmur?
 - subscribers!
@@ -12,3 +8,6 @@ TODO
   - console grapher
 - memory usage analysis
 - perf testing
+- vim syntax rules:
+  - bolo.conf
+  - stat_bolo scripts
