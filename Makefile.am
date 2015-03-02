@@ -142,3 +142,16 @@ endif
 
 # aliases
 test: check
+
+############################################################
+
+version:
+	@echo $(VERSION)
+
+distfile: dist
+	@echo $(PACKAGE)-$(VERSION).tar.gz
+
+manifest:
+	@echo >&2 "nothin doin"
+
+test: check
