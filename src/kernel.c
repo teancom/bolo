@@ -104,6 +104,22 @@ static void broadcast_state(kernel_t*, state_t*);
 static void broadcast_transition(kernel_t*, state_t*);
 static void broadcast_event(kernel_t*, event_t*);
 
+static void sample_reset(sample_t *sample)
+{
+	sample->last_seen = 0;
+
+	sample->min  = sample->max   = 0;
+	sample->sum  = sample->n     = 0;
+	sample->mean = sample->mean_ = 0;
+	sample->var  = sample->var_  = 0;
+}
+
+static void counter_reset(counter_t *counter)
+{
+	counter->last_seen = 0;
+	counter->value = 0;
+}
+
 static state_t*   find_state(  db_t*, const char *name);
 static counter_t* find_counter(db_t*, const char *name);
 static sample_t*  find_sample( db_t*, const char *name);
@@ -1147,7 +1163,7 @@ void* kernel(void *u)
 						logger(LOG_INFO, "counter window rollover detected between %i and %i",
 							winstart(counter, counter->last_seen), ts);
 						broadcast_counter(k, counter);
-						counter->value = 0;
+						counter_reset(counter);
 					}
 
 					logger(LOG_INFO, "updating counter %s, ts=%i, incr=%i", name, ts, incr);
@@ -1179,7 +1195,7 @@ void* kernel(void *u)
 						logger(LOG_INFO, "sample window rollover detected between %i and %i",
 							winstart(sample, sample->last_seen), ts);
 						broadcast_sample(k, sample);
-						sample->last_seen = 0;
+						sample_reset(sample);
 					}
 
 					logger(LOG_INFO, "%s sample set %s, ts=%i, value=%e", (sample->last_seen ? "updating" : "starting"), name, ts, v);
@@ -1330,15 +1346,14 @@ void* kernel(void *u)
 				if (counter->last_seen == 0 || winend(counter, counter->last_seen) >= ts)
 					continue;
 				broadcast_counter(k, counter);
-				counter->last_seen = 0;
-				counter->value = 0;
+				counter_reset(counter);
 			}
 			sample_t *sample;
 			for_each_key_value(&k->server->db.samples, name, sample) {
 				if (sample->last_seen == 0 || winend(sample, sample->last_seen) >= ts)
 					continue;
 				broadcast_sample(k, sample);
-				sample->last_seen = 0;
+				sample_reset(sample);
 			}
 			a = pdu_reply(q, "OK", 0);
 
