@@ -1,5 +1,6 @@
 TODO
 
+- debian package should create bolo user
 - dump should probably dump counters and samples as well
 - consistent hashing / dht algo
 - find a good hash function - murmur?
