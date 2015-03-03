@@ -1,8 +1,8 @@
 Source: bolo
 Section: admin
 Priority: optional
-Maintainer: Package Monkey <packages@niftylogic.com>
-Homepage: http://packages.niftylogic.com/forge
+Maintainer: James Hunt <james@jameshunt.us>
+Homepage: https://github.com/filefrog/bolo
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 8),
                libctap,
