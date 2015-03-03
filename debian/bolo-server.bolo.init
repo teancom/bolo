@@ -14,7 +14,7 @@
 PATH=/sbin:/bin
 DESC=bolo
 NAME=bolo
-DAEMON=/sbin/bolo
+DAEMON=/usr/sbin/bolo
 DAEMON_ARGS=""
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/bolo
