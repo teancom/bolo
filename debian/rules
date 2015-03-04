@@ -8,8 +8,9 @@ override_dh_installinit:
 	dh_installinit --name bolo
 
 override_dh_strip:
-	dh_strip -pbolo-server  --dbg-package=bolo-server-dbg
-	dh_strip -pbolo-clients --dbg-package=bolo-clients-dbg
+	dh_strip -pbolo-server      --dbg-package=bolo-server-dbg
+	dh_strip -pbolo-clients     --dbg-package=bolo-clients-dbg
+	dh_strip -pbolo-subscribers --dbg-package=bolo-subscribers-dbg
 
 %:
 	dh $@

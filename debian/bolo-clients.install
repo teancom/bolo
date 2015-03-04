@@ -1,6 +1,4 @@
-/usr/bin/bolo2rrd
 /usr/bin/send_bolo
 /usr/bin/stat_bolo
-/usr/share/man/man1/bolo2rrd.1
 /usr/share/man/man1/send_bolo.1
 /usr/share/man/man1/stat_bolo.1

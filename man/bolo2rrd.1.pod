@@ -6,6 +6,10 @@ bolo2rrd - Bolo RRD Subscriber
 
 B<bolo2rrd> -r /path/to/rrds -e tcp://host:port
 
+B<bolo2rrd> -F
+
+B<bolo2rrd> -u nobody -g nogroup --pidfile /var/run/my.pid
+
 =head1 DESCRIPTION
 
 #INTRO
@@ -29,6 +33,25 @@ Supports DNS resolution for both IPv4 and IPv6 endpoints.
 =item B<-r>, B<--root> I</path/to/rrds>
 
 What directory to create RRD files in.  Defaults to I</var/lib/bolo/rrd>.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2rrd> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2rrd> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2rrd>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2rrd> will run as
+root:root, which is probably not what you want.
 
 =item B<-v>, B<--verbose>
 

@@ -24,7 +24,12 @@
 static struct {
 	char *endpoint;
 	int   verbose;
+	int   daemonize;
 	char *root;
+
+	char *pidfile;
+	char *user;
+	char *group;
 } OPTIONS = { 0 };
 
 #define DEBUG OPTIONS.verbose > 0
@@ -102,20 +107,28 @@ static int s_sample_update(const char *filename, const char *ts, const char *n, 
 
 int main(int argc, char **argv)
 {
-	OPTIONS.verbose  = 0;
-	OPTIONS.endpoint = NULL;
-	OPTIONS.root     = NULL;
+	OPTIONS.verbose   = 0;
+	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2997");
+	OPTIONS.root      = strdup("/var/lib/bolo/rrd");
+	OPTIONS.daemonize = 1;
+	OPTIONS.pidfile   = strdup("/var/run/bolo2rrd.pid");
+	OPTIONS.user      = strdup("root");
+	OPTIONS.group     = strdup("root");
 
 	struct option long_opts[] = {
-		{ "help",           no_argument, 0, 'h' },
-		{ "verbose",        no_argument, 0, 'v' },
-		{ "endpoint", required_argument, 0, 'e' },
-		{ "root",     required_argument, 0, 'r' },
+		{ "help",             no_argument, NULL, 'h' },
+		{ "verbose",          no_argument, NULL, 'v' },
+		{ "endpoint",   required_argument, NULL, 'e' },
+		{ "root",       required_argument, NULL, 'r' },
+		{ "foreground",       no_argument, NULL, 'F' },
+		{ "pidfile",    required_argument, NULL, 'p' },
+		{ "user",       required_argument, NULL, 'u' },
+		{ "group",      required_argument, NULL, 'g' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:Fp:ug", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -137,16 +150,43 @@ int main(int argc, char **argv)
 			OPTIONS.root = strdup(optarg);
 			break;
 
+		case 'F':
+			OPTIONS.daemonize = 0;
+			break;
+
+		case 'p':
+			free(OPTIONS.pidfile);
+			OPTIONS.pidfile = strdup(optarg);
+			break;
+
+		case 'u':
+			free(OPTIONS.user);
+			OPTIONS.user = strdup(optarg);
+			break;
+
+		case 'g':
+			free(OPTIONS.group);
+			OPTIONS.group = strdup(optarg);
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			return 1;
 		}
 	}
 
-	if (!OPTIONS.endpoint)
-		OPTIONS.endpoint = strdup("tcp://127.0.0.1:2997");
-	if (!OPTIONS.root)
-		OPTIONS.root = strdup("/var/lib/bolo/rrd");
+
+	if (OPTIONS.daemonize) {
+		log_open("bolo2rrd", "daemon");
+		logger(LOG_NOTICE, "starting up");
+
+		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
+			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
+			return 3;
+		}
+	} else {
+		log_open("bolo2rrd", "console");
+	}
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
@@ -172,7 +212,9 @@ int main(int argc, char **argv)
 	}
 
 	pdu_t *p;
+	logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 	while ((p = pdu_recv(z))) {
+		logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
 
 		if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4) {
 			char *ts    = pdu_string(p, 1);
@@ -237,7 +279,9 @@ int main(int argc, char **argv)
 		}
 
 		pdu_free(p);
+		logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 	}
 
+	logger(LOG_INFO, "shutting down");
 	return 0;
 }

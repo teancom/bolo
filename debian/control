@@ -55,3 +55,23 @@ Description: Debugging Symbols for Monitoring System Clients
  track samples, counters, states and configuration data.
  .
  This package provides debugging symbols for bolo clients.
+
+Package: bolo-subscribers
+Architecture: any
+Depends: libvigor1, ${misc:Depends}, ${shlibs:Depends}
+Description: Monitoring System Clients
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides subscriber programs for bolo.
+
+Package: bolo-subscribers-dbg
+Architecture: any
+Section: debug
+Priority: extra
+Depends: bolo-subscribers (= ${binary:Version}), ${misc:Depends}
+Description: Debugging Symbols for Monitoring System Clients
+ bolo is a lightweight and scalable monitoring system that can
+ track samples, counters, states and configuration data.
+ .
+ This package provides debugging symbols for bolo subscribers.
