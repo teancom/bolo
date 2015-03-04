@@ -87,8 +87,8 @@
 
      ---------------------------------------------------------------------------
 
-     NEW.EVENT              OK               ; submit a new event, happing at a
-     <TIMESTAMP>                             ; specified time.  name and extra
+     NEW.EVENT              OK               ; submit a new event, happening at
+     <TIMESTAMP>                             ; a specified time.  name and extra
      <NAME>                                  ; data have no special meaning to
      <EXTRA DATA>                            ; the bolo kernel.
 
