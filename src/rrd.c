@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 			char *mean  = pdu_string(p, 7);
 			char *var   = pdu_string(p, 8);
 
-			char *file = string("/tmp/%s.rrd", name);
+			char *file = string("%s/%s.rrd", OPTIONS.root, name);
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_sample_create(file) != 0) {
