@@ -128,7 +128,7 @@ int main(int argc, char **argv)
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:Fp:ug", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
