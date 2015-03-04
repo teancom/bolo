@@ -178,7 +178,7 @@ int main(int argc, char **argv)
 
 	if (OPTIONS.daemonize) {
 		log_open("bolo2rrd", "daemon");
-		logger(LOG_NOTICE, "starting up");
+		log_level(LOG_WARNING, NULL);
 
 		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
 			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
@@ -186,7 +186,9 @@ int main(int argc, char **argv)
 		}
 	} else {
 		log_open("bolo2rrd", "console");
+		log_level(LOG_INFO, NULL);
 	}
+	logger(LOG_NOTICE, "starting up");
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
