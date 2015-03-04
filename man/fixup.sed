@@ -5,5 +5,5 @@ These subscribers can perform a wide variety of functions, from storing\
 metric data in RRDs to sending notifications on state changes./
 s/^#SEEALSO/B<bolo>(7), B<send_bolo>(1), B<stat_bolo>(1) and B<bolo.conf>(5)\
 \
-Subscribers: B<bolo2rrd>(1)/
+Subscribers: B<bolo2rrd>(8)/
 s/^#AUTHOR/Bolo was designed and written by James Hunt./

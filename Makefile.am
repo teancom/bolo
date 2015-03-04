@@ -30,14 +30,14 @@ EXTRA_DIST += util/packet
 EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
 
-sbin_PROGRAMS = bolo
+sbin_PROGRAMS = bolo bolo2rrd
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
+bolo2rrd_SOURCES  = $(CORE_SRC) src/rrd.c
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo2rrd
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
-bolo2rrd_SOURCES  = $(CORE_SRC) src/rrd.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/00-config
@@ -91,10 +91,10 @@ t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
 dist_man_MANS  =
 dist_man_MANS += man/bolo.8
+dist_man_MANS += man/bolo2rrd.8
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/send_bolo.1
 dist_man_MANS += man/stat_bolo.1
-dist_man_MANS += man/bolo2rrd.1
 
 man/%.1: man/%.1.pod
 	./man/build $< @PACKAGE_VERSION@ > $@
