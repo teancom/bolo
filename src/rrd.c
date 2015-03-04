@@ -32,8 +32,6 @@ static struct {
 	char *group;
 } OPTIONS = { 0 };
 
-#define DEBUG OPTIONS.verbose > 0
-
 static int s_counter_create(const char *filename)
 {
 	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
@@ -178,7 +176,7 @@ int main(int argc, char **argv)
 
 	if (OPTIONS.daemonize) {
 		log_open("bolo2rrd", "daemon");
-		log_level(LOG_WARNING, NULL);
+		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
 			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
@@ -186,30 +184,30 @@ int main(int argc, char **argv)
 		}
 	} else {
 		log_open("bolo2rrd", "console");
-		log_level(LOG_INFO, NULL);
+		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");
 
-	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
+	logger(LOG_DEBUG, "allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
 	if (!zmq) {
-		fprintf(stderr, "failed to initialize 0MQ context\n");
+		logger(LOG_ERR, "failed to initialize 0MQ context\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ SUB socket to talk to %s\n", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "allocating 0MQ SUB socket to talk to %s\n", OPTIONS.endpoint);
 	void *z = zmq_socket(zmq, ZMQ_SUB);
 	if (!z) {
-		fprintf(stderr, "failed to create a SUB socket\n");
+		logger(LOG_ERR, "failed to create a SUB socket\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> setting subscriber filter\n");
+	logger(LOG_DEBUG, "setting subscriber filter\n");
 	if (zmq_setsockopt(z, ZMQ_SUBSCRIBE, "", 0) != 0) {
-		fprintf(stderr, "failed to set subscriber filter\n");
+		logger(LOG_ERR, "failed to set subscriber filter\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "connecting to %s\n", OPTIONS.endpoint);
 	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
-		fprintf(stderr, "failed to connect to %s\n", OPTIONS.endpoint);
+		logger(LOG_ERR, "failed to connect to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
 
@@ -227,17 +225,17 @@ int main(int argc, char **argv)
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_counter_create(file) != 0) {
-					fprintf(stderr, "failed to create %s: %s\n", file, rrd_get_error());
+					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
 					continue;
 				}
 			}
 
 			if (s_counter_update(file, ts, value) != 0) {
-				fprintf(stderr, "failed to update %s: %s\n", file, rrd_get_error());
+				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
 				continue;
 			}
 
-			printf("updated %s @%s v=%s\n", name, ts, value);
+			logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, value);
 			free(ts);
 			free(name);
 			free(value);
@@ -257,17 +255,17 @@ int main(int argc, char **argv)
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_sample_create(file) != 0) {
-					fprintf(stderr, "failed to create %s: %s\n", file, rrd_get_error());
+					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
 					continue;
 				}
 			}
 
 			if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
-				fprintf(stderr, "failed to update %s: %s\n", file, rrd_get_error());
+				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
 				continue;
 			}
 
-			printf("updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
+			logger(LOG_INFO, "updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
 				name, ts, n, min, max, sum, mean, var);
 			free(ts);
 			free(name);
