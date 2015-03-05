@@ -21,11 +21,16 @@
 #include <getopt.h>
 #include <rrd.h>
 
+#define RRD_MAP_FLUSH_INTERVAL 5
+
 static struct {
 	char *endpoint;
+	char *root;
+	char *hashfile;
+	char *hashtmp;
+
 	int   verbose;
 	int   daemonize;
-	char *root;
 
 	char *pidfile;
 	char *user;
@@ -124,6 +129,43 @@ static int s_sample_update(const char *filename, const char *ts, const char *n, 
 	return rc;
 }
 
+char* s_rrd_filename(const char *name, hash_t *map)
+{
+	if (!OPTIONS.hashfile)
+		return strdup(name);
+
+	sha1_t sha1;
+	sha1_data(&sha1, name, strlen(name));
+	char *file = string("%c%c/%c%c/%s",
+		sha1.hex[0], sha1.hex[1],
+		sha1.hex[2], sha1.hex[3], sha1.hex);
+
+	char *dir;
+	dir = string("%s/%c%c", OPTIONS.root,
+			sha1.hex[0], sha1.hex[1]);
+	mkdir(dir, 0777); free(dir);
+	dir = string("%s/%c%c/%c%c", OPTIONS.root,
+			sha1.hex[0], sha1.hex[1],
+			sha1.hex[2], sha1.hex[3]);
+	mkdir(dir, 0777); free(dir);
+
+	if (!hash_get(map, file))
+		hash_set(map, file, strdup(name));
+	return file;
+}
+
+char* s_tmpname(const char *orig)
+{
+	char *tmp = string("%s.", orig);
+	char *a = strrchr(tmp, '/');
+	if (!a) return NULL;
+
+	a++;
+	memmove(a, a + 1, tmp + strlen(tmp) - a);
+	*a = '.';
+	return a;
+}
+
 int main(int argc, char **argv)
 {
 	OPTIONS.verbose   = 0;
@@ -143,11 +185,12 @@ int main(int argc, char **argv)
 		{ "pidfile",    required_argument, NULL, 'p' },
 		{ "user",       required_argument, NULL, 'u' },
 		{ "group",      required_argument, NULL, 'g' },
+		{ "hash",       required_argument, NULL, 'H' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:H:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -186,6 +229,14 @@ int main(int argc, char **argv)
 		case 'g':
 			free(OPTIONS.group);
 			OPTIONS.group = strdup(optarg);
+			break;
+
+		case 'H':
+			free(OPTIONS.hashfile);
+			OPTIONS.hashfile = strdup(optarg);
+
+			free(OPTIONS.hashtmp);
+			OPTIONS.hashtmp = s_tmpname(OPTIONS.hashfile);
 			break;
 
 		default:
@@ -233,6 +284,10 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
+	int32_t flush_at = time_s() + 15;
+	hash_t fmap;
+	memset(&fmap, 0, sizeof(fmap));
+
 	pdu_t *p;
 	logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 	while ((p = pdu_recv(z))) {
@@ -243,7 +298,10 @@ int main(int argc, char **argv)
 			char *name  = pdu_string(p, 2);
 			char *value = pdu_string(p, 3);
 
-			char *file = string("%s/%s.rrd", OPTIONS.root, name);
+			char *filename = s_rrd_filename(name, &fmap);
+			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+			free(filename);
+
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_counter_create(file) != 0) {
@@ -273,7 +331,10 @@ int main(int argc, char **argv)
 			char *mean  = pdu_string(p, 7);
 			char *var   = pdu_string(p, 8);
 
-			char *file = string("%s/%s.rrd", OPTIONS.root, name);
+			char *filename = s_rrd_filename(name, &fmap);
+			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+			free(filename);
+
 			struct stat st;
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				if (s_sample_create(file) != 0) {
@@ -301,6 +362,25 @@ int main(int argc, char **argv)
 		}
 
 		pdu_free(p);
+
+		if (OPTIONS.hashfile && time_s() >= flush_at) {
+			logger(LOG_INFO, "flushing file map to %s", OPTIONS.hashfile);
+			FILE *io = fopen(OPTIONS.hashtmp, "w");
+			if (!io) {
+				logger(LOG_ERR, "failed to open file map tempfile '%s' for writing: (%i) %s",
+					OPTIONS.hashtmp, errno, strerror(errno));
+
+			} else {
+				char *k, *v;
+				for_each_key_value(&fmap, k, v)
+					fprintf(io, "%s %s\n", k, v);
+				fclose(io);
+				rename(OPTIONS.hashtmp, OPTIONS.hashfile);
+			}
+
+			flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
+		}
+
 		logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 	}
 
