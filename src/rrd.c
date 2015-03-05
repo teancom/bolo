@@ -251,10 +251,12 @@ int main(int argc, char **argv)
 		log_open("bolo2rrd", "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
+		mode_t um = umask(0);
 		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
 			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
 			return 3;
 		}
+		umask(um);
 	} else {
 		log_open("bolo2rrd", "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
