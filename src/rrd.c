@@ -45,12 +45,12 @@ static char* s_rradefs(const char *filename)
 	strings_t *rra = strings_new(NULL);
 	FILE *io = fopen(filename, "r");
 	if (!io)
-		return strdup(" RRA:AVERAGE:0.5:1:14400"
-		              " RRA:MIN:0.5:1:14400"
-		              " RRA:MAX:0.5:1:14400"
-		              " RRA:AVERAGE:0.5:60:24"
-		              " RRA:MIN:0.5:60:24"
-		              " RRA:MAX:0.5:60:24");
+		return strdup("RRA:AVERAGE:0.5:1:14400"
+		             " RRA:MIN:0.5:1:14400"
+		             " RRA:MAX:0.5:1:14400"
+		             " RRA:AVERAGE:0.5:60:24"
+		             " RRA:MIN:0.5:60:24"
+		             " RRA:MAX:0.5:60:24");
 
 	char buf[8192];
 	while (fgets(buf, 8192, io) != NULL) {
