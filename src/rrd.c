@@ -32,15 +32,40 @@ static struct {
 	char *group;
 } OPTIONS = { 0 };
 
+static char *RRAs;
+
+static char* s_rradefs(const char *filename)
+{
+	char *s;
+	strings_t *rra = strings_new(NULL);
+	FILE *io = fopen(filename, "r");
+	if (!io)
+		return strdup(" RRA:AVERAGE:0.5:1:14400"
+		              " RRA:MIN:0.5:1:14400"
+		              " RRA:MAX:0.5:1:14400"
+		              " RRA:AVERAGE:0.5:60:24"
+		              " RRA:MIN:0.5:60:24"
+		              " RRA:MAX:0.5:60:24");
+
+	char buf[8192];
+	while (fgets(buf, 8192, io) != NULL) {
+		char *nl = strrchr(buf, '\n');
+		if (nl) *nl = '\0';
+		strings_add(rra, buf);
+	}
+	s = strings_join(rra, " ");
+
+	fclose(io);
+	strings_free(rra);
+
+	return s;
+}
+
 static int s_counter_create(const char *filename)
 {
 	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
-		" DS:x:GAUGE:120:U:U"
-		" RRA:LAST:0:1:14400"
-		" RRA:AVERAGE:0.5:60:24"
-		" RRA:MIN:0.5:60:24"
-		" RRA:MAX:0.5:60:24",
-		filename);
+		" DS:x:GAUGE:120:U:U %s",
+		filename, RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
@@ -72,12 +97,8 @@ static int s_sample_create(const char *filename)
 		" DS:max:GAUGE:120:U:U"
 		" DS:sum:GAUGE:120:U:U"
 		" DS:mean:GAUGE:120:U:U"
-		" DS:var:GAUGE:120:U:U"
-		" RRA:LAST:0:1:14400"
-		" RRA:AVERAGE:0.5:60:24"
-		" RRA:MIN:0.5:60:24"
-		" RRA:MAX:0.5:60:24",
-		filename);
+		" DS:var:GAUGE:120:U:U",
+		filename, RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
@@ -173,6 +194,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	RRAs = s_rradefs("/usr/lib/bolo/bolo2rrd/rra.def");
 
 	if (OPTIONS.daemonize) {
 		log_open("bolo2rrd", "daemon");
