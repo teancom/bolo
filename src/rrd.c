@@ -156,14 +156,15 @@ char* s_rrd_filename(const char *name, hash_t *map)
 
 char* s_tmpname(const char *orig)
 {
-	char *tmp = string("%s.", orig);
-	char *a = strrchr(tmp, '/');
-	if (!a) return NULL;
+	char *tmp = string(".%s", orig);
+	char *slash = strrchr(tmp, '/');
+	if (!slash)
+		return tmp;
 
-	a++;
-	memmove(a, a + 1, tmp + strlen(tmp) - a);
-	*a = '.';
-	return a;
+	/* move that dot! */
+	char *a = tmp;
+	while (a != slash) { char c = *a; *a = *(a + 1); *++a = c; }
+	return tmp;
 }
 
 int main(int argc, char **argv)
@@ -286,7 +287,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	int32_t flush_at = time_s() + 15;
+	int32_t flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
 	hash_t fmap;
 	memset(&fmap, 0, sizeof(fmap));
 
