@@ -102,7 +102,7 @@ static int s_sample_create(const char *filename)
 		" DS:max:GAUGE:120:U:U"
 		" DS:sum:GAUGE:120:U:U"
 		" DS:mean:GAUGE:120:U:U"
-		" DS:var:GAUGE:120:U:U",
+		" DS:var:GAUGE:120:U:U %s",
 		filename, RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
