@@ -7,6 +7,8 @@ TODO
 - subscribers!
   - console event notifier
   - console grapher
+  - bolo2rrd needs filtering abilities
+  - package bolo2rrd RRA defs file
 - memory usage analysis
 - perf testing
 - vim syntax rules:
