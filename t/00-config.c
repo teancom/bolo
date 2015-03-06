@@ -30,7 +30,7 @@ TESTS {
 			"# test configuration\n"
 			"\n"
 			"# network endpoints\n"
-			"listener   tcp://*:4242\n"
+			"listener   tcp://*:4242  # embedded comment\n"
 			"controller tcp://*:5555\n"
 			"broadcast  tcp://*:6868\n"
 			"nsca.port  5669\n"

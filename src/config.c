@@ -91,6 +91,9 @@ getline:
 	a = b;
 
 	/* single-char sigils */
+	if (*b == '#')
+		goto getline;
+
 	if (*b == '{') {
 		b++;
 		p->token = T_OPEN_BRACE;
