@@ -104,22 +104,6 @@ static void broadcast_state(kernel_t*, state_t*);
 static void broadcast_transition(kernel_t*, state_t*);
 static void broadcast_event(kernel_t*, event_t*);
 
-static void sample_reset(sample_t *sample)
-{
-	sample->last_seen = 0;
-
-	sample->min  = sample->max   = 0;
-	sample->sum  = sample->n     = 0;
-	sample->mean = sample->mean_ = 0;
-	sample->var  = sample->var_  = 0;
-}
-
-static void counter_reset(counter_t *counter)
-{
-	counter->last_seen = 0;
-	counter->value = 0;
-}
-
 static state_t*   find_state(  db_t*, const char *name);
 static counter_t* find_counter(db_t*, const char *name);
 static sample_t*  find_sample( db_t*, const char *name);

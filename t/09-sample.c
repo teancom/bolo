@@ -69,6 +69,14 @@ TESTS {
 	ok(within(s.mean, 3.18, 0.001), "mean of [2.0, 3.0, 4.1, 6.7, 0.1] is 3.18");
 	ok(within(s.var,  4.83, 0.001), "variance of [2.0, 3.0, 4.1, 6.7, 0.1] is 0.25");
 
+	sample_reset(&s);
+	ok(s.n == 0, "after reset, 'n' is 0");
+	ok(s.min  == 0.0, "after reset, 'min' is 0.00");
+	ok(s.max  == 0.0, "after reset, 'max' is 0.00");
+	ok(s.sum  == 0.0, "after reset, 'sum' is 0.00");
+	ok(s.mean == 0.0, "after reset, 'min' is 0.00");
+	ok(s.var  == 0.0, "after reset, 'var' is 0.00");
+
 	memset(&s, 0, sizeof(s));
 	size_t i;
 	for (i = 0; i < 14; i++)

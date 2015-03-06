@@ -184,7 +184,10 @@ typedef struct {
 int configure(const char *path, server_t *s);
 int deconfigure(server_t *s);
 
+void sample_reset(sample_t *sample);
 int sample_data(sample_t *s, double v);
+
+void counter_reset(counter_t *counter);
 
 /* threads */
 void* listener(void *u);

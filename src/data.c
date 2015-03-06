@@ -19,6 +19,16 @@
 
 #include "bolo.h"
 
+void sample_reset(sample_t *sample)
+{
+	sample->last_seen = 0;
+
+	sample->min  = sample->max   = 0;
+	sample->sum  = sample->n     = 0;
+	sample->mean = sample->mean_ = 0;
+	sample->var  = sample->var_  = 0;
+}
+
 int sample_data(sample_t *s, double v)
 {
 	if (s->n == 0) {
@@ -37,4 +47,10 @@ int sample_data(sample_t *s, double v)
 	s->var = ( (s->n - 1) * s->var_ + ( (v - s->mean_) * (v - s->mean) ) ) / s->n;
 
 	return 0;
+}
+
+void counter_reset(counter_t *counter)
+{
+	counter->last_seen = 0;
+	counter->value = 0;
 }
