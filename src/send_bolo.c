@@ -108,12 +108,11 @@ static pdu_t* sample_pdu(int argc, char **argv, char *ts)
 	if (ts) pdu_extendf(pdu, "%s", ts);
 	else    pdu_extendf(pdu, "%i", time_s());
 	pdu_extendf(pdu, "%s", argv[0]);
-	pdu_extendf(pdu, "%u", argc - 1);
-	if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%u",
-		pdu_type(pdu), time_s(), argv[0], argc - 1);
+	if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s",
+		pdu_type(pdu), time_s(), argv[0]);
 
 	int i;
-	for (i = 1; i <= argc; i++) {
+	for (i = 1; i < argc; i++) {
 		pdu_extendf(pdu, "%s", argv[i]);
 		if (DEBUG) fprintf(stderr, "|%s", argv[i]);
 	}
