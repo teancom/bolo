@@ -129,8 +129,6 @@ typedef struct {
 	int32_t     first_seen;
 	int32_t     last_seen;
 
-	uint8_t     started;
-
 	uint64_t    first;
 	uint64_t    last;
 } rate_t;
