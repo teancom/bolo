@@ -53,4 +53,26 @@ TESTS {
 	is_int(r.last_seen,  0, "reset rate 'last_seen' is 0");
 	is_int(r.first,      0, "reset rate 'first' is 0");
 	is_int(r.last,       0, "reset rate 'last' is 0");
+
+	/* 32-bit rollover detection */
+	rate_reset(&r);
+	ok(rate_data(&r, 0xffff - 20) == 0, "add rate data point max(uint32_t) - 20");
+	r.first_seen = T0; r.last_seen = T0 + 1;
+
+	ok(rate_data(&r, 0xffff -  1) == 0, "add rate data point max(uint32_t) -  1");
+	ok(within(rate_calc(&r, 1), 19.0, 0.001), "rate calculation at values just under max(uint32_t)");
+
+	ok(rate_data(&r, 7) == 0, "add rate data point 7 (rollover, +8)");
+	ok(within(rate_calc(&r, 1), 27.0, 0.001), "rate calculatation accounts for 32-bit rollover");
+
+	/* 64-bit rollover detection */
+	rate_reset(&r);
+	ok(rate_data(&r, 0xffffffff - 20) == 0, "add rate data point max(uint64_t) - 20");
+	r.first_seen = T0; r.last_seen = T0 + 1;
+
+	ok(rate_data(&r, 0xffffffff -  1) == 0, "add rate data point max(uint64_t) -  1");
+	ok(within(rate_calc(&r, 1), 19.0, 0.001), "rate calculation at values just under max(uint64_t)");
+
+	ok(rate_data(&r, 7) == 0, "add rate data point 7 (rollover, +8)");
+	ok(within(rate_calc(&r, 1), 27.0, 0.001), "rate calculatation accounts for 64-bit rollover");
 }

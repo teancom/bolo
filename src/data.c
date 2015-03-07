@@ -74,5 +74,15 @@ double rate_calc(rate_t *r, int32_t span)
 	if (!r->last_seen)
 		return 0.0;
 
-	return (r->last - r->first) * 1.0 / (r->last_seen - r->first_seen) * span;
+	uint64_t diff;
+	if (r->last >= r->first) {
+		diff = r->last - r->first;
+	} else {
+		if (r->first < 0xffff) { /* 32-bit rollover */
+			diff = 0xffff - r->first + r->last;
+		} else { /* 64-bit rollover */
+			diff = 0xffffffff - r->first + r->last;
+		}
+	}
+	return diff * 1.0 / (r->last_seen - r->first_seen) * span;
 }
