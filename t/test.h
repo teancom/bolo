@@ -62,6 +62,7 @@ static void diag_hex(const char *pre, const char *buf, size_t n)
 	size_t i, no;
 
 	diag("%s         0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15", pre);
+	diag("%s       --- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --", pre);
 	for (i = no = 0; i < n; no++) {
 		p = line;
 
@@ -142,4 +143,18 @@ static void write_file(const char *file, const char *contents, ssize_t n)
 
 	CHECK(write(fd, contents, n) == n, "write_file() - short write detected");
 	close(fd);
+}
+
+HELPER
+static int within(double a, double b, double ep)
+{
+	double diff = a - b;
+	int rc = (diff > 0 ? diff < ep : diff > -1 * ep);
+	if (!rc) {
+		diag("");
+		diag("expected %e to be within +/-%0.4f", a, ep);
+		diag("      of %e (was %0.4f off)", b, diff);
+		diag("");
+	}
+	return rc;
 }

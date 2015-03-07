@@ -50,6 +50,7 @@ TESTS {
 		"window @minutely 60\n"
 		"counter @minutely m/^err\\./\n"
 		"sample  3600      m/^disk:/\n"
+		"rate    @minutely m/permin$/\n"
 		"", 0);
 	write_file(TEST_SAVE_FILE,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\5"                     /* 16 */
@@ -240,6 +241,25 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
 	pdu_free(p);
 
+	/* create a new rate */
+	p = pdu_make("PUT.RATE", 3, ts, "req.permin", "100");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	p = pdu_make("PUT.RATE", 3, ts, "req.permin", "200");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent 2nd [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 0);
 	rc = pdu_send_and_free(p, client);
@@ -250,12 +270,12 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(202, sizeof(char));
+	s = calloc(241, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4    0 */
 	          "\0\1"     /* H:version    +2    4 */
 	          "\0\0"     /* H:flags      +2    6 */
 	          "...."     /* H:timestamp  +4    8 (to be filled in later) */
-	          "\0\0\0\4" /* H:count      +4   12 */              /* +16 */
+	          "\0\0\0\5" /* H:count      +4   12 */              /* +16 */
 
 	      /* STATES */
 	          "\0\x20"   /* 0:len        +2   16 */
@@ -303,16 +323,29 @@ TESTS {
 	          "\0\0\0\0" /* 0:var_               */
 	          "\0\0\0\0" /*              +8  181 */
 	          "disk:/root\0"         /* +11  189 */              /* +83 */
-                                     /*      200 */
 
-	          "\0\0", 202);
-	*(uint32_t*)(s+  8) = htonl(time);
-	*(uint32_t*)(s+ 20) = htonl(time);
-	*(uint32_t*)(s+ 52) = htonl(time);
-	*(uint32_t*)(s+ 91) = htonl(time);
-	*(uint32_t*)(s+121) = htonl(time);
+	      /* RATES */
+	          "\0\x27"   /* 0:len         +2  200 */
+	          "\0\5"     /* 0:flags       +2  202 */
+	          "...."     /* 0:first_seen  +4  204 */
+	          "...."     /* 0:last_seen   +4  208 */
+	          "\0\0\0\0" /* 0:first               */
+	          "\0\0\0\x64" /*             +8  212 */
+	          "\0\0\0\0" /* 0:last                */
+	          "\0\0\0\xc8" /*             +8  220 */
+	          "req.permin\0"          /* +11  228 */             /* +39 */
+	                                       /* 239 */
 
-	binfile_is("t/tmp/save", s, 202,
+	          "\0\0", 241);
+	*(uint32_t*)(s+   8) = htonl(time);
+	*(uint32_t*)(s+  20) = htonl(time);
+	*(uint32_t*)(s+  52) = htonl(time);
+	*(uint32_t*)(s+  91) = htonl(time);
+	*(uint32_t*)(s+ 121) = htonl(time);
+	*(uint32_t*)(s+ 204) = htonl(time);
+	*(uint32_t*)(s+ 208) = htonl(time);
+
+	binfile_is("t/tmp/save", s, 241,
 		"save file (binary)"); free(s);
 
 	/* ----------------------------- */

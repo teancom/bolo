@@ -54,6 +54,7 @@ TESTS {
 		""
 		"counter @minutely counter1\n"
 		"sample  @hourly   res.df:/\n"
+		"rate    @minutely rate1\n"
 		"", 0);
 	write_file(TEST_SAVE_FILE,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\4"                     /* 16 */
@@ -334,7 +335,7 @@ TESTS {
 	/* update a bad sample */
 	p = pdu_make("PUT.SAMPLE", 3, ts, "XYZZY.sample", "101");
 	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+	is_int(rc, 0, "sent [PUT.SAMPLE] to kernel");
 
 	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -345,7 +346,7 @@ TESTS {
 	/* update a nameless sample */
 	p = pdu_make("PUT.SAMPLE", 3, ts, "", "101");
 	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [PUT.COUNTER] to kernel");
+	is_int(rc, 0, "sent [PUT.SAMPLE] to kernel");
 
 	p = pdu_recv(client);
 	isnt_null(p, "received reply PDU from kernel");
@@ -363,6 +364,47 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
 	pdu_free(p);
 
+	/* update rate1 */
+	p = pdu_make("PUT.RATE", 3, ts, "rate1", "1000");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	p = pdu_make("PUT.RATE", 3, ts, "rate1", "1347");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent another [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "OK", "kernel replied with [OK]");
+	pdu_free(p);
+
+	/* update a bad rate */
+	p = pdu_make("PUT.RATE", 3, ts, "XYZZY.rate", "101");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "Rate Not Found", "Error message returned"); free(s);
+	pdu_free(p);
+
+	/* update a nameless sample */
+	p = pdu_make("PUT.RATE", 3, ts, "", "101");
+	rc = pdu_send_and_free(p, client);
+	is_int(rc, 0, "sent [PUT.RATE] to kernel");
+
+	p = pdu_recv(client);
+	isnt_null(p, "received reply PDU from kernel");
+	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
+	is_string(s = pdu_string(p, 1), "No rate name given", "Error message returned"); free(s);
+	pdu_free(p);
+
 	/* save state (to /t/tmp/save) */
 	p = pdu_make("SAVESTATE", 0);
 	rc = pdu_send_and_free(p, client);
@@ -373,12 +415,12 @@ TESTS {
 	is_string(pdu_type(p), "OK", "kernel replied with a [SAVESTATE]");
 	pdu_free(p);
 
-	s = calloc(242, sizeof(char));
+	s = calloc(276, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4    0 */
 	          "\0\1"     /* H:version    +2    4 */
 	          "\0\0"     /* H:flags      +2    6 */
 	          "...."     /* H:timestamp  +4    8 (to be filled in later) */
-	          "\0\0\0\5" /* H:count      +4   12 */              /* +16 */
+	          "\0\0\0\6" /* H:count      +4   12 */              /* +16 */
 
 	      /* STATES */
 	          "\0\x20"   /* 0:len        +2   16 */
@@ -426,6 +468,7 @@ TESTS {
 	          "\0\0\0\0" /* 0:var_               */
 	          "\0\0\0\0" /*              +8  176 */
 	          "res.df:/\0"           /*  +9  184 */              /* +81 */
+
 	      /* EVENTS */
 	          "\0\x2f"   /* 0:len        +2  193 */
 	          "\0\4"     /* 0:flags      +2  195 */
@@ -433,17 +476,30 @@ TESTS {
 	          "\x30\x39" /*              +4  197 */
 	          "my.sample.event\0"    /* +16  201 */
 	          "this is the extr"     /* +16  217 */
-	          "a data\0"             /*  +7  233 */
-	                                 /*      240 */
+	          "a data\0"             /*  +7  233 */              /* +47 */
 
-	          "\0\0", 242);
-	*(uint32_t*)(s+  8) = htonl(time);
-	*(uint32_t*)(s+ 20) = htonl(time);
-	*(uint32_t*)(s+ 52) = htonl(time);
-	*(uint32_t*)(s+ 91) = htonl(time);
-	*(uint32_t*)(s+116) = htonl(time);
+	      /* RATES */
+	          "\0\x22"   /* 0:len        +2  240 */
+	          "\0\5"     /* 0:flags      +2  242 */
+	          "...."     /* 0:first_seen +4  244 */
+	          "...."     /* 0:last_seen  +4  248 */
+	          "\0\0\0\0" /* 0:first              */
+	          "\0\0\x03\xe8" /*          +8  252 */
+	          "\0\0\0\0" /* 0:last               */
+	          "\0\0\x05\x43" /*          +8  260 */
+	          "rate1\0"  /*              +6  268 */              /* +34 */
+                                          /* 274 */
 
-	binfile_is("t/tmp/save", s, 242,
+	          "\0\0", 276);
+	*(uint32_t*)(s+   8) = htonl(time);
+	*(uint32_t*)(s+  20) = htonl(time);
+	*(uint32_t*)(s+  52) = htonl(time);
+	*(uint32_t*)(s+  91) = htonl(time);
+	*(uint32_t*)(s+ 116) = htonl(time);
+	*(uint32_t*)(s+ 244) = htonl(time);
+	*(uint32_t*)(s+ 248) = htonl(time);
+
+	binfile_is("t/tmp/save", s, 276,
 		"save file (binary)"); free(s);
 
 	/* get a single key */

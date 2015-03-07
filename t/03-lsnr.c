@@ -128,7 +128,7 @@ TESTS {
 	/* send a SAMPLE update */
 	ok(pdu_send_and_free(pdu_make("SAMPLE", 3,
 			"12345",                /* timestamp */
-			"host.example.com:cpu"  /* sample name */,
+			"host.example.com:cpu", /* sample name */
 			"42.7"),                /* sample value */
 		z) == 0, "sent [SAMPLE] to listener");
 
@@ -142,6 +142,31 @@ TESTS {
 
 		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
 			"failed to send OK reply to our [PUT.SAMPLE]");
+		pdu_free(q);
+
+		/* go be the client */
+		a = pdu_recv(z);
+		isnt_null(a, "received a reply from the listener");
+		is_string(pdu_type(a), "OK", "listener replied [OK]");
+		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
+
+	/* send a RATE value */
+	ok(pdu_send_and_free(pdu_make("RATE", 3,
+			"12345",          /* timestamp */
+			"my.rate.name",   /* rate name */
+			"123444"),        /* rate value */
+		z) == 0, "sent [RATE] to listener");
+
+		/* go be the kernel */
+		q = pdu_recv(kernel);
+		isnt_null(q, "received a packet as the kernel");
+		is(pdu_type(q), "PUT.RATE", "packet is a [PUT.RATE] packet");
+		is(pdu_string(q, 1), "12345",        "PUT.RATE[0] is timestamp");
+		is(pdu_string(q, 2), "my.rate.name", "PUT.RATE[1] is name");
+		is(pdu_string(q, 3), "123444",       "PUT.RATE[2] is value");
+
+		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
+			"failed to send OK reply to our [PUT.RATE]");
 		pdu_free(q);
 
 		/* go be the client */

@@ -25,6 +25,7 @@
 #define RECORD_TYPE_COUNTER  0x2
 #define RECORD_TYPE_SAMPLE   0x3
 #define RECORD_TYPE_EVENT    0x4
+#define RECORD_TYPE_RATE     0x5
 
 #define binf_record_type(b) ((b)->flags & RECORD_TYPE_MASK)
 
@@ -91,6 +92,13 @@ typedef struct PACKED {
 } binf_sample_t;
 
 typedef struct PACKED {
+	uint32_t first_seen;
+	uint32_t last_seen;
+	uint64_t first;
+	uint64_t last;
+} binf_rate_t;
+
+typedef struct PACKED {
 	uint32_t  timestamp;
 } binf_event_t;
 
@@ -107,6 +115,7 @@ static void broadcast_event(kernel_t*, event_t*);
 static state_t*   find_state(  db_t*, const char *name);
 static counter_t* find_counter(db_t*, const char *name);
 static sample_t*  find_sample( db_t*, const char *name);
+static rate_t*    find_rate(   db_t*, const char *name);
 
 static state_t *find_state(db_t *db, const char *name)
 {
@@ -173,6 +182,26 @@ static sample_t *find_sample(db_t *db, const char *name)
 	return NULL;
 }
 
+static rate_t *find_rate(db_t *db, const char *name)
+{
+	rate_t *x = hash_get(&db->rates, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_rate_t *re;
+	for_each_object(re, &db->rate_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(rate_t));
+			hash_set(&db->rates, name, x);
+			x->name   = strdup(name);
+			x->window = re->window;
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
 static inline const char *statstr(uint8_t s)
 {
 	static const char *names[] = { "OK", "WARNING", "CRITICAL", "UNKNOWN" };
@@ -187,6 +216,7 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		binf_counter_t counter;
 		binf_sample_t  sample;
 		binf_event_t   event;
+		binf_rate_t    rate;
 	} body;
 	union {
 		void      *unknown;
@@ -194,6 +224,7 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		counter_t *counter;
 		sample_t  *sample;
 		event_t   *event;
+		rate_t    *rate;
 	} payload;
 	size_t n, want, so_far = 0;
 	const char *s;
@@ -223,6 +254,11 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		record.len += sizeof(body.event);
 		record.len += strlen(payload.event->name)  + 1;
 		record.len += strlen(payload.event->extra) + 1;
+		break;
+
+	case RECORD_TYPE_RATE:
+		record.len += sizeof(body.rate);
+		record.len += strlen(payload.rate->name) + 1;
 		break;
 
 	default:
@@ -334,6 +370,27 @@ static int write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 		break;
 
+	case RECORD_TYPE_RATE:
+		body.rate.first_seen = htonl(payload.rate->first_seen);
+		body.rate.last_seen  = htonl(payload.rate->last_seen);
+		body.rate.first      = htonll(payload.rate->first);
+		body.rate.last       = htonll(payload.rate->last);
+
+		n = write(fd, &body.rate, want = sizeof(body.rate));
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		s = payload.rate->name;
+		n = write(fd, s, want = strlen(s) + 1);
+		so_far += n;
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want)
+			return so_far;
+
+		break;
+
 	default:
 		return -1;
 	}
@@ -349,6 +406,7 @@ static int read_record(int fd, uint8_t *type, void **r)
 		binf_counter_t counter;
 		binf_sample_t  sample;
 		binf_event_t   event;
+		binf_rate_t    rate;
 	} body;
 	union {
 		void      *unknown;
@@ -356,6 +414,7 @@ static int read_record(int fd, uint8_t *type, void **r)
 		counter_t *counter;
 		sample_t  *sample;
 		event_t   *event;
+		rate_t    *rate;
 	} payload;
 	ssize_t n, want;
 	char buf[4096], *p;
@@ -456,7 +515,7 @@ static int read_record(int fd, uint8_t *type, void **r)
 			return 1;
 
 		payload.event->timestamp = ntohl(body.event.timestamp);
-		want = record.len - sizeof(record) - sizeof(body.sample);
+		want = record.len - sizeof(record) - sizeof(body.event);
 		if (want > 4095)
 			return 1;
 		n = read(fd, buf, want);
@@ -470,6 +529,33 @@ static int read_record(int fd, uint8_t *type, void **r)
 		payload.event->extra = strdup(p);
 
 		*r = payload.event;
+		return 0;
+
+	case RECORD_TYPE_RATE:
+		payload.rate = calloc(1, sizeof(rate_t));
+
+		n = read(fd, &body.rate, want = sizeof(body.rate));
+		if (n != want)
+			return 1;
+
+		payload.rate->first_seen = ntohl(body.rate.first_seen);
+		payload.rate->last_seen  = ntohl(body.rate.last_seen);
+		payload.rate->first      = ntohll(body.rate.first);
+		payload.rate->last       = ntohll(body.rate.last);
+
+		want = record.len - sizeof(record) - sizeof(body.rate);
+		if (want > 4095)
+			return 1;
+		n = read(fd, buf, want);
+		if (n != want)
+			return 1;
+		buf[n] = '\0';
+		for (p = buf; *p++; );
+		if (p - buf + 1 == want)
+			return 1;
+		payload.rate->name  = strdup(buf);
+
+		*r = payload.rate;
 		return 0;
 
 	default:
@@ -487,6 +573,7 @@ static int save_state(db_t *db, const char *file)
 	counter_t *counter;
 	sample_t  *sample;
 	event_t   *event;
+	rate_t   *rate;
 
 	char *name;
 	int i, n;
@@ -512,6 +599,7 @@ static int save_state(db_t *db, const char *file)
 	for_each_key_value(&db->counters, name, counter) header.count++;
 	for_each_key_value(&db->samples,  name, sample)  header.count++;
 	for_each_object(event, &db->events, l)           header.count++;
+	for_each_key_value(&db->rates,    name, rate)    header.count++;
 	header.count = htonl(header.count);
 
 	logger(LOG_INFO, "writing %i bytes for the binary file header", sizeof(header));
@@ -568,6 +656,17 @@ static int save_state(db_t *db, const char *file)
 		logger(LOG_INFO, "wrote %i bytes for event record #%i (%s)", len, i, ev->name);
 		i++;
 	}
+	for_each_key_value(&db->rates, name, rate) {
+		n = write_record(fd, &len, RECORD_TYPE_RATE, rate);
+		if (n != 0) {
+			logger(LOG_ERR, "only wrote %i of %i bytes for rate record #%i (%s); savefile %s is probably corrupt now",
+				n, len, i, name, file);
+			close(fd);
+			return -1;
+		}
+		logger(LOG_INFO, "wrote %i bytes for rate record #%i (%s)", len, i, name);
+		i++;
+	}
 	n = write(fd, "\0\0", 2);
 	if (n != 2) {
 		logger(LOG_ERR, "failed to write trailer bytes; savefile %s is probably corrupt now",
@@ -589,6 +688,7 @@ static int read_state(db_t *db, const char *file)
 		counter_t *counter;
 		sample_t  *sample;
 		event_t   *event;
+		rate_t    *rate;
 	} payload, found;
 	unsigned int i, n;
 	uint8_t type;
@@ -695,6 +795,17 @@ static int read_state(db_t *db, const char *file)
 
 		case RECORD_TYPE_EVENT:
 			list_push(&db->events, &payload.event->l);
+			break;
+
+		case RECORD_TYPE_RATE:
+			if ((found.rate = find_rate(db, payload.rate->name)) != NULL) {
+				found.rate->first_seen = payload.rate->first_seen;
+				found.rate->last_seen  = payload.rate->last_seen;
+				found.rate->first      = payload.rate->first;
+				found.rate->last       = payload.rate->last;
+			} else {
+				logger(LOG_INFO, "rate %s not found in configuration, skipping", payload.rate->name);
+			}
 			break;
 
 		default:
@@ -994,6 +1105,23 @@ static void broadcast_sample(kernel_t *k, sample_t *sample)
 	pdu_send_and_free(p, k->broadcast);
 }
 
+static void broadcast_rate(kernel_t *k, rate_t *rate)
+{
+	int32_t ts = winstart(rate, rate->last_seen);
+	double v = rate_calc(rate, rate->window->time);
+
+	logger(LOG_INFO, "broadcasting [RATE] data for %s: "
+		"ts=%i, first=%lu, last=%lu, per/%li=%e",
+		rate->name, ts, rate->first, rate->last, rate->window->time, v);
+
+	pdu_t *p = pdu_make("RATE", 0);
+	pdu_extendf(p, "%u", ts);
+	pdu_extendf(p, "%s", rate->name);
+	pdu_extendf(p, "%i", rate->window->time);
+	pdu_extendf(p, "%e", v);
+	pdu_send_and_free(p, k->broadcast);
+}
+
 static void* cleanup_kernel(void *_)
 {
 	kernel_t *k = (kernel_t*)_;
@@ -1194,6 +1322,43 @@ void* kernel(void *u)
 				} else {
 					a = pdu_reply(q, "ERROR", 1, "Sample Not Found");
 					logger(LOG_WARNING, "ignoring update for unknown sample set %s, ts=%i, value=%e", name, ts, v);
+				}
+			}
+
+		} else if (strcmp(pdu_type(q), "PUT.RATE") == 0 && pdu_size(q) == 4) {
+			char *s;
+			s = pdu_string(q, 1); int32_t ts = strtol(  s, NULL, 10); free(s);
+			s = pdu_string(q, 3); uint64_t v = strtoull(s, NULL, 10); free(s);
+			char *name = pdu_string(q, 2);
+
+			if (!name || !*name) {
+				a = pdu_reply(q, "ERROR", 1, "No rate name given");
+			} else {
+				rate_t *rate = find_rate(&k->server->db, name);
+				if (rate) {
+					/* check for window closure */
+					if (rate->last_seen > 0 && rate->last_seen != ts
+					 && winstart(rate, rate->last_seen) != winstart(rate, ts)) {
+						logger(LOG_INFO, "rate window rollover detected between %i and %i",
+							winstart(rate, rate->last_seen), ts);
+						broadcast_rate(k, rate);
+						rate_reset(rate);
+					}
+
+					if (!rate->first_seen)
+						rate->first_seen = ts;
+					logger(LOG_INFO, "%s rate set %s, ts=%i, value=%lu", (rate->last_seen ? "updating" : "starting"), name, ts, v);
+					if (rate_data(rate, v) != 0) {
+						logger(LOG_ERR, "failed to update rate set %s, ts=%i, value=%lu", name, ts, v);
+						a = pdu_reply(q, "ERROR", 1, "Internal error");
+					} else {
+						rate->last_seen = ts;
+						a = pdu_reply(q, "OK", 0);
+					}
+
+				} else {
+					a = pdu_reply(q, "ERROR", 1, "Rate Not Found");
+					logger(LOG_WARNING, "ignoring update for unknown rate set %s, ts=%i, value=%lu", name, ts, v);
 				}
 			}
 

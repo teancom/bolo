@@ -76,18 +76,22 @@ TESTS {
 			"sample  @minutely res.cpu.usage\n"
 			"sample  @hourly   res.df:/\n"
 			"sample  @hourly   res.df:/var\n"
+			"rate    @minutely cpu.ticks\n"
 			"\n"
 			"use @hourly\n"
 			"counter counter3\n"
 			"sample  something.hourly\n"
+			"rate    hourly.rate\n"
 			"\n"
 			"counter 123 explicit-window\n"
 			"sample  456 explicit-window\n"
+			"rate    789 explicit-window\n"
 			"\n"
 			"# pattern matching\n"
 			"counter @minutely m/tick./\n"
 			"sample  300       m/web.*/\n"
 			"state   :cloud    m/cloud\\d+\\./\n"
+			"rate    60        m/per.min/\n"
 			"", 0);
 
 		int32_t now = time_s();
@@ -220,6 +224,21 @@ TESTS {
 		ok(!list_isempty(&svr.db.sample_matches), "have pattern matched samples");
 		re_sample_t *re_sa = list_head(&svr.db.sample_matches, re_sample_t, l);
 		is_int(re_sa->window->time, 300, "pattern match is a 5m sample set");
+
+		rate_t *r;
+		r = hash_get(&svr.db.rates, "cpu.ticks");
+		isnt_null(r, "rate cpu.ticks created");
+		is_int(r->first_seen, 0, "new rate cpu.ticks has never been seen");
+		is_pointer(r->window,
+			hash_get(&svr.db.windows, "@minutely"), "cpu.ticks is a @minutely rate");
+
+		r = hash_get(&svr.db.rates, "explicit-window");
+		isnt_null(r, "rate explicit-window crated");
+		is_int(r->window->time, 789, "rate explicit-window got an anon window");
+
+		ok(!list_isempty(&svr.db.rate_matches), "have pattern matched rates");
+		re_rate_t *re_r = list_head(&svr.db.rate_matches, re_rate_t, l);
+		is_int(re_r->window->time, 60, "pattern match rate is a 60s calc");
 	}
 
 	subtest { /* various configuration errors */

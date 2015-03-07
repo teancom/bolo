@@ -137,6 +137,18 @@ void* listener(void *u)
 			free(ts);
 			free(name);
 
+		} else if (strcmp(pdu_type(q), "RATE") == 0 && pdu_size(q) == 4) {
+			pdu_send_and_free(vx_pdu_dup(q, "PUT.RATE"), l->client);
+			pdu_t *p = pdu_recv(l->client);
+			if (strcmp(pdu_type(p), "ERROR") == 0) {
+				char *err = pdu_string(p, 1);
+				a = pdu_reply(q, "ERROR", 1, err);
+				free(err);
+			} else {
+				a = pdu_reply(q, "OK", 0);
+			}
+			pdu_free(p);
+
 		} else if (strcmp(pdu_type(q), "EVENT") == 0 && pdu_size(q) == 4) {
 			pdu_send_and_free(vx_pdu_dup(q, "NEW.EVENT"), l->client);
 			pdu_t *p = pdu_recv(l->client);

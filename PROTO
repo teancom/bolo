@@ -15,11 +15,12 @@
 
                                                 [EVENT]
                                                 [TRANSITION]
+                                                [RATE]
                                                 [STATE]      .----------------------
    ----------------.                            [COUNTER]   /
                    |                            [SAMPLE]   /        (clients)
      NSCA gateway  |                           .--------->         tcp://*:2997
-       TCP/5667    |------.                    |           \    PUB/SUB BROADCAST
+       TCP/5667    |------. [PUT.RATE]         |           \    PUB/SUB BROADCAST
                    |      | [PUT.STATE]        |            \
    ----------------'      | [PUT.COUNTER]      |             '----------------------
                           | [PUT.SAMPLE]       |
@@ -35,6 +36,7 @@
    [STATE]                              |  [CHECKFRESH]
    [COUNTER]                            |  [SAVESTATE]
    [SAMPLE]                             |
+   [RATE]                               |
    [SET.KEYS]                  .-----------------.
    [DEL.KEYS]                  |    scheduler    |
    [EVENT]                     '-----------------'
@@ -72,9 +74,15 @@
      PUT.SAMPLE            OK                ; update a sample set with an
      <TIMESTAMP>                             ; arbitrary number of new samples,
      <NAME>                                  ; recalculating min/max/mean/variance
-     <SAMPLE 1>                              ; as necessary
-     ...
-     <SAMPLE N>
+     <VALUE>                                 ; as necessary
+
+     ---------------------------------------------------------------------------
+
+     PUT.RATE              OK                ; update a sample set with a
+     <TIMESTAMP>                             ; number, and calculate the rate
+     <NAME>                                  ; (per the sample window).  This is
+     <VALUE>                                 ; useful for ever-increasing values
+                                             ; like CPU ticks or packets sent.
 
      ---------------------------------------------------------------------------
 
@@ -174,6 +182,13 @@
 
      ---------------------------------------------------------------------------
 
+     RATE                                     ; broadcast on window rollover.
+     <TS>                                     ; contains the calculated rate,
+     <NAME>                                   ; per window interval.
+     <VALUE>
+
+     ---------------------------------------------------------------------------
+
      COUNTER                                  ; broadcast on window rollover.
      <TS>                                     ; subscribers can store the value
      <NAME>                                   ; of the counter (e.g. in RRDs)
@@ -211,6 +226,12 @@
      <NAME>                                  ; sample, recalculating
      <VALUE>                                 ; min/max/mean/variance as necessary
                                              ; yields a PUT.SAMPLE to the kernel
+
+     ---------------------------------------------------------------------------
+
+     RATE                  OK                ; update a sample set with a new
+     <NAME>                                  ; rate-calculation (for absolute
+     <VALUE>                                 ; values like %user jiffies)
 
      ---------------------------------------------------------------------------
 

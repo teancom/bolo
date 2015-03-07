@@ -40,6 +40,7 @@
 #define T_KEYWORD_NSCAPORT   0x11
 #define T_KEYWORD_KEYSFILE   0x12
 #define T_KEYWORD_MAXEVENTS  0x13
+#define T_KEYWORD_RATE       0x14
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -189,6 +190,7 @@ getline:
 			KEYWORD("state",      STATE);
 			KEYWORD("counter",    COUNTER);
 			KEYWORD("sample",     SAMPLE);
+			KEYWORD("rate",       RATE);
 			KEYWORD("use",        USE);
 			KEYWORD("max.events", MAXEVENTS);
 
@@ -265,6 +267,7 @@ int configure(const char *path, server_t *s)
 	list_init(&s->db.state_matches);
 	list_init(&s->db.counter_matches);
 	list_init(&s->db.sample_matches);
+	list_init(&s->db.rate_matches);
 	list_init(&s->db.events);
 
 	parser_t p;
@@ -293,6 +296,9 @@ int configure(const char *path, server_t *s)
 
 	sample_t     *sample     = NULL;
 	re_sample_t  *re_sample  = NULL;
+
+	rate_t       *rate       = NULL;
+	re_rate_t    *re_rate    = NULL;
 
 	const char *re_err;
 	int re_off;
@@ -552,6 +558,59 @@ int configure(const char *path, server_t *s)
 
 			} else {
 				ERROR("Expected string value for `sample` declaration");
+			}
+
+			break;
+
+		case T_KEYWORD_RATE:
+			NEXT;
+			win = NULL;
+			if (p.token == T_WINDOWNAME) {
+				win = hash_get(&s->db.windows, p.value);
+				NEXT;
+
+			} else if (p.token == T_NUMBER) {
+				/* anonymous window */
+				win = calloc(1, sizeof(window_t));
+				win->time = atoi(p.value);
+				NEXT;
+
+			} else if (default_win) {
+				win = hash_get(&s->db.windows, default_win);
+			}
+
+			if (p.token == T_STRING) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for rate '%s'",
+						p.file, p.line, p.value);
+					goto bail;
+				}
+
+				rate = calloc(1, sizeof(counter_t));
+				hash_set(&s->db.rates, p.value, rate);
+				rate->name   = strdup(p.value);
+				rate->window = win;
+
+			} else if (p.token == T_MATCH) {
+				if (!win) {
+					logger(LOG_ERR, "%s:%i: failed to determine window for rate /%s/",
+						p.file, p.line, p.value);
+					goto bail;
+				}
+
+				re_rate = calloc(1, sizeof(re_rate_t));
+				re_rate->window = win;
+				re_rate->re = pcre_compile(p.value, 0, &re_err, &re_off, NULL);
+				if (!re_rate->re) {
+					logger(LOG_ERR, "%s:%i: failed to compile pattern /%s/: %s", p.file, p.line, p.value, re_err);
+					goto bail;
+				}
+
+				re_rate->re_extra = pcre_study(re_rate->re, 0, &re_err);
+				list_push(&s->db.rate_matches, &re_rate->l);
+
+			} else {
+				ERROR("Expected string value for `rate` declaration");
 			}
 
 			break;

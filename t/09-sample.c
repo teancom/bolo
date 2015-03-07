@@ -19,19 +19,6 @@
 
 #include "test.h"
 
-int within(double a, double b, double ep)
-{
-	double diff = a - b;
-	int rc = (diff > 0 ? diff < ep : diff > -1 * ep);
-	if (!rc) {
-		diag("");
-		diag("expected %e to be within +/-%0.4f", a, ep);
-		diag("      of %e (was %0.4f off)", b, diff);
-		diag("");
-	}
-	return rc;
-}
-
 TESTS {
 	sample_t s = {0};
 

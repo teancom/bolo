@@ -54,3 +54,25 @@ void counter_reset(counter_t *counter)
 	counter->last_seen = 0;
 	counter->value = 0;
 }
+
+void rate_reset(rate_t *r)
+{
+	r->first_seen = r->last_seen = 0;
+	r->first = r->last = 0;
+}
+
+int rate_data(rate_t *r, uint64_t v)
+{
+	r->last = v;
+	if (!r->last_seen)
+		r->first = v;
+	return 0;
+}
+
+double rate_calc(rate_t *r, int32_t span)
+{
+	if (!r->last_seen)
+		return 0.0;
+
+	return (r->last - r->first) * 1.0 / (r->last_seen - r->first_seen) * span;
+}

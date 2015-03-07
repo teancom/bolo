@@ -106,6 +106,7 @@ typedef struct {
 	window_t *window;
 	char     *name;
 	int32_t   last_seen;
+
 	uint64_t  n;
 	double    min;
 	double    max;
@@ -123,6 +124,26 @@ typedef struct {
 } re_sample_t;
 
 typedef struct {
+	window_t   *window;
+	char       *name;
+	int32_t     first_seen;
+	int32_t     last_seen;
+
+	uint8_t     started;
+
+	uint64_t    first;
+	uint64_t    last;
+} rate_t;
+
+typedef struct {
+	list_t      l;
+	window_t   *window;
+
+	pcre       *re;
+	pcre_extra *re_extra;
+} re_rate_t;
+
+typedef struct {
 	list_t     l;
 	int32_t    timestamp;
 	char      *name;
@@ -133,6 +154,7 @@ typedef struct {
 	hash_t  states;
 	hash_t  counters;
 	hash_t  samples;
+	hash_t  rates;
 
 	list_t  events;
 	int     events_count;
@@ -140,6 +162,7 @@ typedef struct {
 	list_t  state_matches;
 	list_t  counter_matches;
 	list_t  sample_matches;
+	list_t  rate_matches;
 
 	hash_t  types;
 	hash_t  windows;
@@ -188,6 +211,10 @@ void sample_reset(sample_t *sample);
 int sample_data(sample_t *s, double v);
 
 void counter_reset(counter_t *counter);
+
+void rate_reset(rate_t *r);
+int rate_data(rate_t *r, uint64_t v);
+double rate_calc(rate_t *r, int32_t span);
 
 /* threads */
 void* listener(void *u);
