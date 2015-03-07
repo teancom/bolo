@@ -129,6 +129,34 @@ static int s_sample_update(const char *filename, const char *ts, const char *n, 
 	return rc;
 }
 
+static int s_rate_create(const char *filename)
+{
+	char *s = string("bolo-rrdcreate %s --start n-1yt --step 60"
+		" DS:value:GAUGE:120:U:U %s",
+		filename, RRAs);
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_create(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
+
+static int s_rate_update(const char *filename, const char *ts, const char *v)
+{
+	char *s = string("bolo-rrdupdate %s %s:%s", filename, ts, v);
+	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
+	free(s);
+
+	rrd_clear_error();
+	int rc = rrd_update(alist->num, alist->strings);
+	strings_free(alist);
+
+	return rc;
+}
+
 char* s_rrd_filename(const char *name, hash_t *map)
 {
 	if (!OPTIONS.hashfile)
@@ -361,6 +389,34 @@ int main(int argc, char **argv)
 			free(sum);
 			free(mean);
 			free(var);
+			free(file);
+
+		} else if (strcmp(pdu_type(p), "RATE") == 0 && pdu_size(p) == 5) {
+			char *ts    = pdu_string(p, 1);
+			char *name  = pdu_string(p, 2);
+			char *v     = pdu_string(p, 4);
+
+			char *filename = s_rrd_filename(name, &fmap);
+			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+			free(filename);
+
+			struct stat st;
+			if (stat(file, &st) != 0 && errno == ENOENT) {
+				if (s_rate_create(file) != 0) {
+					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
+					continue;
+				}
+			}
+
+			if (s_rate_update(file, ts, v) != 0) {
+				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
+				continue;
+			}
+
+			logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, v);
+			free(ts);
+			free(name);
+			free(v);
 			free(file);
 		}
 

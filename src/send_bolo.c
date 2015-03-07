@@ -34,6 +34,7 @@ static struct {
 #define TYPE_SAMPLE  3
 #define TYPE_KEY     4
 #define TYPE_EVENT   5
+#define TYPE_RATE    6
 
 static pdu_t* state_pdu(int argc, char **argv, char *ts)
 {
@@ -117,6 +118,22 @@ static pdu_t* sample_pdu(int argc, char **argv, char *ts)
 		if (DEBUG) fprintf(stderr, "|%s", argv[i]);
 	}
 	if (DEBUG) fprintf(stderr, "]\n");
+
+	return pdu;
+}
+
+static pdu_t* rate_pdu(int argc, char **argv, char *ts)
+{
+	if (argc < 2)
+		return NULL;
+
+	pdu_t *pdu = pdu_make("RATE", 0);
+	if (ts) pdu_extendf(pdu, "%s", ts);
+	else    pdu_extendf(pdu, "%i", time_s());
+	pdu_extendf(pdu, "%s", argv[0]);
+	pdu_extendf(pdu, "%s", argv[1]);
+	if (DEBUG) fprintf(stderr, "+>> built PDU [%s|%i|%s|%s]\n",
+			pdu_type(pdu), time_s(), argv[0], argv[1]);
 
 	return pdu;
 }
@@ -264,6 +281,9 @@ int main(int argc, char **argv)
 			} else if (strcasecmp(optarg, "event") == 0) {
 				OPTIONS.type = TYPE_EVENT;
 
+			} else if (strcasecmp(optarg, "rate") == 0) {
+				OPTIONS.type = TYPE_RATE;
+
 			} else {
 				fprintf(stderr, "invalid type '%s'\n", optarg);
 				exit(1);
@@ -296,6 +316,13 @@ int main(int argc, char **argv)
 		pdu = sample_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t sample name value [value ...]\n", argv[0]);
+			return 1;
+		}
+
+	} else if (OPTIONS.type == TYPE_RATE) {
+		pdu = rate_pdu(argc - optind, argv + optind, NULL);
+		if (!pdu) {
+			fprintf(stderr, "USAGE: %s -t rate name value\n", argv[0]);
 			return 1;
 		}
 
@@ -369,6 +396,9 @@ int main(int argc, char **argv)
 
 			} else if (strcasecmp(l->strings[0], "SAMPLE") == 0) {
 				pdu = sample_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+
+			} else if (strcasecmp(l->strings[0], "RATE") == 0) {
+				pdu = rate_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 			} else if (strcasecmp(l->strings[0], "KEY") == 0) {
 				pdu = set_keys_pdu(l->num - 1, l->strings + 1);
