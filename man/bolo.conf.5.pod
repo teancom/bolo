@@ -108,6 +108,10 @@ for that window and those data points is broadcast.
 For counter data, the value of the counter will increment
 until the window rolls over.
 
+For rate data, the difference between the first value seen in
+the window, and the last value seen, will be divided over the
+window to come up with a rate of change.
+
 Each window has a name and a timeframe specified in seconds.
 All window names start with the at-sign (@), and may consist
 only of alphanumeric characters, hyphens (-) and underscores (_).
@@ -138,7 +142,7 @@ Here, we instruct B<bolo> to accept all CPU-related states:
 
 =head2 Sample & Counter Declarations
 
-Like states, samples and counters must be defined in order
+Like states, samples, rates and counters must be defined in order
 for B<bolo> to properly aggregate them.  This can also be done
 directly, or via pattern matching:
 
@@ -150,6 +154,8 @@ directly, or via pattern matching:
     counter @minutely m/^http-40\d$/   # Matches http-403 and http-404,
                                        # but not http-200 or  http-415.
 
+    rate    @minutely m/:cpu:/
+
 You can also save some more typing with the `use' keyword,
 which elects a metric window to be the default, for sample
 and counter definitions that don't explicitly associate one:
@@ -158,6 +164,7 @@ and counter definitions that don't explicitly associate one:
     counter hourly-counter1
     counter m/-hourly$/
     sample  hourly-transactions
+    rate    m/-per-hour$/
 
 =head1 SEE ALSO
 
