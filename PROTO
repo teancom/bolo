@@ -185,6 +185,7 @@
      RATE                                     ; broadcast on window rollover.
      <TS>                                     ; contains the calculated rate,
      <NAME>                                   ; per window interval.
+     <WINDOW>
      <VALUE>
 
      ---------------------------------------------------------------------------
