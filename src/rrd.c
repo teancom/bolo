@@ -205,7 +205,11 @@ static int s_read_map(hash_t *map)
 
 	char buf[8192];
 	while (fgets(buf, 8192, io) != NULL) {
-		char *x = strchr(buf, ' ');
+		char *x;
+		x = strrchr(buf, '\n');
+		if (x) *x = '\0';
+
+		x = strchr(buf, ' ');
 		if (!x) continue;
 
 		*x++ = '\0';
