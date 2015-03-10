@@ -158,7 +158,7 @@ static int s_rate_update(const char *filename, const char *ts, const char *v)
 	return rc;
 }
 
-char* s_rrd_filename(const char *name, hash_t *map)
+static char* s_rrd_filename(const char *name, hash_t *map)
 {
 	if (!OPTIONS.hashfile)
 		return strdup(name);
@@ -183,7 +183,7 @@ char* s_rrd_filename(const char *name, hash_t *map)
 	return file;
 }
 
-char* s_tmpname(const char *orig)
+static char* s_tmpname(const char *orig)
 {
 	char *tmp = string(".%s", orig);
 	char *slash = strrchr(tmp, '/');
