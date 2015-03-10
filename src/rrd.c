@@ -84,7 +84,7 @@ static int s_counter_create(const char *filename)
 
 static int s_counter_update(const char *filename, const char *ts, const char *v)
 {
-	char *s = string("bolo-rrdupdate %s -t x %s:%s", filename, ts, v);
+	char *s = string("bolo-rrdupdate %s %s:%s", filename, ts, v);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
@@ -117,7 +117,7 @@ static int s_sample_create(const char *filename)
 
 static int s_sample_update(const char *filename, const char *ts, const char *n, const char *min, const char *max, const char *sum, const char *mean, const char *var)
 {
-	char *s = string("bolo-rrdupdate %s -t n:min:max:sum:mean:var %s:%s:%s:%s:%s:%s:%s",
+	char *s = string("bolo-rrdupdate %s %s:%s:%s:%s:%s:%s:%s",
 		filename, ts, n, min, max, sum, mean, var);
 
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
