@@ -196,6 +196,40 @@ static char* s_tmpname(const char *orig)
 	return tmp;
 }
 
+static int s_read_map(hash_t *map)
+{
+	if (!OPTIONS.hashfile) return 0;
+
+	FILE *io = fopen(OPTIONS.hashfile, "r");
+	if (!io) return 0;
+
+	char buf[8192];
+	while (fgets(buf, 8192, io) != NULL) {
+		char *x = strchr(buf, ' ');
+		if (!x) continue;
+
+		*x++ = '\0';
+		hash_set(map, x, strdup(buf));
+	}
+
+	fclose(io);
+	return 0;
+}
+
+static int s_write_map(hash_t *map)
+{
+	FILE *io = fopen(OPTIONS.hashtmp, "w");
+	if (!io)
+		return 1;
+
+	char *k, *v;
+	for_each_key_value(map, k, v)
+		fprintf(io, "%s %s\n", k, v);
+	fclose(io);
+	rename(OPTIONS.hashtmp, OPTIONS.hashfile);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	OPTIONS.verbose   = 0;
@@ -329,6 +363,9 @@ int main(int argc, char **argv)
 	int32_t flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
 	hash_t fmap;
 	memset(&fmap, 0, sizeof(fmap));
+	if (s_read_map(&fmap) != 0)
+		logger(LOG_ERR, "failed to read file map '%s': (%u) %s",
+			OPTIONS.hashfile, errno, strerror(errno));
 
 	pdu_t *p;
 	logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
@@ -435,18 +472,9 @@ int main(int argc, char **argv)
 
 		if (OPTIONS.hashfile && time_s() >= flush_at) {
 			logger(LOG_INFO, "flushing file map to %s", OPTIONS.hashfile);
-			FILE *io = fopen(OPTIONS.hashtmp, "w");
-			if (!io) {
+			if (s_write_map(&fmap) != 0)
 				logger(LOG_ERR, "failed to open file map tempfile '%s' for writing: (%i) %s",
 					OPTIONS.hashtmp, errno, strerror(errno));
-
-			} else {
-				char *k, *v;
-				for_each_key_value(&fmap, k, v)
-					fprintf(io, "%s %s\n", k, v);
-				fclose(io);
-				rename(OPTIONS.hashtmp, OPTIONS.hashfile);
-			}
 
 			flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
 		}
