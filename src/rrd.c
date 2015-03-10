@@ -31,6 +31,7 @@ static struct {
 
 	int   verbose;
 	int   daemonize;
+	char *rrdcached;
 
 	char *pidfile;
 	char *user;
@@ -201,6 +202,7 @@ int main(int argc, char **argv)
 	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2997");
 	OPTIONS.root      = strdup("/var/lib/bolo/rrd");
 	OPTIONS.daemonize = 1;
+	OPTIONS.rrdcached = NULL;
 	OPTIONS.pidfile   = strdup("/var/run/bolo2rrd.pid");
 	OPTIONS.user      = strdup("root");
 	OPTIONS.group     = strdup("root");
@@ -215,11 +217,12 @@ int main(int argc, char **argv)
 		{ "user",       required_argument, NULL, 'u' },
 		{ "group",      required_argument, NULL, 'g' },
 		{ "hash",       required_argument, NULL, 'H' },
+		{ "rrdcached",  required_argument, NULL, 'C' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:H:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:H:C:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -268,6 +271,11 @@ int main(int argc, char **argv)
 			OPTIONS.hashtmp = s_tmpname(OPTIONS.hashfile);
 			break;
 
+		case 'C':
+			free(OPTIONS.rrdcached);
+			OPTIONS.rrdcached = strdup(optarg);
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			return 1;
@@ -291,6 +299,9 @@ int main(int argc, char **argv)
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");
+
+	if (OPTIONS.rrdcached)
+		setenv("RRDCACHED", OPTIONS.rrdcached, 1);
 
 	logger(LOG_DEBUG, "allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
