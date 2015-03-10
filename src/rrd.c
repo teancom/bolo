@@ -213,7 +213,7 @@ static int s_read_map(hash_t *map)
 		if (!x) continue;
 
 		*x++ = '\0';
-		hash_set(map, x, strdup(buf));
+		hash_set(map, strdup(buf), x);
 	}
 
 	fclose(io);
