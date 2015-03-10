@@ -301,7 +301,7 @@ int main(int argc, char **argv)
 	logger(LOG_NOTICE, "starting up");
 
 	if (OPTIONS.rrdcached)
-		setenv("RRDCACHED", OPTIONS.rrdcached, 1);
+		setenv("RRDCACHED_ADDRESS", OPTIONS.rrdcached, 1);
 
 	logger(LOG_DEBUG, "allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
