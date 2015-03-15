@@ -40,8 +40,8 @@ TESTS {
 		"failed to spin up listener thread");
 	sleep_ms(50);
 
-	CHECK(z = zmq_socket(s.zmq, ZMQ_DEALER),
-		"failed to create test DEALER socket");
+	CHECK(z = zmq_socket(s.zmq, ZMQ_PUSH),
+		"failed to create test PUSH socket");
 	CHECK(zmq_connect(z, s.config.listener) == 0,
 		"failed to connect test socket to listener");
 
@@ -71,11 +71,13 @@ TESTS {
 		pdu_free(q);
 
 		/* go be the client */
+#if 0
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %x >>", x); free(x);
 		pdu_free(a);
+#endif
 
 	/* send a COUNTER update */
 	ok(pdu_send_and_free(pdu_make("COUNTER", 3,
@@ -96,12 +98,14 @@ TESTS {
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
 
+#if 0
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 		pdu_free(a);
+#endif
 
 	/* send a COUNTER update without explicit increment */
 	ok(pdu_send_and_free(pdu_make("COUNTER", 2,
@@ -121,12 +125,14 @@ TESTS {
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
 
+#if 0
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 		pdu_free(a);
+#endif
 
 	/* send a SAMPLE update */
 	ok(pdu_send_and_free(pdu_make("SAMPLE", 3,
@@ -147,12 +153,14 @@ TESTS {
 			"failed to send OK reply to our [PUT.SAMPLE]");
 		pdu_free(q);
 
+#if 0
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 		pdu_free(a);
+#endif
 
 	/* send a RATE value */
 	ok(pdu_send_and_free(pdu_make("RATE", 3,
@@ -173,12 +181,14 @@ TESTS {
 			"failed to send OK reply to our [PUT.RATE]");
 		pdu_free(q);
 
+#if 0
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 		pdu_free(a);
+#endif
 
 	/* send an EVENT */
 	ok(pdu_send_and_free(pdu_make("EVENT", 3,
@@ -199,13 +209,16 @@ TESTS {
 			"failed to send OK reply to our [NEW.EVENT]");
 		pdu_free(q);
 
+#if 0
 		/* go be the client */
 		a = pdu_recv(z);
 		isnt_null(a, "received a reply from the listener");
 		is_string(pdu_type(a), "OK", "listener replied [OK]");
 		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
 		pdu_free(a);
+#endif
 
+#if 0
 	/* try a bad PDU */
 	ok(pdu_send_and_free(pdu_make("ZORK", 0), z) == 0, "sent [ZORK] to listener");
 	a = pdu_recv(z);
@@ -213,6 +226,7 @@ TESTS {
 	is_string(pdu_type(a), "ERROR", "listener replied [ERROR]");
 	is_string(x = pdu_string(a, 1), "Invalid PDU", "Error message from listener"); free(x);
 	pdu_free(a);
+#endif
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
@@ -221,4 +235,7 @@ TESTS {
 	vzmq_shutdown(z,        0);
 	vzmq_shutdown(kernel, 500);
 	zmq_ctx_destroy(s.zmq);
+
+	alarm(0);
+	done_testing();
 }

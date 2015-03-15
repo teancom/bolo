@@ -63,9 +63,9 @@ void* listener(void *u)
 		return NULL;
 	}
 
-	l->listener = zmq_socket(l->server->zmq, ZMQ_ROUTER);
+	l->listener = zmq_socket(l->server->zmq, ZMQ_PULL);
 	if (!l->listener) {
-		logger(LOG_CRIT, "listener failed to get a ROUTER socket");
+		logger(LOG_CRIT, "listener failed to get a PULL socket");
 		return NULL;
 	}
 	if (zmq_bind(l->listener, l->server->config.listener) != 0) {
@@ -74,7 +74,8 @@ void* listener(void *u)
 		return NULL;
 	}
 
-	pdu_t *q, *a;
+	//pdu_t *q, *a;
+	pdu_t *q;
 	while ((q = pdu_recv(l->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "listener received an empty PDU; ignoring");
@@ -90,7 +91,7 @@ void* listener(void *u)
 
 			pdu_send_and_free(pdu_make("PUT.STATE", 4, ts, name, code, msg), l->client);
 			pdu_t *p = pdu_recv(l->client); pdu_free(p);
-			a = pdu_reply(q, "OK", 0);
+			//a = pdu_reply(q, "OK", 0);
 
 			free(ts);
 			free(name);
@@ -105,7 +106,7 @@ void* listener(void *u)
 
 			pdu_send_and_free(pdu_make("PUT.COUNTER", 3, ts, name, incr), l->client);
 			pdu_t *p = pdu_recv(l->client); pdu_free(p);
-			a = pdu_reply(q, "OK", 0);
+			//a = pdu_reply(q, "OK", 0);
 
 			free(ts);
 			free(name);
@@ -129,10 +130,10 @@ void* listener(void *u)
 				free(val);
 			}
 			if (err) {
-				a = pdu_reply(q, "ERROR", 1, err);
+				//a = pdu_reply(q, "ERROR", 1, err);
 				free(err);
 			} else {
-				a = pdu_reply(q, "OK", 0);
+				//a = pdu_reply(q, "OK", 0);
 			}
 
 			free(ts);
@@ -143,10 +144,10 @@ void* listener(void *u)
 			pdu_t *p = pdu_recv(l->client);
 			if (strcmp(pdu_type(p), "ERROR") == 0) {
 				char *err = pdu_string(p, 1);
-				a = pdu_reply(q, "ERROR", 1, err);
+				//a = pdu_reply(q, "ERROR", 1, err);
 				free(err);
 			} else {
-				a = pdu_reply(q, "OK", 0);
+				//a = pdu_reply(q, "OK", 0);
 			}
 			pdu_free(p);
 
@@ -155,10 +156,10 @@ void* listener(void *u)
 			pdu_t *p = pdu_recv(l->client);
 			if (strcmp(pdu_type(p), "ERROR") == 0) {
 				char *err = pdu_string(p, 1);
-				a = pdu_reply(q, "ERROR", 1, err);
+				//a = pdu_reply(q, "ERROR", 1, err);
 				free(err);
 			} else {
-				a = pdu_reply(q, "OK", 0);
+				//a = pdu_reply(q, "OK", 0);
 			}
 			pdu_free(p);
 
@@ -167,21 +168,22 @@ void* listener(void *u)
 			pdu_t *p = pdu_recv(l->client);
 			if (strcmp(pdu_type(p), "ERROR") == 0) {
 				char *err = pdu_string(p, 1);
-				a = pdu_reply(q, "ERROR", 1, err);
+				//a = pdu_reply(q, "ERROR", 1, err);
 				free(err);
 			} else {
-				a = pdu_reply(q, "OK", 0);
+				//a = pdu_reply(q, "OK", 0);
 			}
 			pdu_free(p);
 
 		} else {
 			logger(LOG_WARNING, "listener received an invalid [%s] PDU, of %i frames",
 				pdu_type(q), pdu_size(q));
-			a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
+			//a = pdu_reply(q, "ERROR", 1, "Invalid PDU");
 		}
 
 		pdu_free(q);
-		pdu_send_and_free(a, l->listener);
+		//pdu_free(a);
+		//pdu_send_and_free(a, l->listener);
 	}
 
 	pthread_cleanup_pop(1);

@@ -191,6 +191,8 @@ static int send_pdu(void *z, pdu_t *pdu)
 		fprintf(stderr, "failed to send results to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
+
+#if 0
 	if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
 	pdu_t *a = pdu_recv(z);
 	if (!a) {
@@ -210,6 +212,7 @@ static int send_pdu(void *z, pdu_t *pdu)
 	}
 
 	pdu_free(a);
+#endif
 	return 0;
 }
 
@@ -360,10 +363,10 @@ int main(int argc, char **argv)
 		fprintf(stderr, "failed to initialize 0MQ context; aborting (results NOT submitted)\n");
 		return 3;
 	}
-	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ DEALER socket to talk to %s\n", OPTIONS.endpoint);
-	void *z = zmq_socket(zmq, ZMQ_DEALER);
+	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ PUSH socket to talk to %s\n", OPTIONS.endpoint);
+	void *z = zmq_socket(zmq, ZMQ_PUSH);
 	if (!z) {
-		fprintf(stderr, "failed to create a DEALER socket; aborting (results NOT submitted)\n");
+		fprintf(stderr, "failed to create a PUSH socket; aborting (results NOT submitted)\n");
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
