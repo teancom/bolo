@@ -43,7 +43,6 @@ static char *RRAs;
 static char* s_rradefs(const char *filename)
 {
 	char *s;
-	strings_t *rra = strings_new(NULL);
 	FILE *io = fopen(filename, "r");
 	if (!io)
 		return strdup("RRA:AVERAGE:0.5:1:14400"
@@ -53,6 +52,7 @@ static char* s_rradefs(const char *filename)
 		             " RRA:MIN:0.5:60:24"
 		             " RRA:MAX:0.5:60:24");
 
+	strings_t *rra = strings_new(NULL);
 	char buf[8192];
 	while (fgets(buf, 8192, io) != NULL) {
 		char *nl = strrchr(buf, '\n');
@@ -373,119 +373,128 @@ int main(int argc, char **argv)
 
 	pdu_t *p;
 	logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
-	while ((p = pdu_recv(z))) {
-		logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
 
-		if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4) {
-			char *ts    = pdu_string(p, 1);
-			char *name  = pdu_string(p, 2);
-			char *value = pdu_string(p, 3);
+	signal_handlers();
+	while (!signalled()) {
+		while ((p = pdu_recv(z))) {
+			logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
 
-			char *filename = s_rrd_filename(name, &fmap);
-			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-			free(filename);
+			if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4) {
+				char *ts    = pdu_string(p, 1);
+				char *name  = pdu_string(p, 2);
+				char *value = pdu_string(p, 3);
 
-			struct stat st;
-			if (stat(file, &st) != 0 && errno == ENOENT) {
-				if (s_counter_create(file) != 0) {
-					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-					continue;
+				char *filename = s_rrd_filename(name, &fmap);
+				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+				free(filename);
+
+				struct stat st;
+				if (stat(file, &st) != 0 && errno == ENOENT) {
+					if (s_counter_create(file) != 0) {
+						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
+						goto counter_next;
+					}
 				}
-			}
 
-			if (s_counter_update(file, ts, value) != 0) {
-				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-				continue;
-			}
-
-			logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, value);
-			free(ts);
-			free(name);
-			free(value);
-			free(file);
-
-		} else if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
-			char *ts    = pdu_string(p, 1);
-			char *name  = pdu_string(p, 2);
-			char *n     = pdu_string(p, 3);
-			char *min   = pdu_string(p, 4);
-			char *max   = pdu_string(p, 5);
-			char *sum   = pdu_string(p, 6);
-			char *mean  = pdu_string(p, 7);
-			char *var   = pdu_string(p, 8);
-
-			char *filename = s_rrd_filename(name, &fmap);
-			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-			free(filename);
-
-			struct stat st;
-			if (stat(file, &st) != 0 && errno == ENOENT) {
-				if (s_sample_create(file) != 0) {
-					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-					continue;
+				if (s_counter_update(file, ts, value) != 0) {
+					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
+					goto counter_next;
 				}
-			}
 
-			if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
-				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-				continue;
-			}
+				logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, value);
+	counter_next:
+				free(ts);
+				free(name);
+				free(value);
+				free(file);
 
-			logger(LOG_INFO, "updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
-				name, ts, n, min, max, sum, mean, var);
-			free(ts);
-			free(name);
-			free(n);
-			free(min);
-			free(max);
-			free(sum);
-			free(mean);
-			free(var);
-			free(file);
+			} else if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
+				char *ts    = pdu_string(p, 1);
+				char *name  = pdu_string(p, 2);
+				char *n     = pdu_string(p, 3);
+				char *min   = pdu_string(p, 4);
+				char *max   = pdu_string(p, 5);
+				char *sum   = pdu_string(p, 6);
+				char *mean  = pdu_string(p, 7);
+				char *var   = pdu_string(p, 8);
 
-		} else if (strcmp(pdu_type(p), "RATE") == 0 && pdu_size(p) == 5) {
-			char *ts    = pdu_string(p, 1);
-			char *name  = pdu_string(p, 2);
-			char *v     = pdu_string(p, 4);
+				char *filename = s_rrd_filename(name, &fmap);
+				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+				free(filename);
 
-			char *filename = s_rrd_filename(name, &fmap);
-			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-			free(filename);
-
-			struct stat st;
-			if (stat(file, &st) != 0 && errno == ENOENT) {
-				if (s_rate_create(file) != 0) {
-					logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-					continue;
+				struct stat st;
+				if (stat(file, &st) != 0 && errno == ENOENT) {
+					if (s_sample_create(file) != 0) {
+						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
+						goto sample_next;
+					}
 				}
+
+				if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
+					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
+					goto sample_next;
+				}
+
+				logger(LOG_INFO, "updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
+					name, ts, n, min, max, sum, mean, var);
+	sample_next:
+				free(ts);
+				free(name);
+				free(n);
+				free(min);
+				free(max);
+				free(sum);
+				free(mean);
+				free(var);
+				free(file);
+
+			} else if (strcmp(pdu_type(p), "RATE") == 0 && pdu_size(p) == 5) {
+				char *ts    = pdu_string(p, 1);
+				char *name  = pdu_string(p, 2);
+				char *v     = pdu_string(p, 4);
+
+				char *filename = s_rrd_filename(name, &fmap);
+				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+				free(filename);
+
+				struct stat st;
+				if (stat(file, &st) != 0 && errno == ENOENT) {
+					if (s_rate_create(file) != 0) {
+						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
+						goto rate_next;
+					}
+				}
+
+				if (s_rate_update(file, ts, v) != 0) {
+					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
+					goto rate_next;
+				}
+
+				logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, v);
+	rate_next:
+				free(ts);
+				free(name);
+				free(v);
+				free(file);
 			}
 
-			if (s_rate_update(file, ts, v) != 0) {
-				logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-				continue;
+			pdu_free(p);
+
+			if (OPTIONS.hashfile && time_s() >= flush_at) {
+				logger(LOG_INFO, "flushing file map to %s", OPTIONS.hashfile);
+				if (s_write_map(&fmap) != 0)
+					logger(LOG_ERR, "failed to open file map tempfile '%s' for writing: (%i) %s",
+						OPTIONS.hashtmp, errno, strerror(errno));
+
+				flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
 			}
 
-			logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, v);
-			free(ts);
-			free(name);
-			free(v);
-			free(file);
+			logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 		}
-
-		pdu_free(p);
-
-		if (OPTIONS.hashfile && time_s() >= flush_at) {
-			logger(LOG_INFO, "flushing file map to %s", OPTIONS.hashfile);
-			if (s_write_map(&fmap) != 0)
-				logger(LOG_ERR, "failed to open file map tempfile '%s' for writing: (%i) %s",
-					OPTIONS.hashtmp, errno, strerror(errno));
-
-			flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
-		}
-
-		logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 	}
 
 	logger(LOG_INFO, "shutting down");
+	vzmq_shutdown(z, 0);
+	zmq_ctx_destroy(zmq);
 	return 0;
 }
