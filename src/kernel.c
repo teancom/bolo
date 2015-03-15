@@ -1213,6 +1213,7 @@ void* kernel(void *u)
 	while ((q = pdu_recv(k->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "kernel received an empty PDU; ignoring");
+			pdu_free(q);
 			continue;
 		}
 
@@ -1289,6 +1290,7 @@ void* kernel(void *u)
 					logger(LOG_WARNING, "ignoring update for unknown counter %s, ts=%i, incr=%i", name, ts, incr);
 				}
 			}
+			free(name);
 
 		} else if (strcmp(pdu_type(q), "PUT.SAMPLE") == 0 && pdu_size(q) == 4) {
 			char *s;
@@ -1324,6 +1326,7 @@ void* kernel(void *u)
 					logger(LOG_WARNING, "ignoring update for unknown sample set %s, ts=%i, value=%e", name, ts, v);
 				}
 			}
+			free(name);
 
 		} else if (strcmp(pdu_type(q), "PUT.RATE") == 0 && pdu_size(q) == 4) {
 			char *s;
@@ -1361,6 +1364,7 @@ void* kernel(void *u)
 					logger(LOG_WARNING, "ignoring update for unknown rate set %s, ts=%i, value=%lu", name, ts, v);
 				}
 			}
+			free(name);
 
 		} else if (strcmp(pdu_type(q), "NEW.EVENT") == 0 && pdu_size(q) == 4) {
 			event_t *ev = vmalloc(sizeof(event_t));
@@ -1461,6 +1465,9 @@ void* kernel(void *u)
 					logger(LOG_INFO, "key '%s' matched m/%s/, adding to reply PDU", key, pattern);
 					pdu_extendf(a, "%s", key);
 				}
+
+				pcre_free_study(re_extra);
+				pcre_free(re);
 			}
 			free(pattern);
 
@@ -1505,6 +1512,7 @@ void* kernel(void *u)
 				sample_reset(sample);
 			}
 			a = pdu_reply(q, "OK", 0);
+			free(name);
 
 		} else {
 			logger(LOG_WARNING, "kernel received an invalid [%s] PDU, of %i frames",
@@ -1516,6 +1524,15 @@ void* kernel(void *u)
 		pdu_send_and_free(a, k->listener);
 		pdu_free(q);
 	}
+
+	/* clean up all buffered events */
+	event_t *ev, *ev_tmp;
+	for_each_object_safe(ev, ev_tmp, &k->server->db.events, l) {
+		free(ev->name);
+		free(ev->extra);
+		free(ev);
+	}
+	hash_done(&k->server->keys, 1);
 
 	pthread_cleanup_pop(1);
 	return NULL;

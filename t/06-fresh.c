@@ -89,7 +89,7 @@ TESTS {
 
 	/* initiate freshness sweep */
 	q = pdu_make("CHECKFRESH", 0);
-	is_int(pdu_send(q, z), 0, "asked kernel to check freshness");
+	is_int(pdu_send_and_free(q, z), 0, "asked kernel to check freshness");
 	CHECK(a = pdu_recv(z), "failed to get reply from kernel");
 	is_string(pdu_type(a), "OK", "got [OK] reply from kernel");
 	pdu_free(a);
@@ -127,6 +127,11 @@ TESTS {
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
-	zmq_close(sub);
-	zmq_close(z);
+
+	vzmq_shutdown(sub,   0);
+	vzmq_shutdown(z,   500);
+	zmq_ctx_destroy(svr.zmq);
+
+	alarm(0);
+	done_testing();
 }

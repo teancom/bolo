@@ -63,10 +63,17 @@ CTAP_TESTS += t/fail06-db
 
 CTAP_TESTS += t/vx-pdu
 
+SHELL_TESTS  =
+SHELL_TESTS += t/memcheck/00-units.t
+
 TEST_SRC  = $(CORE_SRC)
 TEST_SRC += t/test.h
 
-TESTS = $(CTAP_TESTS)
+TEST_EXTRAS  =
+TEST_EXTRAS += t/memcheck/verify
+TEST_EXTRAS += $(SHELL_TESTS)
+
+TESTS = $(CTAP_TESTS) $(SHELL_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
 t_00_config_SOURCES = $(TEST_SRC) t/00-config.c
 t_01_kernel_SOURCES = $(TEST_SRC) t/01-kernel.c

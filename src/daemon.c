@@ -130,12 +130,14 @@ int main(int argc, char **argv)
 	if (rc != 0) {
 		fprintf(stderr, "Failed to read configuration from %s\nAborting...\n",
 			OPTIONS.config_file);
+		deconfigure(&svr);
 		return 1;
 	}
 
 	svr.zmq = zmq_ctx_new();
 	if (!svr.zmq) {
 		fprintf(stderr, "Failed to initialize 0MQ\n");
+		deconfigure(&svr);
 		return 2;
 	}
 
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
 
 		if (daemonize(svr.config.pidfile, svr.config.runas_user, svr.config.runas_group) != 0) {
 			logger(LOG_CRIT, "daemonization failed!");
+			deconfigure(&svr);
 			return 2;
 		}
 	}
@@ -163,38 +166,45 @@ int main(int argc, char **argv)
 	rc = pthread_sigmask(SIG_BLOCK, &sigs, NULL);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to block signals: %s\nAborting...\n", strerror(errno));
+		deconfigure(&svr);
 		return 2;
 	}
 	rc = pthread_create(&tid_watcher, NULL, watcher, &sigs);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up watcher thread\nAborting...\n");
+		deconfigure(&svr);
 		return 2;
 	}
 
 	rc = pthread_create(&tid_db, NULL, kernel, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up database manager thread\nAborting...\n");
+		deconfigure(&svr);
 		return 2;
 	}
 	rc = pthread_create(&tid_sched, NULL, scheduler, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up scheduler thread\nAborting...\n");
+		deconfigure(&svr);
 		return 2;
 	}
 	rc = pthread_create(&tid_ctrl, NULL, controller, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up controller thread\nAborting...\n");
+		deconfigure(&svr);
 		return 2;
 	}
 	rc = pthread_create(&tid_lsnr, NULL, listener, &svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up listener thread\nAborting...\n");
+		deconfigure(&svr);
 		return 2;
 	}
 	if (svr.config.nsca_port > 0) {
 		rc = pthread_create(&tid_nsca, NULL, nsca_gateway, &svr);
 		if (rc != 0) {
 			fprintf(stderr, "Failed to start up NSCA gateway thread\nAborting...\n");
+			deconfigure(&svr);
 			return 2;
 		}
 	}

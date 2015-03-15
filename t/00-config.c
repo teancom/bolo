@@ -239,6 +239,8 @@ TESTS {
 		ok(!list_isempty(&svr.db.rate_matches), "have pattern matched rates");
 		re_rate_t *re_r = list_head(&svr.db.rate_matches, re_rate_t, l);
 		is_int(re_r->window->time, 60, "pattern match rate is a 60s calc");
+
+		deconfigure(&svr);
 	}
 
 	subtest { /* various configuration errors */
@@ -247,38 +249,47 @@ TESTS {
 		write_file("t/tmp/config.bad", "listener :type\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with bad listener directive");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "whatever works\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with unknown directive");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "state\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with bad state directive");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "literal\1\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with non-alpha directive");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "use :::lots:of:colons\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with malformed type name");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "type :x { foobar }\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with bad type definition");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "type :x { { { {\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with REALLY bad type definition");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "state :enoent x\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with missing type");
+		deconfigure(&svr);
 
 		write_file("t/tmp/config.bad", "use :enoent\nstate x\n", 0);
 		ok(configure("t/tmp/config.bad", &svr) != 0,
 			"should fail to read configuration file with missing (default) type");
+		deconfigure(&svr);
 	}
 
 	subtest { /* recoverable configuration errors */
@@ -332,5 +343,7 @@ TESTS {
 		t = hash_get(&svr.db.types, ":short");
 		isnt_null(t, "type :short created");
 		is(t->summary, "No results received for more than 42 seconds", ":short type has a default staleness summary");
+
+		deconfigure(&svr);
 	}
 }

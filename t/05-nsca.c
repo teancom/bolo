@@ -27,6 +27,7 @@ TESTS {
 	void *kernel;
 	pthread_t tid;
 	struct sockaddr_in sa;
+	char *s;
 
 	svr.config.nsca_port = 3232;
 	CHECK(svr.zmq = zmq_ctx_new(),
@@ -70,15 +71,17 @@ TESTS {
 		/* receive a PUT.STATE at the kernel */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.STATE", "NSCA gateway sent a PUT.STATE");
-		is(pdu_string(q, 1), "1419549963", "relayed event timestamp");
-		is(pdu_string(q, 2), "host.fq.dn:service_name",
-			"constructed state name from host and service");
-		is(pdu_string(q, 3), "1", "relayed status code");
-		is(pdu_string(q, 4), "WARNING: service is not that great",
-			"relayed summary mesage");
+		is(s = pdu_string(q, 1), "1419549963", "relayed event timestamp"); free(s);
+		is(s = pdu_string(q, 2), "host.fq.dn:service_name",
+			"constructed state name from host and service"); free(s);
+		is(s = pdu_string(q, 3), "1", "relayed status code"); free(s);
+		is(s = pdu_string(q, 4), "WARNING: service is not that great",
+			"relayed summary mesage"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 	/* short write */
 	/* v=1, ts=1419550502, status=0, crc32=440361285 */
@@ -124,13 +127,15 @@ TESTS {
 		/* receive a PUT.STATE at the kernel */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.STATE", "NSCA gateway sent a PUT.STATE");
-		is(pdu_string(q, 1), "1419550842",      "final:state timestamp");
-		is(pdu_string(q, 2), "final:state",     "final:state name");
-		is(pdu_string(q, 3), "0",               "final:state status");
-		is(pdu_string(q, 4), "thats all folks", "final:state summary");
+		is(s = pdu_string(q, 1), "1419550842",      "final:state timestamp"); free(s);
+		is(s = pdu_string(q, 2), "final:state",     "final:state name"); free(s);
+		is(s = pdu_string(q, 3), "0",               "final:state status"); free(s);
+		is(s = pdu_string(q, 4), "thats all folks", "final:state summary"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 	/* test perfdata processing */
 	/* v=1, ts=1419551063, status=0, crc32=496396109 */
@@ -152,45 +157,59 @@ TESTS {
 		/* receive a PUT.STATE at the kernel */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.STATE", "NSCA gateway sent a PUT.STATE");
-		is(pdu_string(q, 1), "1419551063", "perf:data timestamp");
-		is(pdu_string(q, 2), "perf:data",  "perf:data name");
-		is(pdu_string(q, 3), "0",          "perf:data status");
-		is(pdu_string(q, 4), "good",       "perf:data summary");
+		is(s = pdu_string(q, 1), "1419551063", "perf:data timestamp"); free(s);
+		is(s = pdu_string(q, 2), "perf:data",  "perf:data name"); free(s);
+		is(s = pdu_string(q, 3), "0",          "perf:data status"); free(s);
+		is(s = pdu_string(q, 4), "good",       "perf:data summary"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 		/* receive a PUT.SAMPLE at the kernel (perf1) */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.SAMPLE", "NSCA gateway sent a PUT.SAMPLE");
-		is(pdu_string(q, 1), "1419551063",       "perf:data:perf1 timestamp");
-		is(pdu_string(q, 2), "perf:data:perf1",  "perf:data:perf1 name");
-		is(pdu_string(q, 3), "42",               "perf:data:perf1 value");
+		is(s = pdu_string(q, 1), "1419551063",       "perf:data:perf1 timestamp"); free(s);
+		is(s = pdu_string(q, 2), "perf:data:perf1",  "perf:data:perf1 name"); free(s);
+		is(s = pdu_string(q, 3), "42",               "perf:data:perf1 value"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 		/* receive a PUT.SAMPLE at the kernel (perf2) */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.SAMPLE", "NSCA gateway sent a PUT.SAMPLE");
-		is(pdu_string(q, 1), "1419551063",       "perf:data:perf2 timestamp");
-		is(pdu_string(q, 2), "perf:data:perf2",  "perf:data:perf2 name");
-		is(pdu_string(q, 3), "43",               "perf:data:perf2 value");
+		is(s = pdu_string(q, 1), "1419551063",       "perf:data:perf2 timestamp"); free(s);
+		is(s = pdu_string(q, 2), "perf:data:perf2",  "perf:data:perf2 name"); free(s);
+		is(s = pdu_string(q, 3), "43",               "perf:data:perf2 value"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 		/* receive a PUT.SAMPLE at the kernel (perf4) */
 		q = pdu_recv(kernel);
 		is(pdu_type(q), "PUT.SAMPLE", "NSCA gateway sent a PUT.SAMPLE");
-		is(pdu_string(q, 1), "1419551063",       "perf:data:perf4 timestamp");
-		is(pdu_string(q, 2), "perf:data:perf4",  "perf:data:perf4 name");
-		is(pdu_string(q, 3), "0.123456789",      "perf:data:perf4 value");
+		is(s = pdu_string(q, 1), "1419551063",       "perf:data:perf4 timestamp"); free(s);
+		is(s = pdu_string(q, 2), "perf:data:perf4",  "perf:data:perf4 name"); free(s);
+		is(s = pdu_string(q, 3), "0.123456789",      "perf:data:perf4 value"); free(s);
 
 		a = pdu_reply(q, "OK", 0);
 		is_int(pdu_send(a, kernel), 0, "kernel sent [OK] reply");
+		pdu_free(q);
+		pdu_free(a);
 
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
+
+	//vzmq_shutdown(kernel, 0);
+	//zmq_ctx_destroy(svr.zmq);
+
+	alarm(0);
+	done_testing();
 }

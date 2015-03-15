@@ -78,6 +78,7 @@ void* listener(void *u)
 	while ((q = pdu_recv(l->listener)) != NULL) {
 		if (!pdu_type(q)) {
 			logger(LOG_ERR, "listener received an empty PDU; ignoring");
+			pdu_free(q);
 			continue;
 		}
 

@@ -67,6 +67,8 @@ typedef struct {
 
 typedef struct {
 	int32_t  time;
+
+	list_t   anon;
 } window_t;
 
 typedef struct {
@@ -164,6 +166,7 @@ typedef struct {
 
 	hash_t  types;
 	hash_t  windows;
+	list_t  anon_windows;
 } db_t;
 
 #define EVENTS_KEEP_NUMBER 0

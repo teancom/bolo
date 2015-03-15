@@ -269,6 +269,13 @@ int configure(const char *path, server_t *s)
 	list_init(&s->db.sample_matches);
 	list_init(&s->db.rate_matches);
 	list_init(&s->db.events);
+	list_init(&s->db.anon_windows);
+	memset(&s->db.states,   0, sizeof(hash_t));
+	memset(&s->db.counters, 0, sizeof(hash_t));
+	memset(&s->db.samples,  0, sizeof(hash_t));
+	memset(&s->db.rates,    0, sizeof(hash_t));
+	memset(&s->db.types,    0, sizeof(hash_t));
+	memset(&s->db.windows,  0, sizeof(hash_t));
 
 	parser_t p;
 	memset(&p, 0, sizeof(p));
@@ -465,6 +472,7 @@ int configure(const char *path, server_t *s)
 				/* anonymous window */
 				win = calloc(1, sizeof(window_t));
 				win->time = atoi(p.value);
+				list_push(&s->db.anon_windows, &win->anon);
 				NEXT;
 
 			} else if (default_win) {
@@ -519,6 +527,7 @@ int configure(const char *path, server_t *s)
 				/* anonymous window */
 				win = calloc(1, sizeof(window_t));
 				win->time = atoi(p.value);
+				list_push(&s->db.anon_windows, &win->anon);
 				NEXT;
 
 			} else if (default_win) {
@@ -573,6 +582,7 @@ int configure(const char *path, server_t *s)
 				/* anonymous window */
 				win = calloc(1, sizeof(window_t));
 				win->time = atoi(p.value);
+				list_push(&s->db.anon_windows, &win->anon);
 				NEXT;
 
 			} else if (default_win) {
@@ -625,11 +635,13 @@ int configure(const char *path, server_t *s)
 	if (!feof(p.io))
 		goto bail;
 
+	free(default_win);
 	free(default_type);
 	fclose(p.io);
 	return 0;
 
 bail:
+	free(default_win);
 	free(default_type);
 	fclose(p.io);
 	return 1;
@@ -647,12 +659,70 @@ int deconfigure(server_t *s)
 	}
 	hash_done(&s->db.states, 0);
 
+	sample_t *sample;
+	for_each_key_value(&s->db.samples, name, sample) {
+		free(sample->name);
+		free(sample);
+	}
+	hash_done(&s->db.samples, 0);
+
+	counter_t *counter;
+	for_each_key_value(&s->db.counters, name, counter) {
+		free(counter->name);
+		free(counter);
+	}
+	hash_done(&s->db.counters, 0);
+
+	rate_t *rate;
+	for_each_key_value(&s->db.rates, name, rate) {
+		free(rate->name);
+		free(rate);
+	}
+	hash_done(&s->db.rates, 0);
+
 	type_t *type;
 	for_each_key_value(&s->db.types, name, type) {
 		free(type->summary);
 		free(type);
 	}
 	hash_done(&s->db.types, 0);
+
+	window_t *window, *wtmp;
+	for_each_object_safe(window, wtmp, &s->db.anon_windows, anon) {
+		free(window);
+	}
+	for_each_key_value(&s->db.windows, name, window) {
+		free(window);
+	}
+	hash_done(&s->db.windows, 0);
+
+	re_rate_t *rrate, *rrate_tmp;
+	for_each_object_safe(rrate, rrate_tmp, &s->db.rate_matches, l) {
+		pcre_free_study(rrate->re_extra);
+		pcre_free(rrate->re);
+		free(rrate);
+	}
+
+	re_state_t *rstate, *rstate_tmp;
+	for_each_object_safe(rstate, rstate_tmp, &s->db.state_matches, l) {
+		pcre_free_study(rstate->re_extra);
+		pcre_free(rstate->re);
+		free(rstate);
+	}
+
+	re_sample_t *rsample, *rsample_tmp;
+	for_each_object_safe(rsample, rsample_tmp, &s->db.sample_matches, l) {
+		pcre_free_study(rsample->re_extra);
+		pcre_free(rsample->re);
+		free(rsample);
+	}
+
+	re_counter_t *rcounter, *rcounter_tmp;
+	for_each_object_safe(rcounter, rcounter_tmp, &s->db.counter_matches, l) {
+		pcre_free_study(rcounter->re_extra);
+		pcre_free(rcounter->re);
+		free(rcounter);
+	}
 
 	free(s->config.listener);     s->config.listener     = NULL;
 	free(s->config.controller);   s->config.controller   = NULL;

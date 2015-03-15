@@ -646,6 +646,13 @@ TESTS {
 	pdu_free(p);
 
 	/* ----------------------------- */
+	free(ts);
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
+
+	deconfigure(&svr);
+
+	vzmq_shutdown(client, 0);
+	vzmq_shutdown(sub,  500);
+	zmq_ctx_destroy(svr.zmq);
 }

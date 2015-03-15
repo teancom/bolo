@@ -143,18 +143,19 @@ TESTS {
 
 
 	/* send a GET.EVENTS PDU */
-	ok(pdu_send_and_free(pdu_make("GET.EVENTS", 1, "0"), z) == 0,
+	ok(pdu_send_and_free(pdu_make("GET.EVENTS", 1, "32"), z) == 0,
 		"sent [GET.EVENTS] to listener");
 
 		/* go be the kernel */
 		q = pdu_recv(kernel);
 		isnt_null(q, "received a packet as the kernel");
+		is_int(pdu_size(q), 3, "GET.EVENTS packet is 3 frames long");
 		is(pdu_type(q), "GET.EVENTS", "packet is a [GET.EVENTS] packet");
 		isnt_null(s = pdu_string(p, 1), "GET.EVENTS[0] is not null");
-		ok(strlen(s) >= 4, "GET.EVENTS[1] is at least 4 characters long");
+		ok(s && strlen(s) >= 4, "GET.EVENTS[0] is at least 4 characters long");
 		free(s);
 
-		is_string(s = pdu_string(p, 2), "0", "GET.EVENTS[1] is timestamp");
+		is_string(s = pdu_string(p, 2), "32", "GET.EVENTS[1] is timestamp");
 		free(s);
 
 		write_file("t/tmp/file.name", "X\n", 2);
@@ -175,7 +176,10 @@ TESTS {
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
-	zmq_close(z);
+
+	vzmq_shutdown(z,        0);
+	vzmq_shutdown(kernel, 500);
+	zmq_ctx_destroy(svr.zmq);
 
 	alarm(0);
 	done_testing();

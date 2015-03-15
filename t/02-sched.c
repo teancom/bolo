@@ -78,5 +78,7 @@ TESTS {
 	/* ----------------------------- */
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
-	zmq_close(z);
+
+	vzmq_shutdown(z, 0);
+	zmq_ctx_destroy(svr.zmq);
 }

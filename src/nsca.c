@@ -97,14 +97,16 @@ static void update_kernel(void *kernel, client_t *c)
 	pdu_extendf(q, "%s:%s", c->packet.host, c->packet.service);
 	pdu_extendf(q, "%u", ntohs(c->packet.status) & 0xff);
 	pdu_extendf(q, "%s", c->packet.output);
-	pdu_send(q, kernel);
+	pdu_send_and_free(q, kernel);
 
 	a = pdu_recv(kernel);
 	if (strcmp(pdu_type(a), "OK") != 0) {
 		logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.STATE) from the kernel: %s",
 		s = pdu_string(a, 1)); free(s);
+		pdu_free(a);
 		return;
 	}
+	pdu_free(a);
 
 	while (p && *p) {
 		char *k, *v;
@@ -115,14 +117,16 @@ static void update_kernel(void *kernel, client_t *c)
 		pdu_extendf(q, "%u", ntohl(c->packet.timestamp));
 		pdu_extendf(q, "%s:%s:%s", c->packet.host, c->packet.service, k);
 		pdu_extendf(q, "%s", v);
-		pdu_send(q, kernel);
+		pdu_send_and_free(q, kernel);
 
 		a = pdu_recv(kernel);
 		if (strcmp(pdu_type(a), "OK") != 0) {
 			logger(LOG_ERR, "NSCA gateway received an ERROR (in response to an PUT.SAMPLE) from the kernel: %s",
 				s = pdu_string(a, 1)); free(s);
+			pdu_free(a);
 			return;
 		}
+		pdu_free(a);
 
 		while (*p && !isspace(*p)) p++;
 		while (*p &&  isspace(*p)) p++;
@@ -267,10 +271,12 @@ void* nsca_gateway(void *u)
 				} else {
 					client_free(cache_unset(clients, id));
 				}
+				free(id);
 			}
 		}
 	}
 
 	logger(LOG_INFO, "NSCA gateway thread shutting down");
+	cache_free(clients);
 	return NULL;
 }
