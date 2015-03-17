@@ -210,33 +210,33 @@
 
      ---------------------------------------------------------------------------
 
-     STATE                 OK                ; set the code / status / summary
+     STATE                                   ; set the code / status / summary
      <NAME>                                  ; of a state.  yields a PUT.STATE
      <NUMERIC-CODE>                          ; to the kernel
      <SUMMARY>
 
      ---------------------------------------------------------------------------
 
-     COUNTER               OK                ; increment a counter
+     COUNTER                                 ; increment a counter
      <NAME>                                  ; yields a PUT.COUNTER to the kernel
      <INCREMENT>
 
      ---------------------------------------------------------------------------
 
-     SAMPLE                OK                ; update a sample set with a new
+     SAMPLE                                  ; update a sample set with a new
      <NAME>                                  ; sample, recalculating
      <VALUE>                                 ; min/max/mean/variance as necessary
                                              ; yields a PUT.SAMPLE to the kernel
 
      ---------------------------------------------------------------------------
 
-     RATE                  OK                ; update a sample set with a new
+     RATE                                    ; update a sample set with a new
      <NAME>                                  ; rate-calculation (for absolute
      <VALUE>                                 ; values like %user jiffies)
 
      ---------------------------------------------------------------------------
 
-     SET.KEYS              OK                ; set new keys in the config hash.
+     SET.KEYS                                ; set new keys in the config hash.
      <KEY 1>                                 ; semantics of the keys are entirely
      <VALUE 1>                               ; left up to the discretion of the
      ...                                     ; site administrator.
@@ -245,14 +245,14 @@
 
      ---------------------------------------------------------------------------
 
-     DEL.KEYS              OK                ; delete keys from the config hash.
+     DEL.KEYS                                ; delete keys from the config hash.
      <KEY 1>
      ...
      <KEY N>
 
      ---------------------------------------------------------------------------
 
-     EVENT                 OK                ; submit a new event to bolo.
+     EVENT                                   ; submit a new event to bolo.
      <TS>
      <NAME>
      <EXTRA>

@@ -47,7 +47,7 @@ TESTS {
 
 	/* ----------------------------- */
 
-	pdu_t *q, *a;
+	pdu_t *q;
 
 	/* send a STATE update */
 	ok(pdu_send_and_free(pdu_make("STATE", 4,
@@ -70,15 +70,6 @@ TESTS {
 			"failed to send OK reply to our [PUT.STATE]");
 		pdu_free(q);
 
-		/* go be the client */
-#if 0
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %x >>", x); free(x);
-		pdu_free(a);
-#endif
-
 	/* send a COUNTER update */
 	ok(pdu_send_and_free(pdu_make("COUNTER", 3,
 			"12345",                      /* timestamp */
@@ -98,15 +89,6 @@ TESTS {
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
 
-#if 0
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
-		pdu_free(a);
-#endif
-
 	/* send a COUNTER update without explicit increment */
 	ok(pdu_send_and_free(pdu_make("COUNTER", 2,
 			"12345",                      /* timestamp */
@@ -124,15 +106,6 @@ TESTS {
 		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
 			"failed to send OK reply to our [PUT.COUNTER]");
 		pdu_free(q);
-
-#if 0
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
-		pdu_free(a);
-#endif
 
 	/* send a SAMPLE update */
 	ok(pdu_send_and_free(pdu_make("SAMPLE", 3,
@@ -153,15 +126,6 @@ TESTS {
 			"failed to send OK reply to our [PUT.SAMPLE]");
 		pdu_free(q);
 
-#if 0
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
-		pdu_free(a);
-#endif
-
 	/* send a RATE value */
 	ok(pdu_send_and_free(pdu_make("RATE", 3,
 			"12345",          /* timestamp */
@@ -181,15 +145,6 @@ TESTS {
 			"failed to send OK reply to our [PUT.RATE]");
 		pdu_free(q);
 
-#if 0
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
-		pdu_free(a);
-#endif
-
 	/* send an EVENT */
 	ok(pdu_send_and_free(pdu_make("EVENT", 3,
 			"11223344",
@@ -208,25 +163,6 @@ TESTS {
 		CHECK(pdu_send_and_free(pdu_reply(q, "OK", 0), kernel) == 0,
 			"failed to send OK reply to our [NEW.EVENT]");
 		pdu_free(q);
-
-#if 0
-		/* go be the client */
-		a = pdu_recv(z);
-		isnt_null(a, "received a reply from the listener");
-		is_string(pdu_type(a), "OK", "listener replied [OK]");
-		x = pdu_string(a, 1); if (x) diag("<< %s >>", x); free(x);
-		pdu_free(a);
-#endif
-
-#if 0
-	/* try a bad PDU */
-	ok(pdu_send_and_free(pdu_make("ZORK", 0), z) == 0, "sent [ZORK] to listener");
-	a = pdu_recv(z);
-	isnt_null(a, "received a reply from the listener");
-	is_string(pdu_type(a), "ERROR", "listener replied [ERROR]");
-	is_string(x = pdu_string(a, 1), "Invalid PDU", "Error message from listener"); free(x);
-	pdu_free(a);
-#endif
 
 	/* ----------------------------- */
 	pthread_cancel(tid);

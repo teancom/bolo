@@ -191,28 +191,6 @@ static int send_pdu(void *z, pdu_t *pdu)
 		fprintf(stderr, "failed to send results to %s\n", OPTIONS.endpoint);
 		return 3;
 	}
-
-#if 0
-	if (DEBUG) fprintf(stderr, "+>> awaiting response PDU...\n");
-	pdu_t *a = pdu_recv(z);
-	if (!a) {
-		fprintf(stderr, "no response received from %s, assume the worst.\n", OPTIONS.endpoint);
-		return 4;
-	}
-	if (DEBUG) fprintf(stderr, "+>> received a [%s] PDU in response\n", pdu_type(a));
-	if (strcmp(pdu_type(a), "ERROR") == 0) {
-		fprintf(stderr, "error: %s\n", pdu_string(a, 1));
-		pdu_free(a);
-		return 4;
-	}
-	if (strcmp(pdu_type(a), "OK") != 0) {
-		fprintf(stderr, "unknown response [%s] from %s\n", pdu_type(a), OPTIONS.endpoint);
-		pdu_free(a);
-		return 4;
-	}
-
-	pdu_free(a);
-#endif
 	return 0;
 }
 
