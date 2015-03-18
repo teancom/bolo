@@ -205,6 +205,63 @@ typedef struct {
 	} interval;
 } server_t;
 
+#define RECORD_TYPE_MASK  0x000f
+#define RECORD_TYPE_STATE    0x1
+#define RECORD_TYPE_COUNTER  0x2
+#define RECORD_TYPE_SAMPLE   0x3
+#define RECORD_TYPE_EVENT    0x4
+#define RECORD_TYPE_RATE     0x5
+
+typedef struct PACKED {
+	uint32_t  magic;
+	uint16_t  version;
+	uint16_t  flags;
+	uint32_t  timestamp;
+	uint32_t  count;
+} binf_header_t;
+
+typedef struct PACKED {
+	uint16_t  len;
+	uint16_t  flags;
+} binf_record_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	 uint8_t  status;
+	 uint8_t  stale;
+} binf_state_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  value;
+} binf_counter_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  n;
+	double    min;
+	double    max;
+	double    sum;
+	double    mean;
+	double    mean_;
+	double    var;
+	double    var_;
+} binf_sample_t;
+
+typedef struct PACKED {
+	uint32_t first_seen;
+	uint32_t last_seen;
+	uint64_t first;
+	uint64_t last;
+} binf_rate_t;
+
+typedef struct PACKED {
+	uint32_t  timestamp;
+} binf_event_t;
+
+int binf_write(db_t *db, const char *file);
+int binf_read(db_t *db, const char *file);
+
 int configure(const char *path, server_t *s);
 int deconfigure(server_t *s);
 
@@ -216,6 +273,11 @@ void counter_reset(counter_t *counter);
 void rate_reset(rate_t *r);
 int rate_data(rate_t *r, uint64_t v);
 double rate_calc(rate_t *r, int32_t span);
+
+state_t*   find_state(  db_t*, const char *name);
+counter_t* find_counter(db_t*, const char *name);
+sample_t*  find_sample( db_t*, const char *name);
+rate_t*    find_rate(   db_t*, const char *name);
 
 /* threads */
 void* listener(void *u);

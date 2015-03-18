@@ -86,3 +86,88 @@ double rate_calc(rate_t *r, int32_t span)
 	}
 	return diff * 1.0 / (r->last_seen - r->first_seen) * span;
 }
+
+state_t *find_state(db_t *db, const char *name)
+{
+	state_t *x = hash_get(&db->states, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_state_t *re;
+	for_each_object(re, &db->state_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(state_t));
+			hash_set(&db->states, name, x);
+			x->name    = strdup(name);
+			x->type    = re->type;
+			x->status  = PENDING;
+			x->expiry  = re->type->freshness + time_s();
+			x->summary = strdup("(state is pending results)");
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
+counter_t *find_counter(db_t *db, const char *name)
+{
+	counter_t *x = hash_get(&db->counters, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_counter_t *re;
+	for_each_object(re, &db->counter_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(counter_t));
+			hash_set(&db->counters, name, x);
+			x->name    = strdup(name);
+			x->window  = re->window;
+			x->value   = 0;
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
+sample_t *find_sample(db_t *db, const char *name)
+{
+	sample_t *x = hash_get(&db->samples, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_counter_t *re;
+	for_each_object(re, &db->sample_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(sample_t));
+			hash_set(&db->samples, name, x);
+			x->name    = strdup(name);
+			x->window  = re->window;
+			x->n       = 0;
+			return x;
+		}
+	}
+
+	return NULL;
+}
+
+rate_t *find_rate(db_t *db, const char *name)
+{
+	rate_t *x = hash_get(&db->rates, name);
+	if (x) return x;
+
+	/* check the regex rules */
+	re_rate_t *re;
+	for_each_object(re, &db->rate_matches, l) {
+		if (pcre_exec(re->re, re->re_extra, name, strlen(name), 0, 0, NULL, 0) == 0) {
+			x = calloc(1, sizeof(rate_t));
+			hash_set(&db->rates, name, x);
+			x->name   = strdup(name);
+			x->window = re->window;
+			return x;
+		}
+	}
+
+	return NULL;
+}

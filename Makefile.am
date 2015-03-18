@@ -21,6 +21,7 @@ CORE_SRC += src/controller.c
 CORE_SRC += src/config.c
 CORE_SRC += src/data.c
 CORE_SRC += src/util.c
+CORE_SRC += src/binf.c
 
 EXTRA_DIST += README.md
 EXTRA_DIST += PROTO
