@@ -35,10 +35,11 @@ sbin_PROGRAMS = bolo bolo2rrd
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 bolo2rrd_SOURCES  = $(CORE_SRC) src/rrd.c
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
+bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/00-config

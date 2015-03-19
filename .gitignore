@@ -38,6 +38,7 @@ bolo2rrd
 bolo_nsca
 send_bolo
 stat_bolo
+bolospy
 
 t/tmp
 t/00-config
