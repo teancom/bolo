@@ -18,9 +18,9 @@ To compile the software, use the standard incantation:
     $ sudo make install
 
 This will compile and install all of the bolo components in
-standard systems places.  bolo requires libzmq3, pthreads and
-[libvigor][libvigor] to run.  It uses [ctap][ctap] to run
-automated tests (which are, again, highly recommended).
+standard systems places.  bolo requires libzmq3, pthreads, librrd,
+libpcre3 and [libvigor][libvigor] to run.  It uses [ctap][ctap] to
+run automated tests (which are, again, highly recommended).
 
 A Minimal System
 ----------------
@@ -44,10 +44,10 @@ which requires a configuration file, usually **/etc/bolo.conf**.
       freshness 60
       critical "no result from monitored thing"
     }
-    state :generic m/./;
+    state :generic m/./
 
     window @minutely 60
-    use @minutely;
+    use @minutely
     sample  m/./
     counter m/./
     rate    m/./
@@ -57,7 +57,14 @@ metrics to be collected at at least a 1-minute resolution, and
 aggregate at the per-minute mark.  Check **bolo.conf(5)** for
 details and more advanced usage.
 
-With this configuration in place, start up the bolo daemon:
+You'll have to create the bolo user (or adjust how you launch the
+bolo daemon):
+
+    $ sudo useradd -rUd /var/lib/bolo -s /sbin/nologin bolo
+    $ sudo mkdir /var/lib/bolo
+    $ sudo chown -R bolo:bolo /var/lib/bolo
+
+With this in place, start up the bolo daemon:
 
     $ sudo bolo
 
@@ -95,7 +102,7 @@ summaries out to connected subscribers.  One such subscriber is
 **bolo2rrd**, which listens for samples, counters and rate data
 and creates / updates RRD files on disk.
 
-    $ mkdir /srv/rrd
+    $ sudo mkdir /srv/rrd
     $ sudo bolo2rrd -r /srv/rrd -e tcp://localhost:2997
 
 bolo2rrd daemonizes into the background.
