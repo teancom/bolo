@@ -45,6 +45,7 @@
 #define PENDING  4
 
 #define DEFAULT_CONFIG_FILE "/etc/bolo.conf"
+#define DEFAULT_AGENT_FILE  "/etc/dbolo.conf"
 
 #define DEFAULT_LISTENER     "tcp://*:2999"
 #define DEFAULT_CONTROLLER   "tcp://127.0.0.1:2998"

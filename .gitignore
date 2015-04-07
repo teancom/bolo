@@ -34,6 +34,7 @@ local
 .commit
 
 bolo
+dbolo
 bolo2rrd
 bolo_nsca
 send_bolo
