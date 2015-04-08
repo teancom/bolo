@@ -280,6 +280,14 @@ counter_t* find_counter(db_t*, const char *name);
 sample_t*  find_sample( db_t*, const char *name);
 rate_t*    find_rate(   db_t*, const char *name);
 
+pdu_t *make_state_pdu  (int argc, char **argv, const char *ts);
+pdu_t *make_counter_pdu(int argc, char **argv, const char *ts);
+pdu_t *make_sample_pdu (int argc, char **argv, const char *ts);
+pdu_t *make_rate_pdu   (int argc, char **argv, const char *ts);
+pdu_t *make_setkeys_pdu(int argc, char **argv);
+pdu_t *make_event_pdu  (int argc, char **argv, const char *ts);
+pdu_t *stream_pdu(const char *line);
+
 /* threads */
 void* listener(void *u);
 void* nsca_gateway(void *u);

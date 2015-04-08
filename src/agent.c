@@ -138,9 +138,19 @@ static int s_parse(list_t *list, const char *file)
 	return 0;
 }
 
-static void s_send(void *z, const char *line)
+static void s_send(void *zmq, const char *endpoint, const char *line)
 {
-	fprintf(stderr, "SEND(%s)\n", line);
+	pdu_t *pdu = stream_pdu(line);
+	if (!pdu) return;
+
+	void *z = zmq_socket(zmq, ZMQ_PUSH);
+	if (!z) return;
+
+	int rc = zmq_connect(z, endpoint);
+	if (rc != 0) return;
+
+	pdu_send_and_free(pdu, z);
+	zmq_close(z);
 }
 
 int main(int argc, char **argv)
@@ -280,7 +290,7 @@ int main(int argc, char **argv)
 					char *nl = strchr(cmd->buffer, '\n');
 					if (nl) {
 						*nl++ = '\0';
-						s_send(NULL, cmd->buffer);
+						s_send(zmq, OPTIONS.endpoint, cmd->buffer);
 						memmove(cmd->buffer, nl, 8192 - (nl - cmd->buffer));
 						cmd->nread -= (nl - cmd->buffer);
 					}
