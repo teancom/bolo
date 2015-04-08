@@ -89,9 +89,20 @@ piped directly into **send_bolo**:
 
     $ /path/to/collector | send_bolo -e tcp://localhost:2999
 
-You'll probably want to run your collectors out of cron, or use
-something like [tinybolo][tinybolo] or [bmad][bmad] to schedule
-and run them regularly.
+With collectors installed, you can also run **dbolo**, the
+distributed bolo agent.  Create the _/etc/dbolo.conf_
+configuration file:
+
+    # /etc/dbolo.conf
+    @10s /usr/lib/bolo/collectors/linux
+    @1h  /usr/lib/bolo/collectors/hostinfo
+
+And then launch dbolo as a standalone daemon:
+
+    $ sudo dbolo
+
+Now you've got a small agent process running and submitting
+Linux-y performance data every 10s, and host metadata every hour.
 
 Using the Data
 --------------
@@ -135,5 +146,3 @@ images via cron and serve them up statically.
 [ctap]:       https://github.com/filefrog/ctap
 [libvigor]:   https://github.com/filefrog/libvigor
 [collectors]: https://github.com/filefrog/bolo-collectors
-[tinybolo]:   https://github.com/filefrog/tinybolo
-[bmad]:       https://github.com/geofffranks/bmad
