@@ -211,6 +211,7 @@ int main(int argc, char **argv)
 	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2997");
 	OPTIONS.commands  = strdup(DEFAULT_AGENT_FILE);
 	OPTIONS.daemonize = 1;
+	OPTIONS.pidfile   = strdup("/var/run/dbolo.pid");
 	OPTIONS.user      = strdup("root");
 	OPTIONS.group     = strdup("root");
 
