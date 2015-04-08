@@ -208,7 +208,7 @@ static void s_sink(socket_t *sock, command_t *cmd)
 int main(int argc, char **argv)
 {
 	OPTIONS.verbose   = 0;
-	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2997");
+	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2999");
 	OPTIONS.commands  = strdup(DEFAULT_AGENT_FILE);
 	OPTIONS.daemonize = 1;
 	OPTIONS.pidfile   = strdup("/var/run/dbolo.pid");
