@@ -24,8 +24,9 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define BOLO_EPOLL_MAXFD 8192
-#define AGENT_TICK_MS 100
+#define BOLO_EPOLL_MAXFD         8192
+#define AGENT_TICK_MS              50
+#define AGENT_SOCKET_LIFETIME_MS 7000
 
 static struct {
 	char *endpoint;
@@ -40,6 +41,15 @@ static struct {
 } OPTIONS = { 0 };
 
 typedef struct {
+	void    *zmq;
+	void    *zocket;
+	char    *endpoint;
+
+	int      lifetime;
+	int64_t  expires;
+} socket_t;
+
+typedef struct {
 	list_t     l;
 	int        interval;
 	char      *exec;
@@ -51,6 +61,35 @@ typedef struct {
 	size_t     nread;
 	char       buffer[8192];
 } command_t;
+
+static socket_t* s_socket(void *zmq, const char *endpoint, int lifetime)
+{
+	socket_t *s = vmalloc(sizeof(socket_t));
+	s->zmq      = zmq;
+	s->zocket   = NULL;
+	s->endpoint = strdup(endpoint);
+	s->lifetime = lifetime;
+	s->expires  = 0; /* already expired */
+	return s;
+}
+
+static int s_reconnect(socket_t *s)
+{
+	int64_t now = time_ms();
+	if (s->expires > now)
+		return 0;
+
+	if (s->zocket)
+		zmq_close(s->zocket);
+
+	if (s->expires)
+		logger(LOG_INFO, "connection expired; reconnecting to %s", s->endpoint);
+
+	s->zocket = zmq_socket(s->zmq, ZMQ_PUSH);
+	zmq_connect(s->zocket, s->endpoint);
+	s->expires = now + s->lifetime;
+	return 0;
+}
 
 static int s_parse(list_t *list, const char *file)
 {
@@ -138,19 +177,32 @@ static int s_parse(list_t *list, const char *file)
 	return 0;
 }
 
-static void s_send(void *zmq, const char *endpoint, const char *line)
+static void s_sink(socket_t *sock, command_t *cmd)
 {
-	pdu_t *pdu = stream_pdu(line);
-	if (!pdu) return;
+	ssize_t nread;
+	while ((nread = read(cmd->fd, cmd->buffer + cmd->nread, 8191 - cmd->nread)) > 0) {
+		logger(LOG_INFO, "read %i bytes", nread);
+		cmd->nread += nread;
+		cmd->buffer[cmd->nread] = '\0';
 
-	void *z = zmq_socket(zmq, ZMQ_PUSH);
-	if (!z) return;
+		for (;;) {
+			char *nl = strchr(cmd->buffer, '\n');
+			if (!nl) break;
 
-	int rc = zmq_connect(z, endpoint);
-	if (rc != 0) return;
+			*nl++ = '\0';
+			pdu_t *pdu = stream_pdu(cmd->buffer);
+			if (!pdu) return;
 
-	pdu_send_and_free(pdu, z);
-	zmq_close(z);
+			logger(LOG_INFO, "sending [%s] to %s", cmd->buffer, sock->endpoint);
+			pdu_send_and_free(pdu, sock->zocket);
+
+			memmove(cmd->buffer, nl, 8192 - (nl - cmd->buffer));
+			cmd->nread -= (nl - cmd->buffer);
+		}
+	}
+	if (nread == -1 && errno != EAGAIN) {
+		logger(LOG_WARNING, "read failed [child %i]: %s", cmd->pid, strerror(errno));
+	}
 }
 
 int main(int argc, char **argv)
@@ -240,6 +292,8 @@ int main(int argc, char **argv)
 	} else {
 		log_open("dbolo", "console");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
+		if (!freopen("/dev/null", "r", stdin))
+			logger(LOG_WARNING, "failed to reopen stdin </dev/null: %s", strerror(errno));
 	}
 	logger(LOG_NOTICE, "starting up");
 
@@ -249,6 +303,7 @@ int main(int argc, char **argv)
 		logger(LOG_ERR, "failed to initialize 0MQ context");
 		return 3;
 	}
+	socket_t *sock = s_socket(zmq, OPTIONS.endpoint, AGENT_SOCKET_LIFETIME_MS);
 
 	LIST(COMMANDS);
 	if (s_parse(&COMMANDS, OPTIONS.commands) != 0)
@@ -261,6 +316,7 @@ int main(int argc, char **argv)
 	}
 
 	struct epoll_event ev, events[BOLO_EPOLL_MAXFD];
+	memset(&ev, 0, sizeof(ev));
 	for (;;) {
 		int i, n;
 		n = epoll_wait(epfd, events, BOLO_EPOLL_MAXFD, AGENT_TICK_MS);
@@ -272,6 +328,7 @@ int main(int argc, char **argv)
 		pid_t pid;
 		int status;
 
+		s_reconnect(sock);
 		for (i = 0; i < n; i++) {
 			if (events[i].events & EPOLLIN) {
 				for_each_object(cmd, &COMMANDS, l) {
@@ -279,21 +336,8 @@ int main(int argc, char **argv)
 						continue;
 
 					logger(LOG_INFO, "checking child %u (fd=%x)", cmd->pid, cmd->fd);
-					size_t nread;
-					if ((nread = read(cmd->fd, cmd->buffer + cmd->nread, 8192 - cmd->nread)) < 0) {
-						logger(LOG_WARNING, "read failed [child %i]: %s", cmd->pid, strerror(errno));
-						continue;
-					}
-					logger(LOG_INFO, "read %i bytes", nread);
-					cmd->nread += nread;
-
-					char *nl = strchr(cmd->buffer, '\n');
-					if (nl) {
-						*nl++ = '\0';
-						s_send(zmq, OPTIONS.endpoint, cmd->buffer);
-						memmove(cmd->buffer, nl, 8192 - (nl - cmd->buffer));
-						cmd->nread -= (nl - cmd->buffer);
-					}
+					s_sink(sock, cmd);
+					break;
 				}
 			}
 		}
@@ -301,6 +345,9 @@ int main(int argc, char **argv)
 		for_each_object(cmd, &COMMANDS, l) {
 			if (cmd->pid > 0 && (pid = waitpid(cmd->pid, &status, WNOHANG)) == cmd->pid) {
 				logger(LOG_INFO, "child %i exited %02x, next run at %lu", cmd->pid, status, cmd->next_run);
+
+				epoll_ctl(epfd, EPOLL_CTL_DEL, cmd->fd, &ev);
+				s_sink(sock, cmd);
 
 				close(cmd->fd);
 				cmd->pid = -1;
@@ -316,7 +363,6 @@ int main(int argc, char **argv)
 				pid = fork();
 				if (pid == 0) {
 					dup2(pfd[1], 1);
-					printf("CANARY\n");
 					close(pfd[0]); /* stdin */
 					execl("/bin/sh", "sh", "-c", cmd->exec, NULL);
 					return 99;
@@ -324,6 +370,9 @@ int main(int argc, char **argv)
 
 				close(pfd[1]); /* 'stdout' */
 				cmd->fd = pfd[0];
+
+				int fl = fcntl(cmd->fd, F_GETFL);
+				fcntl(cmd->fd, F_SETFL, fl|O_NONBLOCK);
 
 				ev.data.fd = cmd->fd;
 				ev.events = EPOLLIN | EPOLLET;
