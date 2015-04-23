@@ -155,17 +155,19 @@
      ---------------------------------------------------------------------------
 
      STATE                                    ; broadcast in response to *every*
-     <TS>                                     ; [PUT.STATE] PDU, to inform subs
-     <NAME>                                   ; of an update to state (even if the
-     <CODE>                                   ; status didn't change materially).
+     <NAME>                                   ; [PUT.STATE] PDU, to inform subs
+     <TS>                                     ; of an update to state (even if the
+     <STALE>                                  ; status didn't change materially).
+     <CODE>
      <SUMMARY>
 
      ---------------------------------------------------------------------------
 
      TRANSITION                               ; like [STATE], except the state is
-     <TS>                                     ; only broadcast when the status
-     <NAME>                                   ; changes significantly (i.e. from
-     <CODE>                                   ; OK to WARNING, or CRITICAL to OK)
+     <NAME>                                   ; only broadcast when the status
+     <TS>                                     ; changes significantly (i.e. from
+     <STALE>                                  ; OK to WARNING, or CRITICAL to OK)
+     <CODE>
      <SUMMARY>
 
      ---------------------------------------------------------------------------
