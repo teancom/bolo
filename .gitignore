@@ -35,6 +35,7 @@ local
 
 bolo
 dbolo
+bolo2log
 bolo2rrd
 bolo_nsca
 send_bolo
