@@ -165,13 +165,15 @@ TESTS {
 		pdu_free(q);
 
 	/* ----------------------------- */
+	alarm(0);
+	sleep_ms(100);
+
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);
 
 	vzmq_shutdown(z,        0);
-	vzmq_shutdown(kernel, 500);
+	vzmq_shutdown(kernel, 100);
 	zmq_ctx_destroy(s.zmq);
 
-	alarm(0);
 	done_testing();
 }
