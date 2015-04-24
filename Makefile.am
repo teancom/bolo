@@ -32,10 +32,11 @@ EXTRA_DIST += util/packet
 EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
 
-sbin_PROGRAMS = bolo bolo2rrd bolo2log dbolo
+sbin_PROGRAMS = bolo bolo2rrd bolo2log bolo2console dbolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
 bolo2rrd_SOURCES  = $(CORE_SRC) src/sub_rrd.c
 bolo2log_SOURCES  = $(CORE_SRC) src/sub_log.c
+bolo2console_SOURCES = $(CORE_SRC) src/sub_console.c
 dbolo_SOURCES = $(CORE_SRC) src/agent.c
 
 bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
