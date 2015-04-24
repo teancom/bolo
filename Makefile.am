@@ -34,7 +34,7 @@ EXTRA_DIST += util/sender
 
 sbin_PROGRAMS = bolo bolo2rrd bolo2log dbolo
 bolo_SOURCES = $(CORE_SRC) src/daemon.c
-bolo2rrd_SOURCES  = $(CORE_SRC) src/rrd.c
+bolo2rrd_SOURCES  = $(CORE_SRC) src/sub_rrd.c
 bolo2log_SOURCES  = $(CORE_SRC) src/sub_log.c
 dbolo_SOURCES = $(CORE_SRC) src/agent.c
 
