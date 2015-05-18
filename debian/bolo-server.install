@@ -1,5 +1,5 @@
-/usr/sbin/bolo
 /usr/bin/bolospy
+/usr/sbin/bolo
 /usr/share/man/man5/bolo.conf.5
 /usr/share/man/man8/bolo.8
 examples/bolo.conf etc

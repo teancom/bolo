@@ -38,6 +38,7 @@ dbolo
 bolo2console
 bolo2log
 bolo2rrd
+bolo2pg
 bolo_nsca
 send_bolo
 stat_bolo

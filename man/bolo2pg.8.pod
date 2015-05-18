@@ -1,0 +1,86 @@
+=head1 NAME
+
+bolo2pg - Bolo Postgres Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2pg> -H db01.fqdn -P 5432 -C ~/.creds -e tcp://host:port
+
+B<bolo2pg> -F
+
+B<bolo2pg> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2pg> is a subscriber that listens to STATE data broadcast by B<bolo>
+and stores it in a PostgreSQL database.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2999>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2pg> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2pg> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2pg.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2pg> will run as
+root:root, which is probably not what you want.
+
+=item B<-H>, B<--host> I<HOSTNAME>
+
+The hostname of the Postgres database server to connec to.
+Defaults to I<localhost>.
+
+=item B<-P>, B<--port> I<PORT>
+
+The TCP port to connect to when talking to Postgres.
+Defaults to I<5432>.
+
+=item B<-d>, B<--database> I<NAME>
+
+The name of the Postgres database to store data in.
+Defaults to I<bolo>.
+
+=item B<-C>, B<--creds> I<PATH>
+
+A path to a (permissions-restricted) file that contains the username and
+password for authenticating, in the format "<user>:<password>\n".
+By default, no credentials file is used, and binds to the database are attempted
+without authentication.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR
