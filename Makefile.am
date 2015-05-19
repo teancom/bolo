@@ -109,6 +109,7 @@ t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
 dist_man_MANS  =
 dist_man_MANS += man/bolo.8
+dist_man_MANS += man/bolo2pg.8
 dist_man_MANS += man/bolo2rrd.8
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/send_bolo.1
