@@ -6,6 +6,7 @@ CFLAGS=-Wall -g
 
 override_dh_installinit:
 	dh_installinit --name bolo
+	dh_installinit --name bolo2pg
 	dh_installinit --name bolo2rrd
 
 override_dh_strip:
