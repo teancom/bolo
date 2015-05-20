@@ -87,3 +87,6 @@ debian/bolo-clients/
 debian/bolo-clients-dbg/
 debian/bolo-server/
 debian/bolo-server-dbg/
+debian/bolo-subscribers/
+debian/bolo-subscribers-dbg/
+debian/changelog
