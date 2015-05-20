@@ -75,8 +75,8 @@ static int s_insert_state(PGconn *db, pgstate_t *s)
 
 	const char *sql =
 		"INSERT INTO states_staging "
-		"(name, code, message, occurred_at) "
-		"VALUES ($1, $2, $3, $4)";
+		"(name, status, message, occurred_at) "
+		"VALUES ($1, $2, $3, to_timestamp($4))";
 
 	PGresult *r = PQexecParams(db, sql, 4,
 		NULL,     /* autodetect param types */

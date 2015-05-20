@@ -15,7 +15,6 @@ DROP TABLE IF EXISTS states_staging;
 DROP TABLE IF EXISTS history;
 DROP TABLE IF EXISTS history_anomalies;
 
-DROP FUNCTION IF EXISTS code2status(code INTEGER);
 DROP FUNCTION IF EXISTS reconcile();
 
 DROP TYPE IF EXISTS status;
@@ -24,23 +23,11 @@ DROP TYPE IF EXISTS status;
 
 CREATE TYPE status AS ENUM ('OK', 'WARNING', 'CRITICAL', 'UNKNOWN');
 
-CREATE FUNCTION code2status(code INTEGER) RETURNS status AS $$
-BEGIN
-	CASE code
-		WHEN 0 THEN RETURN 'OK';
-		WHEN 1 THEN RETURN 'WARNING';
-		WHEN 2 THEN RETURN 'CRITICAL';
-		ELSE        RETURN 'UNKNOWN';
-	END CASE;
-END;
-$$
-LANGUAGE plpgsql;
-
 -- --------------------------------------------------------------------
 
 CREATE TABLE states_staging (
 	name         TEXT NOT NULL,
-	code         INTEGER NOT NULL,
+	status       status NOT NULL,
 	message      TEXT,
 
 	inserted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -75,7 +62,7 @@ CREATE TABLE history (
 
 CREATE TABLE history_anomalies (
 	name         TEXT NOT NULL,
-	code         INTEGER NOT NULL,
+	status       status NOT NULL,
 	message      TEXT,
 
 	inserted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -88,7 +75,6 @@ DECLARE
 	st   RECORD;
 	cur  RECORD;
 	prev RECORD;
-	stat status;
 	n    INTEGER;
 BEGIN
 	n := 0;
@@ -96,7 +82,6 @@ BEGIN
 	RAISE NOTICE 'Importing state data from staging tables...';
 	FOR st IN SELECT * FROM states_staging ORDER BY name, occurred_at LOOP
 
-		stat := code2status(st.code);
 		n := n + 1;
 
 		/*
@@ -117,7 +102,7 @@ BEGIN
 				name, status, message,
 				first_seen, last_seen
 			) VALUES (
-				st.name, stat, st.message,
+				st.name, st.status, st.message,
 				st.occurred_at, st.occurred_at
 			);
 
@@ -128,9 +113,9 @@ BEGIN
 
 			/* Handle status change by reseting first_seen
 			   and recording the new status / message. */
-			IF cur.status != stat THEN
+			IF cur.status != st.status THEN
 				UPDATE states SET
-					status     = stat,
+					status     = st.status,
 					message    = st.message,
 					first_seen = st.occurred_at,
 					last_seen  = st.occurred_at
@@ -179,7 +164,7 @@ BEGIN
 		IF NOT FOUND THEN
 			INSERT INTO history
 				(name, status, message, started_at, tentative_ended_at, ended_at)
-				VALUES (st.name, stat, st.message, st.occurred_at, st.occurred_at, NULL);
+				VALUES (st.name, st.status, st.message, st.occurred_at, st.occurred_at, NULL);
 
 		/* (B)
 			+---------------
@@ -196,7 +181,7 @@ BEGIN
 		 */
 		ELSIF prev.ended_at IS NULL
 		  AND st.occurred_at > prev.tentative_ended_at
-		  AND prev.status = stat THEN
+		  AND prev.status = st.status THEN
 			UPDATE history
 				SET tentative_ended_at = st.occurred_at
 				WHERE history = prev;
@@ -217,14 +202,14 @@ BEGIN
 			and insert a new open history state.
 		 */
 		ELSIF prev.ended_at IS NULL
-		  AND prev.status != stat THEN
+		  AND prev.status != st.status THEN
 			UPDATE history
 				SET           ended_at = st.occurred_at,
 				    tentative_ended_at = st.occurred_at
 				WHERE history = prev;
 			INSERT INTO history
 				(name, status, message, started_at, tentative_ended_at, ended_at)
-				VALUES (st.name, stat, st.message, st.occurred_at, st.occurred_at, NULL);
+				VALUES (st.name, st.status, st.message, st.occurred_at, st.occurred_at, NULL);
 
 		/*
 			Everything else is an anomaly; out-of-order data,
@@ -234,9 +219,9 @@ BEGIN
 			RAISE INFO 'History anomaly detected; logging for review';
 
 			INSERT INTO history_anomalies
-				(name, code, message, inserted_at, occurred_at)
+				(name, status, message, inserted_at, occurred_at)
 			VALUES (
-				st.name, st.code, st.message, st.inserted_at, st.occurred_at);
+				st.name, st.status, st.message, st.inserted_at, st.occurred_at);
 		END IF;
 
 		-- clear the staging table
