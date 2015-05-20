@@ -18,6 +18,7 @@
  */
 
 #include "test.h"
+#define SUBSCRIBER_ENDPOINT "tcp://127.0.0.1:8898"
 
 TESTS {
 	mkdir("t/tmp", 0755);
@@ -27,7 +28,7 @@ TESTS {
 
 	write_file("t/tmp/config",
 		"# sample test config\n"
-		"broadcast inproc://bcast\n"
+		"broadcast " SUBSCRIBER_ENDPOINT "\n"
 		"dumpfiles t/tmp/dump.\%s\n"
 		"savefile  t/tmp/save\n"
 		"keysfile  t/tmp/keys\n"
@@ -63,7 +64,7 @@ TESTS {
 		"failed to create kernel subscriber socket");
 	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
 		"failed to set subscriber filter");
-	CHECK(zmq_connect(sub, "inproc://bcast") == 0,
+	CHECK(zmq_connect(sub, SUBSCRIBER_ENDPOINT) == 0,
 		"failed to connect to broadcast endpoint");
 	sleep_ms(50);
 
