@@ -19,7 +19,13 @@
 
 #include "bolo.h"
 #include <getopt.h>
-#include <postgresql/libpq-fe.h>
+#if HAVE_POSTGRES_LIBPQ_FE_H
+#  include <postgresql/libpq-fe.h>
+#elif HAVE_LIBPQ_FE_H
+#  include <libpq-fe.h>
+#else
+#  error No libpq-fe.h found in include path!
+#endif
 
 static struct {
 	char *endpoint;

@@ -19,6 +19,7 @@
 
 #ifndef BOLO_H
 #define BOLO_H
+#include "../config.h"
 
 #include <stdint.h>
 #include <vigor.h>
@@ -33,6 +34,10 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pcre.h>
+
+#if !HAVE_PCRE_FREE_STUDY
+#define pcre_free_study pcre_free
+#endif
 
 #define PACKED __attribute__((packed))
 

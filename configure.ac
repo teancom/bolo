@@ -37,6 +37,18 @@ AC_HAVE_LIBRARY(vigor,,    AC_MSG_ERROR(Missing libvigor - see http://github.com
 AC_HAVE_LIBRARY(zmq,,      AC_MSG_ERROR(Missing 0MQ library))
 AC_HAVE_LIBRARY(pcre,,     AC_MSG_ERROR(Missing PCRE library))
 AC_HAVE_LIBRARY(rrd,,      AC_MSG_ERROR(Missing RRD library))
+AC_HAVE_LIBRARY(pq,,       AC_MSG_ERROR(Missing PostgreSQL (libpq) library))
+
+x=0
+AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])
+if test $x == 1
+then
+	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 1, [PCRE library exports pcre_free_study()])
+else
+	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 0, [PCRE library exports pcre_free_study()])
+fi
+
+AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
 
 AC_CONFIG_FILES([Makefile src/bits.h])
 AC_OUTPUT
