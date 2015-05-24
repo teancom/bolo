@@ -9,7 +9,7 @@ AM_CFLAGS += -Wall
 AM_CFLAGS += -g
 AM_CFLAGS += @GCOV_CFLAGS@
 
-LDADD = -lpthread -lzmq -lrrd -lpcre
+LDADD = -lvigor -lpthread -lzmq -lpcre
 
 CORE_SRC  =
 CORE_SRC += src/bolo.h
@@ -32,14 +32,22 @@ EXTRA_DIST += util/packet
 EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
 
-sbin_PROGRAMS = bolo bolo2rrd bolo2pg bolo2log bolo2console dbolo
+sbin_PROGRAMS = bolo bolo2log bolo2console dbolo
 bolo_SOURCES            = $(CORE_SRC) src/daemon.c
-bolo2rrd_SOURCES        = $(CORE_SRC) src/sub_rrd.c
-bolo2pg_SOURCES         = $(CORE_SRC) src/sub_pg.c
-bolo2pg_LDADD           = -lpq
 bolo2log_SOURCES        = $(CORE_SRC) src/sub_log.c
 bolo2console_SOURCES    = $(CORE_SRC) src/sub_console.c
 dbolo_SOURCES           = $(CORE_SRC) src/agent.c
+
+if build_rrd_subscriber
+sbin_PROGRAMS          += bolo2rrd
+bolo2rrd_SOURCES        = $(CORE_SRC) src/sub_rrd.c
+endif
+
+if build_pg_subscriber
+sbin_PROGRAMS          += bolo2pg
+bolo2pg_SOURCES         = $(CORE_SRC) src/sub_pg.c
+bolo2pg_LDADD           = -lpq
+endif
 
 bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c

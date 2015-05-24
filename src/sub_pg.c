@@ -19,7 +19,7 @@
 
 #include "bolo.h"
 #include <getopt.h>
-#if HAVE_POSTGRES_LIBPQ_FE_H
+#if HAVE_POSTGRESQL_LIBPQ_FE_H
 #  include <postgresql/libpq-fe.h>
 #elif HAVE_LIBPQ_FE_H
 #  include <libpq-fe.h>

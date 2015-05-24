@@ -36,8 +36,32 @@ AC_HAVE_LIBRARY(ctap,,     AC_MSG_ERROR(Missing ctap testing library - see http:
 AC_HAVE_LIBRARY(vigor,,    AC_MSG_ERROR(Missing libvigor - see http://github.com/filefrog/libvigor))
 AC_HAVE_LIBRARY(zmq,,      AC_MSG_ERROR(Missing 0MQ library))
 AC_HAVE_LIBRARY(pcre,,     AC_MSG_ERROR(Missing PCRE library))
-AC_HAVE_LIBRARY(rrd,,      AC_MSG_ERROR(Missing RRD library))
-AC_HAVE_LIBRARY(pq,,       AC_MSG_ERROR(Missing PostgreSQL (libpq) library))
+
+build_ALL=auto
+AC_ARG_WITH([all-collectors],
+	[AS_HELP_STRING([--with-all-collectors],
+		[Build all optional collector programs (--with-X-collector)])],
+	[echo "triggered build_ALL logic"
+	 case "${withval}" in
+	 yes)  build_ALL=yes;  AC_MSG_NOTICE([Will build ALL optional collectors])            ;;
+	 no)   build_ALL=no;   AC_MSG_NOTICE([Will not build any optional collectors])        ;;
+	 auto) build_ALL=auto; AC_MSG_NOTICE([Will attempt to build ALL optional collectors]) ;;
+	 *)    AC_MSG_ERROR([bad value ${withval} for --with-all-collectors]) ;;
+	 esac],
+	[build_ALL=auto])
+
+BOLO_SUBSCRIBER([rrd], [auto], [stores sample data in round-robin database files],
+	[#define HAVE_STDINT_H
+	 #include <rrd.h>
+	 #include <rrd_client.h>
+	 int main() { return 0; }
+	], [-lrrd])
+
+AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
+BOLO_SUBSCRIBER([pg], [auto], [stores sample and state data in a Postgres database],
+	[#include <postgresql/libpq-fe.h>
+	 int main() { return 0; }
+	], [-lpq])
 
 x=0
 AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])
@@ -47,8 +71,6 @@ then
 else
 	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 0, [PCRE library exports pcre_free_study()])
 fi
-
-AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
 
 AC_CONFIG_FILES([Makefile src/bits.h])
 AC_OUTPUT
