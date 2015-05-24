@@ -41,6 +41,7 @@ dbolo_SOURCES           = $(CORE_SRC) src/agent.c
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
 bolo2rrd_SOURCES        = $(CORE_SRC) src/sub_rrd.c
+bolo2rrd_LDADD          = -lrrd
 endif
 
 if build_pg_subscriber
