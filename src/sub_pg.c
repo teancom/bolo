@@ -50,6 +50,12 @@ typedef struct {
 	char *summary;
 } pgstate_t;
 
+typedef struct {
+	char *type;
+	char *ts;
+	char *name;
+} pgmetric_t;
+
 static pgstate_t *s_state_parse(pdu_t *pdu)
 {
 	pgstate_t *st = vmalloc(sizeof(pgstate_t));
@@ -69,6 +75,25 @@ static void s_state_free(pgstate_t *st)
 		free(st->summary);
 	}
 	free(st);
+}
+
+static pgmetric_t *s_metric_parse(pdu_t *pdu)
+{
+	pgmetric_t *m = vmalloc(sizeof(pgmetric_t));
+	m->type  = strdup(pdu_type(pdu));
+	m->ts    = pdu_string(pdu, 1);
+	m->name  = pdu_string(pdu, 2);
+	return m;
+}
+
+static void s_metric_free(pgmetric_t *m)
+{
+	if (m) {
+		free(m->type);
+		free(m->ts);
+		free(m->name);
+	}
+	free(m);
 }
 
 static int s_insert_state(PGconn *db, pgstate_t *s)
@@ -106,6 +131,32 @@ static int s_reconcile(PGconn *db)
 	PGresult *r = PQexec(db, sql);
 	if (PQresultStatus(r) != PGRES_TUPLES_OK) {
 		fprintf(stderr, "`%s' failed\nerror: %s", sql, PQresultErrorMessage(r));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int s_track_datapoint(PGconn *db, pgmetric_t *metric)
+{
+	const char *params[3];
+	params[0] = metric->type;
+	params[1] = metric->name;
+	params[2] = metric->ts;
+
+	const char *sql =
+		"SELECT track_datapoint($1, $2, to_timestamp($3))";
+
+	PGresult *r = PQexecParams(db, sql, 3,
+		NULL,     /* autodetect param types */
+		params,
+		NULL,     /* text params; lengths not necessary */
+		NULL, 0); /* all text formats */
+
+	if (PQresultStatus(r) != PGRES_COMMAND_OK) {
+		fprintf(stderr, "`%s' with $1 = '%s', $2 = '%s', $3 = '%s' failed\nerror: %s",
+			sql, params[0], params[1], params[2],
+			PQresultErrorMessage(r));
 		return -1;
 	}
 
@@ -325,6 +376,20 @@ int main(int argc, char **argv)
 				}
 
 				s_state_free(st);
+
+			} else if (strcmp(pdu_type(p), "SAMPLE")  == 0
+			        || strcmp(pdu_type(p), "RATE")    == 0
+			        || strcmp(pdu_type(p), "COUNTER") == 0) {
+
+				pgmetric_t *m = s_metric_parse(p);
+
+				PGconn *db = s_connect_db(dsn);
+				if (db) {
+					s_track_datapoint(db, m);
+					s_disconnect_db(db);
+				}
+
+				s_metric_free(m);
 			}
 
 			pdu_free(p);

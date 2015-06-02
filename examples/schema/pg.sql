@@ -14,10 +14,13 @@ DROP TABLE IF EXISTS states;
 DROP TABLE IF EXISTS states_staging;
 DROP TABLE IF EXISTS history;
 DROP TABLE IF EXISTS history_anomalies;
+DROP TABLE IF EXISTS datapoints;
 
 DROP FUNCTION IF EXISTS reconcile();
+DROP FUNCTION IF EXISTS track_datapoint(metric, text, timestamp);
 
 DROP TYPE IF EXISTS status;
+DROP TYPE IF EXISTS metric;
 
 -- --------------------------------------------------------------------
 
@@ -230,5 +233,42 @@ BEGIN
 
 	RETURN n;
 END;
+$$
+LANGUAGE plpgsql;
+
+
+CREATE TYPE metric AS ENUM ('SAMPLE', 'RATE', 'COUNTER');
+
+CREATE TABLE datapoints (
+	id         SERIAL PRIMARY KEY,
+	name       TEXT NOT NULL,
+	type       metric NOT NULL,
+	first_seen TIMESTAMP NOT NULL,
+	last_seen  TIMESTAMP NOT NULL,
+
+	CHECK (last_seen >= first_seen)
+);
+
+CREATE FUNCTION track_datapoint(mtype metric, mname text, ts timestamp) RETURNS INTEGER AS $$
+DECLARE
+	existing RECORD;
+BEGIN
+	SELECT * INTO existing FROM datapoints WHERE type = mtype AND name = mname;
+	IF NOT FOUND THEN
+		RAISE NOTICE 'New datapoint detected (%s: %s); inserting', mtype, mname;
+		INSERT INTO datapoints
+			(name, type, first_seen, last_seen)
+			VALUES (mname, mtype, ts, ts);
+
+	ELSE
+		RAISE NOTICE 'Updating last_seen of datapoint (%s: %s)', mtype, mname;
+		UPDATE datapoints
+			SET last_seen = ts
+			WHERE datapoints = existing;
+
+	END IF;
+
+	RETURN 0;
+END
 $$
 LANGUAGE plpgsql;
