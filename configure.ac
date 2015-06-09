@@ -53,7 +53,6 @@ AC_ARG_WITH([all-collectors],
 BOLO_SUBSCRIBER([rrd], [auto], [stores sample data in round-robin database files],
 	[#define HAVE_STDINT_H
 	 #include <rrd.h>
-	 #include <rrd_client.h>
 	 int main() { return 0; }
 	], [-lrrd])
 
