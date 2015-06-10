@@ -1,6 +1,6 @@
 Name:           bolo
-Version:        0.2.4
-Release:        2%{?dist}
+Version:        0.2.5
+Release:        1%{?dist}
 Summary:        Monitoring System Server
 
 Group:          Applications/System
@@ -171,6 +171,9 @@ fi
 #######################################################################
 
 %changelog
+* Wed Jun 10 2015 James Hunt <james@niftylogic.com> 0.2.5-1
+- Upstream release
+
 * Tue Jun  9 2015 James Hunt <james@niftylogic.com> 0.2.4-2
 - Force bolo2pg and bolo2rrd subscribers via ./configure options
 - Package init scripts and pre/post chckonfig/service magic
