@@ -25,6 +25,7 @@
 
 static struct {
 	char *endpoint;
+	char *filter;
 	int   verbose;
 	int   mode;
 } OPTIONS = { 0 };
@@ -38,6 +39,7 @@ int main(int argc, char **argv)
 {
 	OPTIONS.verbose  = 0;
 	OPTIONS.endpoint = NULL;
+	OPTIONS.filter   = NULL;
 	OPTIONS.mode     = MODE_QUERY;
 
 	struct option long_opts[] = {
@@ -45,11 +47,12 @@ int main(int argc, char **argv)
 		{ "verbose",        no_argument, 0, 'v' },
 		{ "endpoint", required_argument, 0, 'e' },
 		{ "listen",         no_argument, 0, 'l' },
+		{ "fiter",    required_argument, 0, 'f' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:l", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:lf:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -63,6 +66,7 @@ int main(int argc, char **argv)
 			printf("  -V, --version        show version information and exit\n");
 			printf("  -v, --verbose        turn on debugging, to standard error\n");
 			printf("  -l, --listen         print all broadcast events\n");
+			printf("  -f, --filter STRING  what broadcast events to print (in --listen)\n");
 			printf("  -e, --endpoint       bolo endpoint to connect to\n");
 			exit(0);
 
@@ -90,6 +94,12 @@ int main(int argc, char **argv)
 			OPTIONS.mode = MODE_LISTEN;
 			break;
 
+		case 'f':
+			logger(LOG_DEBUG, "handling -f/--fiter");
+			free(OPTIONS.filter);
+			OPTIONS.filter = strdup(optarg);
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			exit(1);
@@ -106,6 +116,8 @@ static int stat_listenmode(void)
 {
 	if (!OPTIONS.endpoint)
 		OPTIONS.endpoint = strdup("tcp://127.0.0.1:2997");
+	if (!OPTIONS.filter)
+		OPTIONS.filter = strdup("");
 
 	if (DEBUG) fprintf(stderr, "+>> allocating 0MQ context\n");
 	void *zmq = zmq_ctx_new();
@@ -120,8 +132,8 @@ static int stat_listenmode(void)
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> setting subscriber filter\n");
-	if (zmq_setsockopt(z, ZMQ_SUBSCRIBE, "", 0) != 0) {
-		fprintf(stderr, "failed to set subscriber filter\n");
+	if (zmq_setsockopt(z, ZMQ_SUBSCRIBE, OPTIONS.filter, strlen(OPTIONS.filter)) != 0) {
+		fprintf(stderr, "failed to set subscriber filter to '%s'\n", OPTIONS.filter);
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
