@@ -142,6 +142,8 @@ static int stat_listenmode(void)
 		return 3;
 	}
 
+	setvbuf(stdout, NULL, _IONBF, 0);
+
 	signal_handlers();
 	while (!signalled()) {
 		if (DEBUG) fprintf(stderr, "+>> waiting for a broadcast PDU\n");
