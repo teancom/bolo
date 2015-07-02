@@ -31,6 +31,7 @@ EXTRA_DIST += man examples
 EXTRA_DIST += util/packet
 EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
+EXTRA_DIST += redhat
 
 sbin_PROGRAMS = bolo bolo2log bolo2console dbolo
 bolo_SOURCES            = $(CORE_SRC) src/daemon.c

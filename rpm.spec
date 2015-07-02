@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.4
+Version:        0.2.5
 Release:        1%{?dist}
 Summary:        Monitoring System Server
 
@@ -25,6 +25,63 @@ track samples, counters, states and configuration data.
 
 This package provides the server implementation.
 
+%prep
+%setup -q
+
+
+%build
+%configure --with-rrd-subscriber --with-pg-subscriber
+make %{?_smp_mflags}
+
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make install DESTDIR=$RPM_BUILD_ROOT
+rm -f $RPM_BUILD_ROOT%{_bindir}/bolo_nsca
+
+# dist config
+install -m 0644 -D examples/bolo.conf       $RPM_BUILD_ROOT%{_sysconfdir}/bolo.conf
+install -m 0644 -D examples/schema/pg.sql   $RPM_BUILD_ROOT%{_datadir}/bolo/schema/pg.sql
+# init scripts
+install -m 0755 -D redhat/init.d/dbolo      $RPM_BUILD_ROOT%{_initddir}/dbolo
+install -m 0755 -D redhat/init.d/bolo       $RPM_BUILD_ROOT%{_initddir}/bolo
+install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initddir}/bolo2rrd
+install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initddir}/bolo2pg
+
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%post
+/sbin/chkconfig --add bolo
+
+
+%preun
+if [ $1 == 0 ]; then # erase!
+	/sbin/service stop bolo
+	/sbin/chkconfig --del bolo
+fi
+
+
+%postun
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart bolo
+fi
+
+
+%files
+%defattr(-,root,root,-)
+%{_bindir}/bolospy
+%{_sbindir}/bolo
+%{_initddir}/bolo
+%{_sysconfdir}/bolo.conf
+%{_mandir}/man5/bolo.conf.5.gz
+%{_mandir}/man8/bolo.8.gz
+
+
+#######################################################################
+
 %package clients
 Summary:        Monitoring System Clients
 Group:          Applications/System
@@ -35,6 +92,35 @@ track samples, counters, states and configuration data.
 
 This package provides client programs for bolo.
 
+
+%post clients
+/sbin/chkconfig --add dbolo
+
+
+%preun clients
+if [ $1 == 0 ]; then # erase!
+	/sbin/service stop dbolo
+	/sbin/chkconfig --del dbolo
+fi
+
+
+%postun clients
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart dbolo
+fi
+
+
+%files clients
+%defattr(-,root,root,-)
+%{_sbindir}/dbolo
+%{_initddir}/dbolo
+%{_bindir}/send_bolo
+%{_bindir}/stat_bolo
+%{_mandir}/man1/send_bolo.1.gz
+%{_mandir}/man1/stat_bolo.1.gz
+
+
+#######################################################################
 
 %package subscribers
 Summary:        Monitoring System Subscribers
@@ -47,43 +133,27 @@ track samples, counters, states and configuration data.
 This package provides subscriber components for bolo.
 
 
-%prep
-%setup -q
+%post subscribers
+/sbin/chkconfig --add bolo2rrd
+/sbin/chkconfig --add bolo2pg
 
 
-%build
-%configure
-make %{?_smp_mflags}
+%preun subscribers
+if [ $1 == 0 ]; then # erase!
+	/sbin/service stop bolo2rrd
+	/sbin/chkconfig --del bolo2rrd
+
+	/sbin/service stop bolo2pg
+	/sbin/chkconfig --del bolo2pg
+fi
 
 
-%install
-rm -rf $RPM_BUILD_ROOT
-make install DESTDIR=$RPM_BUILD_ROOT
-rm -f $RPM_BUILD_ROOT%{_bindir}/bolo_nsca
+%postun subscribers
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart bolo2rrd
+	/sbin/service condrestart bolo2pg
+fi
 
-install -m 0644 -D examples/bolo.conf $RPM_BUILD_ROOT%{_sysconfdir}/bolo.conf
-install -m 0644 -D examples/schema/pg.sql $RPM_BUILD_ROOT%{_datadir}/bolo/schema/pg.sql
-
-
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-
-%files
-%defattr(-,root,root,-)
-%{_bindir}/bolospy
-%{_sbindir}/bolo
-%{_sysconfdir}/bolo.conf
-%{_mandir}/man5/bolo.conf.5.gz
-%{_mandir}/man8/bolo.8.gz
-
-%files clients
-%defattr(-,root,root,-)
-%{_sbindir}/dbolo
-%{_bindir}/send_bolo
-%{_bindir}/stat_bolo
-%{_mandir}/man1/send_bolo.1.gz
-%{_mandir}/man1/stat_bolo.1.gz
 
 %files subscribers
 %defattr(-,root,root,-)
@@ -91,10 +161,22 @@ rm -rf $RPM_BUILD_ROOT
 %{_sbindir}/bolo2log
 %{_sbindir}/bolo2pg
 %{_sbindir}/bolo2rrd
+%{_initddir}/bolo2pg
+%{_initddir}/bolo2rrd
 %{_mandir}/man8/bolo2pg.8.gz
 %{_mandir}/man8/bolo2rrd.8.gz
 %doc %{_datadir}/bolo
 
+
+#######################################################################
+
 %changelog
+* Wed Jun 10 2015 James Hunt <james@niftylogic.com> 0.2.5-1
+- Upstream release
+
+* Tue Jun  9 2015 James Hunt <james@niftylogic.com> 0.2.4-2
+- Force bolo2pg and bolo2rrd subscribers via ./configure options
+- Package init scripts and pre/post chckonfig/service magic
+
 * Tue May 19 2015 James Hunt <james@niftylogic.com> 0.2.4-1
 - Initial RPM package

@@ -18,7 +18,7 @@
 #
 
 AC_PREREQ(2.63)
-AC_INIT([Bolo], [0.2.4], [bugs@niftylogic.com])
+AC_INIT([Bolo], [0.2.5], [bugs@niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])
@@ -53,13 +53,16 @@ AC_ARG_WITH([all-collectors],
 BOLO_SUBSCRIBER([rrd], [auto], [stores sample data in round-robin database files],
 	[#define HAVE_STDINT_H
 	 #include <rrd.h>
-	 #include <rrd_client.h>
 	 int main() { return 0; }
 	], [-lrrd])
 
 AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
 BOLO_SUBSCRIBER([pg], [auto], [stores sample and state data in a Postgres database],
-	[#include <postgresql/libpq-fe.h>
+	[#ifdef HAVE_POSTGRESQL_LIBPQ_FE_H
+	 #  include <postgresql/libpq-fe.h>
+	 #else
+	 #  include <libpq-fe.h>
+	 #endif
 	 int main() { return 0; }
 	], [-lpq])
 

@@ -29,6 +29,15 @@ for listen mode (B<-l>).
 
 Supports DNS resolution for both IPv4 and IPv6 endpoints.
 
+=item B<-l>, B<--listen>
+
+Activate listen mode.
+
+=item B<-f>, B<--filter> I<TYPE>
+
+Filter the broadcast stream to only show the given event type.
+Only useful in B<--listen> mode.
+
 =item B<-v>, B<--verbose>
 
 Enable verbose mode, printing debugging information to standard error.

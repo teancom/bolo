@@ -101,7 +101,6 @@ void* controller(void *u)
 						stale = pdu_string(res, 3),
 						code  = pdu_string(res, 4),
 						msg   = pdu_string(res, 5));
-					fprintf(stderr, "[STATE|%s|%s|%s|%s|%s] sent\n", name, ts, stale, code, msg);
 					free(name);
 					free(ts);
 					free(stale);
