@@ -50,6 +50,12 @@ bolo2pg_SOURCES         = $(CORE_SRC) src/sub_pg.c
 bolo2pg_LDADD           = -lpq
 endif
 
+if build_sqlite_subscriber
+sbin_PROGRAMS         += bolo2sqlite
+bolo2sqlite_SOURCES    = $(CORE_SRC) src/sub_sqlite.c
+bolo2sqlite_LDADD      = -lsqlite3
+endif
+
 bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c

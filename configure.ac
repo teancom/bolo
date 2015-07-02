@@ -63,6 +63,11 @@ BOLO_SUBSCRIBER([pg], [auto], [stores sample and state data in a Postgres databa
 	 int main() { return 0; }
 	], [-lpq])
 
+BOLO_SUBSCRIBER([sqlite], [auto], [stores sample and state data in a SQLite3 database],
+	[#include <sqlite3.h>
+	 int main() { return 0; }
+	], [-lsqlite3])
+
 x=0
 AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])
 if test $x == 1
