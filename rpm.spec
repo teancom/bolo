@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.5
+Version:        0.2.6
 Release:        1%{?dist}
 Summary:        Monitoring System Server
 
@@ -30,7 +30,7 @@ This package provides the server implementation.
 
 
 %build
-%configure --with-rrd-subscriber --with-pg-subscriber
+%configure --with-rrd-subscriber --with-pg-subscriber --without-sqlite-subscriber
 make %{?_smp_mflags}
 
 
@@ -43,10 +43,10 @@ rm -f $RPM_BUILD_ROOT%{_bindir}/bolo_nsca
 install -m 0644 -D examples/bolo.conf       $RPM_BUILD_ROOT%{_sysconfdir}/bolo.conf
 install -m 0644 -D examples/schema/pg.sql   $RPM_BUILD_ROOT%{_datadir}/bolo/schema/pg.sql
 # init scripts
-install -m 0755 -D redhat/init.d/dbolo      $RPM_BUILD_ROOT%{_initddir}/dbolo
-install -m 0755 -D redhat/init.d/bolo       $RPM_BUILD_ROOT%{_initddir}/bolo
-install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initddir}/bolo2rrd
-install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initddir}/bolo2pg
+install -m 0755 -D redhat/init.d/dbolo      $RPM_BUILD_ROOT%{_initrddir}/dbolo
+install -m 0755 -D redhat/init.d/bolo       $RPM_BUILD_ROOT%{_initrddir}/bolo
+install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initrddir}/bolo2rrd
+install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initrddir}/bolo2pg
 
 
 %clean
@@ -74,7 +74,7 @@ fi
 %defattr(-,root,root,-)
 %{_bindir}/bolospy
 %{_sbindir}/bolo
-%{_initddir}/bolo
+%{_initrddir}/bolo
 %{_sysconfdir}/bolo.conf
 %{_mandir}/man5/bolo.conf.5.gz
 %{_mandir}/man8/bolo.8.gz
@@ -113,7 +113,7 @@ fi
 %files clients
 %defattr(-,root,root,-)
 %{_sbindir}/dbolo
-%{_initddir}/dbolo
+%{_initrddir}/dbolo
 %{_bindir}/send_bolo
 %{_bindir}/stat_bolo
 %{_mandir}/man1/send_bolo.1.gz
@@ -161,8 +161,8 @@ fi
 %{_sbindir}/bolo2log
 %{_sbindir}/bolo2pg
 %{_sbindir}/bolo2rrd
-%{_initddir}/bolo2pg
-%{_initddir}/bolo2rrd
+%{_initrddir}/bolo2pg
+%{_initrddir}/bolo2rrd
 %{_mandir}/man8/bolo2pg.8.gz
 %{_mandir}/man8/bolo2rrd.8.gz
 %doc %{_datadir}/bolo
@@ -171,6 +171,9 @@ fi
 #######################################################################
 
 %changelog
+* Thu Jul  2 2015 James Hunt <james@niftylogic.com> 0.2.6-1
+- Upstream release
+
 * Wed Jun 10 2015 James Hunt <james@niftylogic.com> 0.2.5-1
 - Upstream release
 
