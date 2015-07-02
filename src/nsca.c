@@ -188,7 +188,7 @@ void* nsca_gateway(void *u)
 		return NULL;
 	}
 
-	epfd = epoll_create1(0);
+	epfd = epoll_create(256);
 	if (epfd < 0) {
 		logger(LOG_CRIT, "NSCA gateway failed to get an epoll file descriptor: %s",
 				strerror(errno));
