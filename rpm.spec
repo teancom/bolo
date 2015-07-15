@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.6
+Version:        0.2.7
 Release:        1%{?dist}
 Summary:        Monitoring System Server
 
@@ -171,6 +171,9 @@ fi
 #######################################################################
 
 %changelog
+* Wed Jul 15 2015 James Hunt <james@niftylogic.com> 0.2.7-1
+- Upstream release
+
 * Thu Jul  2 2015 James Hunt <james@niftylogic.com> 0.2.6-1
 - Upstream release
 
