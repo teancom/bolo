@@ -191,10 +191,10 @@ static void s_sink(socket_t *sock, command_t *cmd)
 
 			*nl++ = '\0';
 			pdu_t *pdu = stream_pdu(cmd->buffer);
-			if (!pdu) return;
-
-			logger(LOG_INFO, "sending [%s] to %s", cmd->buffer, sock->endpoint);
-			pdu_send_and_free(pdu, sock->zocket);
+			if (pdu) {
+				logger(LOG_INFO, "sending [%s] to %s", cmd->buffer, sock->endpoint);
+				pdu_send_and_free(pdu, sock->zocket);
+			}
 
 			memmove(cmd->buffer, nl, 8192 - (nl - cmd->buffer));
 			cmd->nread -= (nl - cmd->buffer);
