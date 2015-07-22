@@ -90,9 +90,11 @@ static int s_insert_state(PGconn *db, pgstate_t *s)
 		fprintf(stderr, "INSERT_STAGING with $1 = '%s', $2 = '%s', $3 = '%s', $4 = '%s' failed\nerror: %s",
 			params[0], params[1], params[2], params[3],
 			PQresultErrorMessage(r));
+		PQclear(r);
 		return -1;
 	}
 
+	PQclear(r);
 	return 0;
 }
 
@@ -102,9 +104,11 @@ static int s_reconcile(PGconn *db)
 	PGresult *r = PQexec(db, sql);
 	if (PQresultStatus(r) != PGRES_TUPLES_OK) {
 		fprintf(stderr, "`%s' failed\nerror: %s", sql, PQresultErrorMessage(r));
+		PQclear(r);
 		return -1;
 	}
 
+	PQclear(r);
 	return 0;
 }
 
@@ -160,10 +164,12 @@ static PGconn* s_connect_db(const char *dsn)
 	if (PQresultStatus(r) != PGRES_COMMAND_OK) {
 		fprintf(stderr, "Unable to prepare SQL `%s`: %s", sql, PQresultErrorMessage(r));
 
+		PQclear(r);
 		PQfinish(db);
 		return NULL;
 	}
 
+	PQclear(r);
 	return db;
 }
 
@@ -331,9 +337,11 @@ int main(int argc, char **argv)
 	logger(LOG_INFO, "connecting to database %s", dsn);
 	pthread_mutex_init(&DB_LOCK, NULL);
 	PGconn *db = s_connect_db(dsn);
-	if (!db) {
+	if (!db)
 		return 4;
-	}
+	free(user);
+	free(pass);
+	free(dsn);
 
 	pthread_t tid;
 	pthread_create(&tid, NULL, reconciler_thread, db);
