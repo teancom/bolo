@@ -75,7 +75,7 @@ fi
 %{_bindir}/bolospy
 %{_sbindir}/bolo
 %{_initrddir}/bolo
-%{_sysconfdir}/bolo.conf
+%config %{_sysconfdir}/bolo.conf
 %{_mandir}/man5/bolo.conf.5.gz
 %{_mandir}/man8/bolo.8.gz
 
