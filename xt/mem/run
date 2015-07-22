@@ -1,0 +1,33 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+-x "./dbolo" or die "Can't find ./dbolo; do you need to run `make'?\n";
+-x "./bolo"  or die "Can't fund ./bolo; do you need to run `make'?\n";
+
+# set up the environment
+unlink "/tmp/bolo.mem.savedb";
+unlink "/tmp/bolo.mem.keysdb";
+
+# fire up dbolo
+my $dbolo_pid = fork;
+die "fork failed: $!\n" unless defined $dbolo_pid;
+if ($dbolo_pid == 0) {
+	exec qw(./dbolo -F --endpoint tcp://localhost:2599 -c xt/mem/dbolo.conf);
+	die "exec of dbolo failed: $!\n";
+}
+
+# fire up bolo
+my $bolo_pid = fork;
+die "fork failed: $!\n" unless defined $bolo_pid;
+if ($bolo_pid == 0) {
+	exec qw(valgrind --leak-check=full -- ./bolo -F -c xt/mem/bolo.conf);
+	die "exec of bolo failed: $!\n";
+}
+
+sleep($ARGV[0] || 60);
+kill INT => $bolo_pid;
+sleep(1);
+kill KILL => $dbolo_pid;
+kill KILL => $bolo_pid;
