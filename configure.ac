@@ -18,7 +18,7 @@
 #
 
 AC_PREREQ(2.63)
-AC_INIT([Bolo], [0.2.7], [bugs@niftylogic.com])
+AC_INIT([Bolo], [0.2.8], [bugs@niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])
