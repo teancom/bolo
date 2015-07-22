@@ -626,6 +626,9 @@ int binf_read(db_t *db, const char *file)
 			} else {
 				logger(LOG_INFO, "rate %s not found in configuration, skipping", payload.rate->name);
 			}
+			free(payload.rate->name);
+			free(payload.rate);
+			payload.rate = NULL;
 			break;
 
 		default:
