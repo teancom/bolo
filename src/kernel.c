@@ -632,9 +632,10 @@ void* kernel(void *u)
 				value = pdu_string(q, i + 1);
 
 				logger(LOG_INFO, "set key %s = '%s'", key, value);
-				hash_set(&k->server->keys, key, value);
+				char *existing = hash_set(&k->server->keys, key, value);
 				free(key);
-				/* don't have to free v; it belongs to the hash now */
+				if (existing != value)
+					free(existing);
 			}
 
 			a = pdu_reply(q, "OK", 0);
