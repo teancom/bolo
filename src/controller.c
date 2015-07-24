@@ -26,7 +26,7 @@ typedef struct {
 	void     *client;
 } controller_t;
 
-static void* cleanup_controller(void *_)
+static void cleanup_controller(void *_)
 {
 	controller_t *c = (controller_t*)_;
 
@@ -40,7 +40,6 @@ static void* cleanup_controller(void *_)
 	}
 
 	free(c);
-	return NULL;
 }
 
 void* controller(void *u)

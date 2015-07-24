@@ -25,7 +25,7 @@ typedef struct {
 	void     *client;
 } listener_t;
 
-static void* cleanup_listener(void *_)
+static void cleanup_listener(void *_)
 {
 	listener_t *l = (listener_t*)_;
 
@@ -39,7 +39,6 @@ static void* cleanup_listener(void *_)
 	}
 
 	free(l);
-	return NULL;
 }
 
 void* listener(void *u)

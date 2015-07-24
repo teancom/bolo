@@ -331,7 +331,7 @@ static void broadcast_rate(kernel_t *k, rate_t *rate)
 	pdu_send_and_free(p, k->broadcast);
 }
 
-static void* cleanup_kernel(void *_)
+static void cleanup_kernel(void *_)
 {
 	kernel_t *k = (kernel_t*)_;
 	if (k->listener) {
@@ -361,7 +361,6 @@ static void* cleanup_kernel(void *_)
 	}
 
 	free(k);
-	return NULL;
 }
 
 void* kernel(void *u)

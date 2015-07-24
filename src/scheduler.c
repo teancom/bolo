@@ -24,7 +24,7 @@ typedef struct {
 	void     *client;
 } scheduler_t;
 
-static void* cleanup_scheduler(void *_)
+static void cleanup_scheduler(void *_)
 {
 	scheduler_t *s = (scheduler_t*)_;
 
@@ -34,7 +34,6 @@ static void* cleanup_scheduler(void *_)
 	}
 
 	free(s);
-	return NULL;
 }
 
 void* scheduler(void *u)
