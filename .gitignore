@@ -63,6 +63,7 @@ t/09-sample
 t/10-match
 t/11-events
 t/12-rate
+t/13-send
 t/fail*-db
 t/vx-pdu
 

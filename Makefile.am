@@ -77,6 +77,7 @@ CTAP_TESTS += t/09-sample
 CTAP_TESTS += t/10-match
 CTAP_TESTS += t/11-events
 CTAP_TESTS += t/12-rate
+CTAP_TESTS += t/13-send
 
 CTAP_TESTS += t/fail01-db
 CTAP_TESTS += t/fail02-db
@@ -113,6 +114,7 @@ t_09_sample_SOURCES = $(TEST_SRC) t/09-sample.c
 t_10_match_SOURCES  = $(TEST_SRC) t/10-match.c
 t_11_events_SOURCES = $(TEST_SRC) t/11-events.c
 t_12_rate_SOURCES   = $(TEST_SRC) t/12-rate.c
+t_13_send_SOURCES   = $(TEST_SRC) t/13-send.c
 
 t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
 t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c

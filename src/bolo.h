@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -292,6 +293,14 @@ pdu_t *make_rate_pdu   (int argc, char **argv, const char *ts);
 pdu_t *make_setkeys_pdu(int argc, char **argv);
 pdu_t *make_event_pdu  (int argc, char **argv, const char *ts);
 pdu_t *stream_pdu(const char *line);
+
+int submit_pdu     (void *zmq, const char *endpoint, pdu_t *pdu);
+int submit_state   (void *zmq, const char *endpoint, const char *name, int status, const char *msg);
+int submit_counter (void *zmq, const char *endpoint, const char *name, unsigned int value);
+int submit_sample  (void *zmq, const char *endpoint, const char *name, int n, ...);
+int submit_rate    (void *zmq, const char *endpoint, const char *name, double value);
+int submit_setkeys (void *zmq, const char *endpoint, int n, ...);
+int submit_event   (void *zmq, const char *endpoint, const char *name, const char *extra);
 
 /* threads */
 void* listener(void *u);
