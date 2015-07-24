@@ -18,10 +18,13 @@
  */
 
 #include "bolo.h"
+#include <pthread.h>
 #include <getopt.h>
 #include <rrd.h>
 
 #define RRD_MAP_FLUSH_INTERVAL 5
+#define CREATOR_BUS "inproc://rrd.creator"
+#define UPDATER_BUS "inproc://rrd.updater"
 
 static struct {
 	char *endpoint;
@@ -36,7 +39,15 @@ static struct {
 	char *pidfile;
 	char *user;
 	char *group;
+
+	int   updaters;
 } OPTIONS = { 0 };
+
+/* creator and updater threads will wait on this barrier
+   after they have exited, so that the parent thread can
+   coordinate before shutting down the 0MQ context.  This
+   avoids application hangs in zmq_ctx_term */
+static pthread_barrier_t exit_barrier;
 
 static char *RRAs;
 
@@ -234,6 +245,165 @@ static int s_write_map(hash_t *map)
 	return 0;
 }
 
+void* creator_thread(void *zmq)
+{
+	int *rc = vmalloc(sizeof(int));
+	*rc = 0;
+	void *pull = zmq_socket(zmq, ZMQ_PULL);
+	if (!pull) {
+		logger(LOG_ERR, "failed to create a PULL socket in the creator thread");
+		*rc = 1;
+		return rc;
+	}
+
+	logger(LOG_DEBUG, "creator: connecting to bus %s", CREATOR_BUS);
+	*rc = zmq_connect(pull, CREATOR_BUS);
+	if (*rc != 0) {
+		logger(LOG_ERR, "creator: unable to connect to bus %s", CREATOR_BUS);
+		return rc;
+	}
+
+	logger(LOG_INFO, "creator: listening for inbound PDUs");
+
+	pdu_t *p;
+	while ((p = pdu_recv(pull))) {
+		logger(LOG_DEBUG, "creator: received a [%s] PDU", pdu_type(p));
+
+		if (strcmp(pdu_type(p), "EXIT") == 0) {
+			logger(LOG_DEBUG, "creator: shutting down");
+			vzmq_shutdown(pull, 0);
+			pthread_barrier_wait(&exit_barrier);
+			return rc;
+		}
+
+		char *file  = pdu_string(p, 1);
+		char *name  = pdu_string(p, 3);
+		logger(LOG_DEBUG, "creator: looking for metric %s in file %s", name, file);
+
+		struct stat st;
+		if (stat(file, &st) != 0) {
+			if (errno == ENOENT) {
+				if (strcmp(pdu_type(p), "COUNTER") == 0) {
+					logger(LOG_INFO, "creator: provisioning new RRD file %s for COUNTER metric %s", file, name);
+					if (s_counter_create(file) != 0)
+						logger(LOG_ERR, "creator: failed to create %s: %s", file, rrd_get_error());
+
+				} else if (strcmp(pdu_type(p), "SAMPLE") == 0) {
+					logger(LOG_INFO, "creator: provisioning new RRD file %s for SAMPLE metric %s", file, name);
+					if (s_sample_create(file) != 0)
+						logger(LOG_ERR, "creator: failed to create %s: %s", file, rrd_get_error());
+
+				} else if (strcmp(pdu_type(p), "RATE") == 0) {
+					logger(LOG_INFO, "creator: provisioning new RRD file %s for RATE metric %s", file, name);
+					if (s_rate_create(file) != 0)
+						logger(LOG_ERR, "creator: failed to create %s: %s", file, rrd_get_error());
+
+				} else {
+					logger(LOG_ERR, "creator: unknown sample type %s; skipping", pdu_type(p));
+				}
+
+			} else {
+				logger(LOG_ERR, "creator: stat(%s) failed: %s", file, strerror(errno));
+			}
+
+		} else {
+			logger(LOG_INFO, "creator: %s already exists; skipping", file);
+		}
+
+		free(file);
+		free(name);
+	}
+	return rc;
+}
+
+void* updater_thread(void *zmq)
+{
+	int *rc = vmalloc(sizeof(int));
+	*rc = 0;
+	void *pull = zmq_socket(zmq, ZMQ_PULL);
+	if (!pull) {
+		logger(LOG_ERR, "failed to create a PULL socket in updater thread");
+		*rc = 1;
+		return rc;
+	}
+
+	logger(LOG_DEBUG, "updater: connecting to bus %s", UPDATER_BUS);
+	*rc = zmq_connect(pull, UPDATER_BUS);
+	if (*rc != 0) {
+		logger(LOG_ERR, "updater: unable to connect to bus %s", UPDATER_BUS);
+		return rc;
+	}
+
+	logger(LOG_INFO, "updater: listening for inbound PDUs");
+
+	pdu_t *p;
+	while ((p = pdu_recv(pull))) {
+		logger(LOG_DEBUG, "updater: received a [%s] PDU", pdu_type(p));
+
+		if (strcmp(pdu_type(p), "EXIT") == 0) {
+			logger(LOG_DEBUG, "updater: shutting down");
+			vzmq_shutdown(pull, 0);
+			pthread_barrier_wait(&exit_barrier);
+			return rc;
+		}
+
+		char *file  = pdu_string(p, 1);
+		char *ts    = pdu_string(p, 2);
+		char *name  = pdu_string(p, 3);
+		logger(LOG_DEBUG, "updater: looking for metric %s in file %s", name, file);
+
+		struct stat st;
+		if (stat(file, &st) == 0) {
+			if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 1+4) {
+				char *value = pdu_string(p, 4);
+
+				if (s_counter_update(file, ts, value) == 0)
+					logger(LOG_INFO, "updater: recorded %s @%s v=%s", name, ts, value);
+				else
+					logger(LOG_ERR, "updater: failed to update %s: %s", file, rrd_get_error());
+
+				free(value);
+
+			} else if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 1+9) {
+				char *n     = pdu_string(p, 4);
+				char *min   = pdu_string(p, 5);
+				char *max   = pdu_string(p, 6);
+				char *sum   = pdu_string(p, 7);
+				char *mean  = pdu_string(p, 8);
+				char *var   = pdu_string(p, 9);
+
+				if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0)
+					logger(LOG_ERR, "updater: failed to update %s: %s", file, rrd_get_error());
+				else
+					logger(LOG_INFO, "updater: recorded %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s",
+					name, ts, n, min, max, sum, mean, var);
+
+				free(n);
+				free(min);
+				free(max);
+				free(sum);
+				free(mean);
+				free(var);
+
+			} else if (strcmp(pdu_type(p), "RATE") == 0 && pdu_size(p) == 1+5) {
+				char *v = pdu_string(p, 4);
+
+				if (s_rate_update(file, ts, v) != 0)
+					logger(LOG_ERR, "updater: failed to update %s: %s", file, rrd_get_error());
+				else
+					logger(LOG_INFO, "updater: recorded %s @%s v=%s", name, ts, v);
+
+				free(v);
+			}
+
+			free(file);
+			free(ts);
+			free(name);
+		}
+	}
+	return rc;
+}
+
 int main(int argc, char **argv)
 {
 	OPTIONS.verbose   = 0;
@@ -244,6 +414,7 @@ int main(int argc, char **argv)
 	OPTIONS.pidfile   = strdup("/var/run/bolo2rrd.pid");
 	OPTIONS.user      = strdup("root");
 	OPTIONS.group     = strdup("root");
+	OPTIONS.updaters  = 8;
 
 	struct option long_opts[] = {
 		{ "help",             no_argument, NULL, 'h' },
@@ -256,11 +427,12 @@ int main(int argc, char **argv)
 		{ "group",      required_argument, NULL, 'g' },
 		{ "hash",       required_argument, NULL, 'H' },
 		{ "rrdcached",  required_argument, NULL, 'C' },
+		{ "updaters",   required_argument, NULL, 'U' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:H:C:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:H:C:U:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -314,10 +486,20 @@ int main(int argc, char **argv)
 			OPTIONS.rrdcached = strdup(optarg);
 			break;
 
+		case 'U':
+			OPTIONS.updaters = atoi(optarg); /* FIXME: strtol + error/bounds checking */
+			break;
+
 		default:
 			fprintf(stderr, "unhandled option flag %#02x\n", c);
 			return 1;
 		}
+	}
+
+	struct stat st;
+	if (stat(OPTIONS.root, &st) != 0) {
+		fprintf(stderr, "%s: %s\n", OPTIONS.root, strerror(errno));
+		return 3;
 	}
 
 	RRAs = s_rradefs("/usr/lib/bolo/bolo2rrd/rra.def");
@@ -341,26 +523,50 @@ int main(int argc, char **argv)
 	if (OPTIONS.rrdcached)
 		setenv("RRDCACHED_ADDRESS", OPTIONS.rrdcached, 1);
 
-	logger(LOG_DEBUG, "allocating 0MQ context\n");
+	logger(LOG_DEBUG, "allocating 0MQ context");
 	void *zmq = zmq_ctx_new();
 	if (!zmq) {
-		logger(LOG_ERR, "failed to initialize 0MQ context\n");
+		logger(LOG_ERR, "failed to initialize 0MQ context");
 		return 3;
 	}
-	logger(LOG_DEBUG, "allocating 0MQ SUB socket to talk to %s\n", OPTIONS.endpoint);
-	void *z = zmq_socket(zmq, ZMQ_SUB);
-	if (!z) {
-		logger(LOG_ERR, "failed to create a SUB socket\n");
+	logger(LOG_DEBUG, "allocating 0MQ SUB socket to talk to %s", OPTIONS.endpoint);
+	void *sub = zmq_socket(zmq, ZMQ_SUB);
+	if (!sub) {
+		logger(LOG_ERR, "failed to create a SUB socket");
 		return 3;
 	}
-	logger(LOG_DEBUG, "setting subscriber filter\n");
-	if (zmq_setsockopt(z, ZMQ_SUBSCRIBE, "", 0) != 0) {
-		logger(LOG_ERR, "failed to set subscriber filter\n");
+	logger(LOG_DEBUG, "setting subscriber filter");
+	if (zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) != 0) {
+		logger(LOG_ERR, "failed to set subscriber filter");
 		return 3;
 	}
-	logger(LOG_DEBUG, "connecting to %s\n", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
-		logger(LOG_ERR, "failed to connect to %s\n", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
+	if (vx_vzmq_connect(sub, OPTIONS.endpoint) != 0) {
+		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
+		return 3;
+	}
+
+	void *creator_bus = zmq_socket(zmq, ZMQ_PUSH);
+	if (!creator_bus) {
+		logger(LOG_ERR, "failed to create a PUSH socket for the creator thread bus");
+		return 3;
+	}
+	logger(LOG_DEBUG, "binding internal creator thread bus router to %s", CREATOR_BUS);
+	int rc = zmq_bind(creator_bus, CREATOR_BUS);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to bind PUSH socket to %s", CREATOR_BUS);
+		return 3;
+	}
+
+	void *updater_bus = zmq_socket(zmq, ZMQ_PUSH);
+	if (!updater_bus) {
+		logger(LOG_ERR, "failed to create a PUSH socket for the updater thread bus");
+		return 3;
+	}
+	logger(LOG_DEBUG, "binding internal updater thread bus router to %s" UPDATER_BUS);
+	rc = zmq_bind(updater_bus, UPDATER_BUS);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to bind PUSH socket to %s", UPDATER_BUS);
 		return 3;
 	}
 
@@ -371,112 +577,70 @@ int main(int argc, char **argv)
 		logger(LOG_ERR, "failed to read file map '%s': (%u) %s",
 			OPTIONS.hashfile, errno, strerror(errno));
 
-	pdu_t *p;
-	logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "initializing exit_barrier for 1 creator / %lu updater threads", OPTIONS.updaters);
+	rc = pthread_barrier_init(&exit_barrier, NULL, OPTIONS.updaters + 1 + 1); /* don't forget main()! */
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to initialize exit barrier for thread synchronization");
+		return 3;
+	}
 
+	/* install signal handlers before we spin off threads */
 	signal_handlers();
+
+	logger(LOG_INFO, "spinning up worker threads: 1 creator / %lu updaters", OPTIONS.updaters);
+	pthread_t tid;
+	rc = pthread_create(&tid, NULL, creator_thread, zmq);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to spin up the creator thread");
+		return 3;
+	}
+	int i;
+	for (i = 0; i < OPTIONS.updaters; i++) {
+		rc = pthread_create(&tid, NULL, updater_thread, zmq);
+		if (rc != 0) {
+			logger(LOG_ERR, "failed to spin up updater thread #%i", i+1);
+			return 3;
+		}
+	}
+
+	pdu_t *p;
 	while (!signalled()) {
-		while ((p = pdu_recv(z))) {
-			logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
+		while ((p = pdu_recv(sub))) {
+			char *name = NULL;
+			if ((strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4)
+			 || (strcmp(pdu_type(p), "SAMPLE")  == 0 && pdu_size(p) == 9)
+			 || (strcmp(pdu_type(p), "RATE")    == 0 && pdu_size(p) == 5)) {
+				logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
+				name = pdu_string(p, 2);
 
-			if (strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4) {
-				char *ts    = pdu_string(p, 1);
-				char *name  = pdu_string(p, 2);
-				char *value = pdu_string(p, 3);
-
-				char *filename = s_rrd_filename(name, &fmap);
-				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-				free(filename);
-
-				struct stat st;
-				if (stat(file, &st) != 0 && errno == ENOENT) {
-					if (s_counter_create(file) != 0) {
-						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-						goto counter_next;
-					}
-				}
-
-				if (s_counter_update(file, ts, value) != 0) {
-					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-					goto counter_next;
-				}
-
-				logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, value);
-	counter_next:
-				free(ts);
-				free(name);
-				free(value);
-				free(file);
-
-			} else if (strcmp(pdu_type(p), "SAMPLE") == 0 && pdu_size(p) == 9) {
-				char *ts    = pdu_string(p, 1);
-				char *name  = pdu_string(p, 2);
-				char *n     = pdu_string(p, 3);
-				char *min   = pdu_string(p, 4);
-				char *max   = pdu_string(p, 5);
-				char *sum   = pdu_string(p, 6);
-				char *mean  = pdu_string(p, 7);
-				char *var   = pdu_string(p, 8);
-
-				char *filename = s_rrd_filename(name, &fmap);
-				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-				free(filename);
-
-				struct stat st;
-				if (stat(file, &st) != 0 && errno == ENOENT) {
-					if (s_sample_create(file) != 0) {
-						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-						goto sample_next;
-					}
-				}
-
-				if (s_sample_update(file, ts, n, min, max, sum, mean, var) != 0) {
-					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-					goto sample_next;
-				}
-
-				logger(LOG_INFO, "updated %s @%s n=%s, min=%s, max=%s, sum=%s, mean=%s, var=%s\n",
-					name, ts, n, min, max, sum, mean, var);
-	sample_next:
-				free(ts);
-				free(name);
-				free(n);
-				free(min);
-				free(max);
-				free(sum);
-				free(mean);
-				free(var);
-				free(file);
-
-			} else if (strcmp(pdu_type(p), "RATE") == 0 && pdu_size(p) == 5) {
-				char *ts    = pdu_string(p, 1);
-				char *name  = pdu_string(p, 2);
-				char *v     = pdu_string(p, 4);
-
-				char *filename = s_rrd_filename(name, &fmap);
-				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-				free(filename);
-
-				struct stat st;
-				if (stat(file, &st) != 0 && errno == ENOENT) {
-					if (s_rate_create(file) != 0) {
-						logger(LOG_ERR, "failed to create %s: %s\n", file, rrd_get_error());
-						goto rate_next;
-					}
-				}
-
-				if (s_rate_update(file, ts, v) != 0) {
-					logger(LOG_ERR, "failed to update %s: %s\n", file, rrd_get_error());
-					goto rate_next;
-				}
-
-				logger(LOG_INFO, "updated %s @%s v=%s\n", name, ts, v);
-	rate_next:
-				free(ts);
-				free(name);
-				free(v);
-				free(file);
+			} else {
+				continue;
 			}
+
+			char *filename = s_rrd_filename(name, &fmap);
+			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+
+			/* repack the PDU, with the filename as the first argument */
+			pdu_t *relay = pdu_make(pdu_type(p), 1, file);
+			for (i = 1; i < pdu_size(p); i++) {
+				char *f = pdu_string(p, i);
+				pdu_extend(relay, f, strlen(f));
+				free(f);
+			}
+
+			struct stat st;
+			if (stat(file, &st) != 0 && errno == ENOENT) {
+				logger(LOG_DEBUG, "relaying [%s] PDU to creator thread", pdu_type(p));
+				pdu_send_and_free(relay, creator_bus);
+
+			} else {
+				logger(LOG_DEBUG, "relaying [%s] PDU to an updater thread", pdu_type(p));
+				pdu_send_and_free(relay, updater_bus);
+			}
+
+			free(filename);
+			free(file);
+			free(name);
 
 			pdu_free(p);
 
@@ -488,13 +652,20 @@ int main(int argc, char **argv)
 
 				flush_at = time_s() + RRD_MAP_FLUSH_INTERVAL;
 			}
-
-			logger(LOG_INFO, "waiting for a PDU from %s", OPTIONS.endpoint);
 		}
 	}
 
+	logger(LOG_INFO, "signalling threads to shutdown");
+	pdu_send_and_free(pdu_make("EXIT", 0), creator_bus);
+	for (i = 0; i < OPTIONS.updaters; i++)
+		pdu_send_and_free(pdu_make("EXIT", 0), updater_bus);
+
+	pthread_barrier_wait(&exit_barrier);
+
 	logger(LOG_INFO, "shutting down");
-	vzmq_shutdown(z, 0);
+	vzmq_shutdown(sub,         50);
+	vzmq_shutdown(creator_bus, 50);
+	vzmq_shutdown(updater_bus, 50);
 	zmq_ctx_destroy(zmq);
 	return 0;
 }
