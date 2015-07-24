@@ -334,6 +334,7 @@ static void broadcast_rate(kernel_t *k, rate_t *rate)
 static void cleanup_kernel(void *_)
 {
 	kernel_t *k = (kernel_t*)_;
+
 	if (k->listener) {
 		logger(LOG_INFO, "kernel cleaning up; closing listening socket");
 		vzmq_shutdown(k->listener, 500);
@@ -358,6 +359,17 @@ static void cleanup_kernel(void *_)
 			logger(LOG_CRIT, "failed to save keys to %s: %s",
 				k->server->config.keysfile, strerror(errno));
 		}
+
+		logger(LOG_INFO, "kernel cleaning up; freeing EVENT memory");
+		event_t *ev, *ev_tmp;
+		for_each_object_safe(ev, ev_tmp, &k->server->db.events, l) {
+			free(ev->name);
+			free(ev->extra);
+			free(ev);
+		}
+
+		logger(LOG_INFO, "kernel cleaning up; freeing KEY memory");
+		hash_done(&k->server->keys, 1);
 	}
 
 	free(k);
@@ -733,15 +745,6 @@ void* kernel(void *u)
 		pdu_send_and_free(a, k->listener);
 		pdu_free(q);
 	}
-
-	/* clean up all buffered events */
-	event_t *ev, *ev_tmp;
-	for_each_object_safe(ev, ev_tmp, &k->server->db.events, l) {
-		free(ev->name);
-		free(ev->extra);
-		free(ev);
-	}
-	hash_done(&k->server->keys, 1);
 
 	pthread_cleanup_pop(1);
 	return NULL;
