@@ -596,7 +596,7 @@ int configure(const char *path, server_t *s)
 					goto bail;
 				}
 
-				rate = calloc(1, sizeof(counter_t));
+				rate = calloc(1, sizeof(rate_t));
 				hash_set(&s->db.rates, p.value, rate);
 				rate->name   = strdup(p.value);
 				rate->window = win;
