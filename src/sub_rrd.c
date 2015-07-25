@@ -23,6 +23,7 @@
 #include <rrd.h>
 
 #define RRD_MAP_FLUSH_INTERVAL 5
+#define RRD_REPORT_INTERVAL    20
 #define CREATOR_BUS "inproc://rrd.creator"
 #define UPDATER_BUS "inproc://rrd.updater"
 
@@ -683,6 +684,10 @@ int main(int argc, char **argv)
 		}
 	}
 
+	int32_t  report_at = time_s() + RRD_REPORT_INTERVAL;
+	uint64_t n_created = 0,
+	         n_updated = 0;
+
 	pdu_t *p;
 	while (!signalled()) {
 		while ((p = pdu_recv(sub))) {
@@ -712,10 +717,12 @@ int main(int argc, char **argv)
 			if (stat(file, &st) != 0 && errno == ENOENT) {
 				logger(LOG_DEBUG, "relaying [%s] PDU to creator thread", pdu_type(p));
 				pdu_send_and_free(relay, creator_bus);
+				n_created++;
 
 			} else {
 				logger(LOG_DEBUG, "relaying [%s] PDU to an updater thread", pdu_type(p));
 				pdu_send_and_free(relay, updater_bus);
+				n_updated++;
 			}
 
 			free(filename);
@@ -723,6 +730,21 @@ int main(int argc, char **argv)
 			free(name);
 
 			pdu_free(p);
+
+			if (OPTIONS.submit && time_s() >= report_at) {
+				logger(LOG_INFO, "reporting up creation/udpate statistics");
+				char *name;
+
+				name = string("%s:sys:bolo2rrd:create.ops", OPTIONS.prefix);
+				pdu_send_and_free(rate_pdu(name, n_created), OPTIONS.submit);
+				free(name);
+
+				name = string("%s:sys:bolo2rrd:update.ops", OPTIONS.prefix);
+				pdu_send_and_free(rate_pdu(name, n_updated), OPTIONS.submit);
+				free(name);
+
+				report_at = time_s() + RRD_REPORT_INTERVAL;
+			}
 
 			if (OPTIONS.hashfile && time_s() >= flush_at) {
 				logger(LOG_INFO, "flushing file map to %s", OPTIONS.hashfile);
