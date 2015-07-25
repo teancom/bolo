@@ -238,12 +238,12 @@ pdu_t *sample_pdu(const char *name, int n, ...)
 	return pdu;
 }
 
-pdu_t *rate_pdu(const char *name, double value)
+pdu_t *rate_pdu(const char *name, unsigned long value)
 {
 	pdu_t *pdu = pdu_make("RATE", 0);
 	pdu_extendf(pdu, "%i", time_s());
 	pdu_extendf(pdu, "%s", name);
-	pdu_extendf(pdu, "%lf", value);
+	pdu_extendf(pdu, "%lu", value);
 	return pdu;
 }
 
@@ -312,7 +312,7 @@ int submit_sample(void *zmq, const char *endpoint, const char *name, int n, ...)
 	return rc;
 }
 
-int submit_rate(void *zmq, const char *endpoint, const char *name, double value)
+int submit_rate(void *zmq, const char *endpoint, const char *name, unsigned long value)
 {
 	pdu_t *pdu = rate_pdu(name, value);
 	int rc = submit_pdu(zmq, endpoint, pdu);

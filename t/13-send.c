@@ -75,7 +75,7 @@ TESTS {
 
 	ok(submit_rate(zmq, TEST_ENDPOINT,
 			"packets.rx",   /* name */
-			1.294831112e10  /* absolute tick value */
+			12948310        /* absolute tick value */
 		) == 0,
 		"submitted a RATE PDU via submit_rate()");
 
@@ -85,8 +85,8 @@ TESTS {
 	is_int(pdu_size(p), 4, "RATE PDU is 4 frames long");
 
 	/* frame #1 is the timestamp */
-	is(s = pdu_string(p, 2), "packets.rx",         "RATE name sent correctly"); free(s);
-	is(s = pdu_string(p, 3), "12948311120.000000", "RATE tick value sent correctly"); free(s);
+	is(s = pdu_string(p, 2), "packets.rx", "RATE name sent correctly"); free(s);
+	is(s = pdu_string(p, 3), "12948310",   "RATE tick value sent correctly"); free(s);
 	pdu_free(p);
 
 

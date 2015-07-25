@@ -299,7 +299,7 @@ pdu_t *stream_pdu(const char *line);
 pdu_t *state_pdu   (const char *name, int status, const char *msg);
 pdu_t *counter_pdu (const char *name, unsigned int value);
 pdu_t *sample_pdu  (const char *name, int n, ...);
-pdu_t *rate_pdu    (const char *name, double value);
+pdu_t *rate_pdu    (const char *name, unsigned long value);
 pdu_t *setkeys_pdu (int n, ...);
 pdu_t *event_pdu   (const char *name, const char *extra);
 
@@ -307,7 +307,7 @@ int submit_pdu     (void *zmq, const char *endpoint, pdu_t *pdu);
 int submit_state   (void *zmq, const char *endpoint, const char *name, int status, const char *msg);
 int submit_counter (void *zmq, const char *endpoint, const char *name, unsigned int value);
 int submit_sample  (void *zmq, const char *endpoint, const char *name, int n, ...);
-int submit_rate    (void *zmq, const char *endpoint, const char *name, double value);
+int submit_rate    (void *zmq, const char *endpoint, const char *name, unsigned long value);
 int submit_setkeys (void *zmq, const char *endpoint, int n, ...);
 int submit_event   (void *zmq, const char *endpoint, const char *name, const char *extra);
 
