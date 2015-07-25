@@ -266,6 +266,8 @@ typedef struct PACKED {
 	uint32_t  timestamp;
 } binf_event_t;
 
+#define probable(f) (rand() * 1.0 / RAND_MAX <= (f))
+
 int binf_write(db_t *db, const char *file);
 int binf_read(db_t *db, const char *file);
 
