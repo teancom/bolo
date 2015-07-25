@@ -29,8 +29,8 @@ TESTS {
 	is(pdu_type(p), "STATE", "received PDU is a [STATE] PDU");
 	is_int(pdu_size(p), 5, "STATE PDU is 5 frames long");
 
-	is(s = pdu_string(p, 1), "my.example.state", "STATE name sent correctly"); free(s);
-	/* frame #2 is the timestamp */
+	/* frame #1 is the timestamp */
+	is(s = pdu_string(p, 2), "my.example.state", "STATE name sent correctly"); free(s);
 	is(s = pdu_string(p, 3), "1",                "STATE status sent correctly"); free(s);
 	is(s = pdu_string(p, 4), "is broken",        "STATE message sent correctly"); free(s);
 	pdu_free(p);
@@ -47,8 +47,8 @@ TESTS {
 	is(pdu_type(p), "COUNTER", "received PDU is a [COUNTER] PDU");
 	is_int(pdu_size(p), 4, "COUNTER PDU is 4 frames long");
 
-	is(s = pdu_string(p, 1), "things.that.break", "COUNTER name sent correctly"); free(s);
-	/* frame #2 is the timestamp */
+	/* frame #1 is the timestamp */
+	is(s = pdu_string(p, 2), "things.that.break", "COUNTER name sent correctly"); free(s);
 	is(s = pdu_string(p, 3), "42",                "COUNTER value sent correctly"); free(s);
 	pdu_free(p);
 
@@ -66,8 +66,8 @@ TESTS {
 	is(pdu_type(p), "SAMPLE", "received PDU is a [SAMPLE] PDU");
 	is_int(pdu_size(p), 5, "SAMPLE PDU is 5 frames long");
 
-	is(s = pdu_string(p, 1), "cpu.usage.real", "SAMPLE name sent correctly"); free(s);
-	/* frame #2 is the timestamp */
+	/* frame #1 is the timestamp */
+	is(s = pdu_string(p, 2), "cpu.usage.real", "SAMPLE name sent correctly"); free(s);
 	is(s = pdu_string(p, 3), "144.300000", "SAMPLE value #1 sent correctly"); free(s);
 	is(s = pdu_string(p, 4), "139.500000", "SAMPLE value #2 sent correctly"); free(s);
 	pdu_free(p);
@@ -84,8 +84,8 @@ TESTS {
 	is(pdu_type(p), "RATE", "received PDU is a [RATE] PDU");
 	is_int(pdu_size(p), 4, "RATE PDU is 4 frames long");
 
-	is(s = pdu_string(p, 1), "packets.rx",         "RATE name sent correctly"); free(s);
-	/* frame #2 is the timestamp */
+	/* frame #1 is the timestamp */
+	is(s = pdu_string(p, 2), "packets.rx",         "RATE name sent correctly"); free(s);
 	is(s = pdu_string(p, 3), "12948311120.000000", "RATE tick value sent correctly"); free(s);
 	pdu_free(p);
 
@@ -96,20 +96,19 @@ TESTS {
 			"host:sysname=myhostname",   /* key with a value */
 			"host:sysdescr=stuff=good"   /* multiple equal signs */
 		) == 0,
-		"submitted a SETKEYS PDU via submit_setkeys()");
+		"submitted a SET.KEYS PDU via submit_setkeys()");
 
 	p = pdu_recv(server);
 	isnt_null(p, "received PDU on mock test socket");
-	is(pdu_type(p), "SETKEYS", "received PDU is a [SETKEYS] PDU");
-	is_int(pdu_size(p), 8, "SETKEYS PDU is 8 frames long");
+	is(pdu_type(p), "SET.KEYS", "received PDU is a [SET.KEYS] PDU");
+	is_int(pdu_size(p), 7, "SET.KEYS PDU is 8 frames long");
 
-	/* frame #1 is the timestamp */
-	is(s = pdu_string(p, 2), "host:df:/",     "SETKEYS pair #1 key sent correctly"); free(s);
-	is(s = pdu_string(p, 3), "1",             "SETKEYS pair #1 (implicit) value sent correctly"); free(s);
-	is(s = pdu_string(p, 4), "host:sysname",  "SETKEYS pair #2 key sent correctly"); free(s);
-	is(s = pdu_string(p, 5), "myhostname",    "SETKEYS pair #2 value sent correctly"); free(s);
-	is(s = pdu_string(p, 6), "host:sysdescr", "SETKEYS pair #3 key sent correctly"); free(s);
-	is(s = pdu_string(p, 7), "stuff=good",    "SETKEYS pair #3 value sent correctly"); free(s);
+	is(s = pdu_string(p, 1), "host:df:/",     "SET.KEYS pair #1 key sent correctly"); free(s);
+	is(s = pdu_string(p, 2), "1",             "SET.KEYS pair #1 (implicit) value sent correctly"); free(s);
+	is(s = pdu_string(p, 3), "host:sysname",  "SET.KEYS pair #2 key sent correctly"); free(s);
+	is(s = pdu_string(p, 4), "myhostname",    "SET.KEYS pair #2 value sent correctly"); free(s);
+	is(s = pdu_string(p, 5), "host:sysdescr", "SET.KEYS pair #3 key sent correctly"); free(s);
+	is(s = pdu_string(p, 6), "stuff=good",    "SET.KEYS pair #3 value sent correctly"); free(s);
 	pdu_free(p);
 
 
@@ -124,8 +123,8 @@ TESTS {
 	is(pdu_type(p), "EVENT", "received PDU is a [EVENT] PDU");
 	is_int(pdu_size(p), 4, "EVENT PDU is 4 frames long");
 
-	is(s = pdu_string(p, 1), "a.curious.transpiration", "EVENT name sent correctly"); free(s);
-	/* frame #2 is the timestamp */
+	/* frame #1 is the timestamp */
+	is(s = pdu_string(p, 2), "a.curious.transpiration", "EVENT name sent correctly"); free(s);
 	is(s = pdu_string(p, 3), "something quite curious has just happened!",
 		"EVENT extra data sent correctly"); free(s);
 	pdu_free(p);

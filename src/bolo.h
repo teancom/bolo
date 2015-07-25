@@ -294,6 +294,13 @@ pdu_t *make_setkeys_pdu(int argc, char **argv);
 pdu_t *make_event_pdu  (int argc, char **argv, const char *ts);
 pdu_t *stream_pdu(const char *line);
 
+pdu_t *state_pdu   (const char *name, int status, const char *msg);
+pdu_t *counter_pdu (const char *name, unsigned int value);
+pdu_t *sample_pdu  (const char *name, int n, ...);
+pdu_t *rate_pdu    (const char *name, double value);
+pdu_t *setkeys_pdu (int n, ...);
+pdu_t *event_pdu   (const char *name, const char *extra);
+
 int submit_pdu     (void *zmq, const char *endpoint, pdu_t *pdu);
 int submit_state   (void *zmq, const char *endpoint, const char *name, int status, const char *msg);
 int submit_counter (void *zmq, const char *endpoint, const char *name, unsigned int value);

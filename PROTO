@@ -213,28 +213,32 @@
      ---------------------------------------------------------------------------
 
      STATE                                   ; set the code / status / summary
-     <NAME>                                  ; of a state.  yields a PUT.STATE
-     <NUMERIC-CODE>                          ; to the kernel
+     <TS>                                    ; of a state.  yields a PUT.STATE
+     <NAME>                                  ; to the kernel
+     <NUMERIC-CODE>
      <SUMMARY>
 
      ---------------------------------------------------------------------------
 
      COUNTER                                 ; increment a counter
-     <NAME>                                  ; yields a PUT.COUNTER to the kernel
+     <TS>                                    ; yields a PUT.COUNTER to the kernel
+     <NAME>
      <INCREMENT>
 
      ---------------------------------------------------------------------------
 
      SAMPLE                                  ; update a sample set with a new
-     <NAME>                                  ; sample, recalculating
-     <VALUE>                                 ; min/max/mean/variance as necessary
-                                             ; yields a PUT.SAMPLE to the kernel
+     <TS>                                    ; sample, recalculating
+     <NAME>                                  ; min/max/mean/variance as necessary
+     <VALUE>                                 ; yields a PUT.SAMPLE to the kernel
+     <...>
 
      ---------------------------------------------------------------------------
 
      RATE                                    ; update a sample set with a new
-     <NAME>                                  ; rate-calculation (for absolute
-     <VALUE>                                 ; values like %user jiffies)
+     <TS>                                    ; rate-calculation (for absolute
+     <NAME>                                  ; values like %user jiffies)
+     <VALUE>
 
      ---------------------------------------------------------------------------
 

@@ -197,70 +197,59 @@ int submit_pdu(void *zmq, const char *endpoint, pdu_t *pdu)
 	return rc;
 }
 
-int submit_state(void *zmq, const char *endpoint, const char *name, int status, const char *msg)
+pdu_t *state_pdu(const char *name, int status, const char *msg)
 {
 	pdu_t *pdu = pdu_make("STATE", 0);
-	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%i", time_s());
+	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%u", status);
 	pdu_extendf(pdu, "%s", msg);
-
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
+	return pdu;
 }
 
-int submit_counter(void *zmq, const char *endpoint, const char *name, unsigned int value)
+pdu_t *counter_pdu(const char *name, unsigned int value)
 {
 	pdu_t *pdu = pdu_make("COUNTER", 0);
-	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%i", time_s());
+	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%u", value);
-
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
+	return pdu;
 }
 
-int submit_sample(void *zmq, const char *endpoint, const char *name, int n, ...)
+static pdu_t *_vsample_pdu(const char *name, int n, va_list ap)
 {
 	pdu_t *pdu = pdu_make("SAMPLE", 0);
-	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%i", time_s());
-
-	va_list ap;
-	va_start(ap, n);
+	pdu_extendf(pdu, "%s", name);
 
 	int i;
 	for (i = 0; i < n; i++)
 		pdu_extendf(pdu, "%lf", va_arg(ap, double));
-
-	va_end(ap);
-
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
+	return pdu;
 }
 
-int submit_rate(void *zmq, const char *endpoint, const char *name, double value)
+pdu_t *sample_pdu(const char *name, int n, ...)
 {
-	pdu_t *pdu = pdu_make("RATE", 0);
-	pdu_extendf(pdu, "%s", name);
-	pdu_extendf(pdu, "%i", time_s());
-	pdu_extendf(pdu, "%lf", value);
-
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_setkeys(void *zmq, const char *endpoint, int n, ...)
-{
-	pdu_t *pdu = pdu_make("SETKEYS", 0);
-	pdu_extendf(pdu, "%i", time_s());
-
 	va_list ap;
 	va_start(ap, n);
+	pdu_t *pdu = _vsample_pdu(name, n, ap);
+	va_end(ap);
+
+	return pdu;
+}
+
+pdu_t *rate_pdu(const char *name, double value)
+{
+	pdu_t *pdu = pdu_make("RATE", 0);
+	pdu_extendf(pdu, "%i", time_s());
+	pdu_extendf(pdu, "%s", name);
+	pdu_extendf(pdu, "%lf", value);
+	return pdu;
+}
+
+static pdu_t* _vsetkeys_pdu(int n, va_list ap)
+{
+	pdu_t *pdu = pdu_make("SET.KEYS", 0);
 
 	int i;
 	char *k, *v;
@@ -275,8 +264,68 @@ int submit_setkeys(void *zmq, const char *endpoint, int n, ...)
 		free(k);
 	}
 
-	va_end(ap);
+	return pdu;
+}
 
+pdu_t *setkeys_pdu(int n, ...)
+{
+	va_list ap;
+	va_start(ap, n);
+	pdu_t *pdu = _vsetkeys_pdu(n, ap);
+	va_end(ap);
+	return pdu;
+}
+
+pdu_t *event_pdu(const char *name, const char *extra)
+{
+	pdu_t *pdu = pdu_make("EVENT", 0);
+	pdu_extendf(pdu, "%i", time_s());
+	pdu_extendf(pdu, "%s", name);
+	pdu_extendf(pdu, "%s", extra ? extra : "");
+	return pdu;
+}
+
+int submit_state(void *zmq, const char *endpoint, const char *name, int status, const char *msg)
+{
+	pdu_t *pdu = state_pdu(name, status, msg);
+	int rc = submit_pdu(zmq, endpoint, pdu);
+	pdu_free(pdu);
+	return rc;
+}
+
+int submit_counter(void *zmq, const char *endpoint, const char *name, unsigned int value)
+{
+	pdu_t *pdu = counter_pdu(name, value);
+	int rc = submit_pdu(zmq, endpoint, pdu);
+	pdu_free(pdu);
+	return rc;
+}
+
+int submit_sample(void *zmq, const char *endpoint, const char *name, int n, ...)
+{
+	va_list ap;
+	va_start(ap, n);
+	pdu_t *pdu = _vsample_pdu(name, n, ap);
+	va_end(ap);
+	int rc = submit_pdu(zmq, endpoint, pdu);
+	pdu_free(pdu);
+	return rc;
+}
+
+int submit_rate(void *zmq, const char *endpoint, const char *name, double value)
+{
+	pdu_t *pdu = rate_pdu(name, value);
+	int rc = submit_pdu(zmq, endpoint, pdu);
+	pdu_free(pdu);
+	return rc;
+}
+
+int submit_setkeys(void *zmq, const char *endpoint, int n, ...)
+{
+	va_list ap;
+	va_start(ap, n);
+	pdu_t *pdu = _vsetkeys_pdu(n, ap);
+	va_end(ap);
 	int rc = submit_pdu(zmq, endpoint, pdu);
 	pdu_free(pdu);
 	return rc;
@@ -284,11 +333,7 @@ int submit_setkeys(void *zmq, const char *endpoint, int n, ...)
 
 int submit_event(void *zmq, const char *endpoint, const char *name, const char *extra)
 {
-	pdu_t *pdu = pdu_make("EVENT", 0);
-	pdu_extendf(pdu, "%s", name);
-	pdu_extendf(pdu, "%i", time_s());
-	pdu_extendf(pdu, "%s", extra ? extra : "");
-
+	pdu_t *pdu = event_pdu(name, extra);
 	int rc = submit_pdu(zmq, endpoint, pdu);
 	pdu_free(pdu);
 	return rc;
