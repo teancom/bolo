@@ -79,14 +79,17 @@ static char* s_rradefs(const char *filename)
 
 static int s_counter_create(const char *filename)
 {
-	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
-		" DS:x:GAUGE:120:U:U %s",
-		filename, RRAs);
+	char *s = string("DS:x:GAUGE:120:U:U %s", RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
 	rrd_clear_error();
-	int rc = rrd_create(alist->num, alist->strings);
+	int rc = rrd_create_r(
+		filename,
+		60,
+		time_s() - 365 * 86400,
+		alist->num,
+		(const char **)alist->strings);
 	strings_free(alist);
 
 	return rc;
@@ -94,32 +97,41 @@ static int s_counter_create(const char *filename)
 
 static int s_counter_update(const char *filename, const char *ts, const char *v)
 {
-	char *s = string("bolo-rrdupdate %s %s:%s", filename, ts, v);
-	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
-	free(s);
+	char *argv[2] = {
+		string("%s:%s", ts, v),
+		NULL,
+	};
 
 	rrd_clear_error();
-	int rc = rrd_update(alist->num, alist->strings);
-	strings_free(alist);
+	int rc = rrd_update_r(
+		filename,
+		NULL,
+		1,
+		(const char **)argv);
 
+	free(argv[0]);
 	return rc;
 }
 
 static int s_sample_create(const char *filename)
 {
-	char *s = string("bolo-rrdcreate %s --start n-1yr --step 60"
-		" DS:n:GAUGE:120:U:U"
+	char *s = string(""
+		 "DS:n:GAUGE:120:U:U"
 		" DS:min:GAUGE:120:U:U"
 		" DS:max:GAUGE:120:U:U"
 		" DS:sum:GAUGE:120:U:U"
 		" DS:mean:GAUGE:120:U:U"
-		" DS:var:GAUGE:120:U:U %s",
-		filename, RRAs);
+		" DS:var:GAUGE:120:U:U %s", RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
 	rrd_clear_error();
-	int rc = rrd_create(alist->num, alist->strings);
+	int rc = rrd_create_r(
+		filename,
+		60,
+		time_s() - 365 * 86400,
+		alist->num,
+		(const char **)alist->strings);
 	strings_free(alist);
 
 	return rc;
@@ -127,29 +139,35 @@ static int s_sample_create(const char *filename)
 
 static int s_sample_update(const char *filename, const char *ts, const char *n, const char *min, const char *max, const char *sum, const char *mean, const char *var)
 {
-	char *s = string("bolo-rrdupdate %s %s:%s:%s:%s:%s:%s:%s",
-		filename, ts, n, min, max, sum, mean, var);
-
-	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
-	free(s);
+	char *argv[2] = {
+		string("%s:%s:%s:%s:%s:%s:%s", ts, n, min, max, sum, mean, var),
+		NULL,
+	};
 
 	rrd_clear_error();
-	int rc = rrd_update(alist->num, alist->strings);
-	strings_free(alist);
+	int rc = rrd_update_r(
+		filename,
+		NULL,
+		1,
+		(const char **)argv);
 
+	free(argv[0]);
 	return rc;
 }
 
 static int s_rate_create(const char *filename)
 {
-	char *s = string("bolo-rrdcreate %s --start n-1yt --step 60"
-		" DS:value:GAUGE:120:U:U %s",
-		filename, RRAs);
+	char *s = string("DS:value:GAUGE:120:U:U %s", RRAs);
 	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
 	free(s);
 
 	rrd_clear_error();
-	int rc = rrd_create(alist->num, alist->strings);
+	int rc = rrd_create_r(
+		filename,
+		60,
+		time_s() - 365 * 86400,
+		alist->num,
+		(const char **)alist->strings);
 	strings_free(alist);
 
 	return rc;
@@ -157,14 +175,19 @@ static int s_rate_create(const char *filename)
 
 static int s_rate_update(const char *filename, const char *ts, const char *v)
 {
-	char *s = string("bolo-rrdupdate %s %s:%s", filename, ts, v);
-	strings_t *alist = strings_split(s, strlen(s), " ", SPLIT_NORMAL);
-	free(s);
+	char *argv[2] = {
+		string("%s:%s", ts, v),
+		NULL,
+	};
 
 	rrd_clear_error();
-	int rc = rrd_update(alist->num, alist->strings);
-	strings_free(alist);
+	int rc = rrd_update_r(
+		filename,
+		NULL,
+		1,
+		(const char **)argv);
 
+	free(argv[0]);
 	return rc;
 }
 
@@ -246,6 +269,9 @@ static int s_write_map(hash_t *map)
 
 void* creator_thread(void *zmq)
 {
+	/* set up some thread-specific stuff in -lrrd_th */
+	rrd_get_context();
+
 	int *rc = vmalloc(sizeof(int));
 	*rc = 0;
 
@@ -323,6 +349,9 @@ void* creator_thread(void *zmq)
 
 void* updater_thread(void *zmq)
 {
+	/* set up some thread-specific stuff in -lrrd_th */
+	rrd_get_context();
+
 	int *rc = vmalloc(sizeof(int));
 	*rc = 0;
 
