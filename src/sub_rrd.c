@@ -694,48 +694,60 @@ int main(int argc, char **argv)
 	uint64_t n_created = 0,
 	         n_updated = 0;
 
+	stopwatch_t watch;
+	uint64_t spent = 0;
+
 	pdu_t *p;
 	while (!signalled()) {
 		while ((p = pdu_recv(sub))) {
-			char *name = NULL;
-			if ((strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4)
-			 || (strcmp(pdu_type(p), "SAMPLE")  == 0 && pdu_size(p) == 9)
-			 || (strcmp(pdu_type(p), "RATE")    == 0 && pdu_size(p) == 5)) {
-				logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
-				name = pdu_string(p, 2);
 
-			} else {
-				continue;
+			STOPWATCH(&watch, spent) {
+				char *name = NULL;
+				if ((strcmp(pdu_type(p), "COUNTER") == 0 && pdu_size(p) == 4)
+				 || (strcmp(pdu_type(p), "SAMPLE")  == 0 && pdu_size(p) == 9)
+				 || (strcmp(pdu_type(p), "RATE")    == 0 && pdu_size(p) == 5)) {
+					logger(LOG_INFO, "received a [%s] PDU", pdu_type(p));
+					name = pdu_string(p, 2);
+
+				} else {
+					continue;
+				}
+
+				char *filename = s_rrd_filename(name, &fmap);
+				char *file = string("%s/%s.rrd", OPTIONS.root, filename);
+
+				/* repack the PDU, with the filename as the first argument */
+				pdu_t *relay = pdu_make(pdu_type(p), 1, file);
+				for (i = 1; i < pdu_size(p); i++) {
+					char *f = pdu_string(p, i);
+					pdu_extend(relay, f, strlen(f));
+					free(f);
+				}
+
+				struct stat st;
+				if (stat(file, &st) != 0 && errno == ENOENT) {
+					logger(LOG_DEBUG, "relaying [%s] PDU to creator thread", pdu_type(p));
+					pdu_send_and_free(relay, creator_bus);
+					n_created++;
+
+				} else {
+					logger(LOG_DEBUG, "relaying [%s] PDU to an updater thread", pdu_type(p));
+					pdu_send_and_free(relay, updater_bus);
+					n_updated++;
+				}
+
+				free(filename);
+				free(file);
+				free(name);
+
+				pdu_free(p);
 			}
 
-			char *filename = s_rrd_filename(name, &fmap);
-			char *file = string("%s/%s.rrd", OPTIONS.root, filename);
-
-			/* repack the PDU, with the filename as the first argument */
-			pdu_t *relay = pdu_make(pdu_type(p), 1, file);
-			for (i = 1; i < pdu_size(p); i++) {
-				char *f = pdu_string(p, i);
-				pdu_extend(relay, f, strlen(f));
-				free(f);
+			if (OPTIONS.submit && probable(OPTIONS.coverage)) {
+				char *name = string("%s:sys:bolo2rrd:dispatch.time.s", OPTIONS.prefix);
+				pdu_send_and_free(sample_pdu(name, 1, spent / 1000.), OPTIONS.submit);
+				free(name);
 			}
-
-			struct stat st;
-			if (stat(file, &st) != 0 && errno == ENOENT) {
-				logger(LOG_DEBUG, "relaying [%s] PDU to creator thread", pdu_type(p));
-				pdu_send_and_free(relay, creator_bus);
-				n_created++;
-
-			} else {
-				logger(LOG_DEBUG, "relaying [%s] PDU to an updater thread", pdu_type(p));
-				pdu_send_and_free(relay, updater_bus);
-				n_updated++;
-			}
-
-			free(filename);
-			free(file);
-			free(name);
-
-			pdu_free(p);
 
 			if (OPTIONS.submit && time_s() >= report_at) {
 				logger(LOG_INFO, "reporting up creation/udpate statistics");
