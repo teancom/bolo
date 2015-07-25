@@ -558,7 +558,6 @@ int main(int argc, char **argv)
 
 		case 1:
 			OPTIONS.coverage = strtof(optarg, NULL); /* FIXME: error/bounds checking */
-			OPTIONS.coverage /= 100.0;
 			break;
 
 		default:
@@ -569,6 +568,13 @@ int main(int argc, char **argv)
 
 	if (!OPTIONS.prefix)
 		OPTIONS.prefix = fqdn();
+
+	if (OPTIONS.coverage < 0) {
+		fprintf(stderr, "Metric coverage (--coverage) cannot be negative\n");
+		return 1;
+	}
+	if (OPTIONS.coverage > 1.0)
+		OPTIONS.coverage /= 100.0;
 
 	struct stat st;
 	if (stat(OPTIONS.root, &st) != 0) {
