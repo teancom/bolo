@@ -189,7 +189,7 @@ int submit_pdu(void *zmq, const char *endpoint, pdu_t *pdu)
 		return -1;
 
 	int rc;
-	rc = zmq_connect(z, endpoint);
+	rc = vx_vzmq_connect(z, endpoint);
 	if (rc == 0) {
 		rc = pdu_send(pdu, z);
 		vzmq_shutdown(z, 0);
