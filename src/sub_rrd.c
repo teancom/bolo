@@ -666,7 +666,7 @@ int main(int argc, char **argv)
 	pthread_t tid;
 	logger(LOG_INFO, "spinning up %lu creator threads", OPTIONS.creators);
 	int i;
-	for (i = 0; i < OPTIONS.updaters; i++) {
+	for (i = 0; i < OPTIONS.creators; i++) {
 		rc = pthread_create(&tid, NULL, creator_thread, zmq);
 		if (rc != 0) {
 			logger(LOG_ERR, "failed to spin up creator thread #%i", i+1);
