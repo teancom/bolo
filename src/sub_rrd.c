@@ -218,9 +218,6 @@ rrdfile_t *rrd_filename(const char *root, const char *metric) /* {{{ */
 
 /**************************/
 
-typedef struct updater_t updater_t;
-typedef struct creator_t creator_t;
-
 typedef struct {
 	void *ZMQ;
 	void *command;    /* PUB:  command socket for controlling all other actors */
@@ -262,6 +259,38 @@ typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
 	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
 
+	void *queue;      /* PULL: hooked up to dispatcher.creates; receives RRD create requests */
+
+	reactor_t *reactor;
+
+	char *rras;
+} creator_t;
+
+int creator_init(creator_t *creator, void *ZMQ, options_t *options);
+void creator_deinit(creator_t *creator);
+int creator_reactor(void *socket, pdu_t *pdu, void *_);
+void * creator_thread(void *_);
+
+
+typedef struct {
+	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
+	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
+
+	void *queue;      /* PULL: hooked up to dispatcher.updates; receives RRD update requests */
+
+	reactor_t *reactor;
+} updater_t;
+
+int updater_init(updater_t *updater, void *ZMQ, options_t *options);
+void updater_deinit(updater_t *updater);
+int updater_reactor(void *socket, pdu_t *pdu, void *_);
+void * updater_thread(void *_);
+
+
+typedef struct {
+	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
+	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
+
 	void *subscriber; /* SUB:  subscriber to bolo broadcast port (external) */
 
 	void *updates;    /* PUSH: fair-queue of RRD update requests */
@@ -283,38 +312,6 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options);
 void dispatcher_deinit(dispatcher_t *dispatcher);
 int dispatcher_reactor(void *socket, pdu_t *pdu, void *_);
 void * dispatcher_thread(void *_);
-
-
-typedef struct creator_t {
-	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
-	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
-
-	void *queue;      /* PULL: hooked up to dispatcher.creates; receives RRD create requests */
-
-	reactor_t *reactor;
-
-	char *rras;
-} creator_t;
-
-int creator_init(creator_t *creator, void *ZMQ, options_t *options);
-void creator_deinit(creator_t *creator);
-int creator_reactor(void *socket, pdu_t *pdu, void *_);
-void * creator_thread(void *_);
-
-
-typedef struct updater_t {
-	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
-	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
-
-	void *queue;      /* PULL: hooked up to dispatcher.updates; receives RRD update requests */
-
-	reactor_t *reactor;
-} updater_t;
-
-int updater_init(updater_t *updater, void *ZMQ, options_t *options);
-void updater_deinit(updater_t *updater);
-int updater_reactor(void *socket, pdu_t *pdu, void *_);
-void * updater_thread(void *_);
 
 
 #define SCHEDULER_TICK   5000   /* ms */
