@@ -328,8 +328,6 @@ void scheduler_deinit(scheduler_t *scheduler);
 int scheduler_reactor(void *socket, pdu_t *pdu, void *_);
 void * scheduler_thread(void *_);
 
-void dump_median(monitor_t *monitor, int idx);
-
 
 int connect_to_monitor(void *ZMQ, void **zocket) /* {{{ */
 {
@@ -558,14 +556,12 @@ int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				if (median > 1.0e4) {
 					logger(LOG_ERR, "calculated median for %s at %lf, which seems suspiciously high; skipping",
 						MON_TIMINGS[i], median);
-					dump_median(monitor, i);
 					continue;
 				}
 
 				if (median < 0) {
 					logger(LOG_ERR, "calculated negative mdiean for %s (%lf), which should be impossible; skipping",
 						MON_TIMINGS[i], median);
-					dump_median(monitor, i);
 					continue;
 				}
 
@@ -598,14 +594,7 @@ int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 					uint64_t ms = strtoull(time, NULL, 10);
 					free(time);
 
-					if (i == MON_TIMING_UPDATE && ms > 1000)
-						dump_median(monitor, i);
-					if (i == MON_TIMING_UPDATE && ms > 1000)
-						logger(LOG_DEBUG, "monitor: tracking %s timing sample %lums", name, ms);
-
 					monitor_sample(monitor, i, ms);
-					if (i == MON_TIMING_UPDATE && ms > 1000)
-						dump_median(monitor, i);
 					break;
 				}
 			}
@@ -660,10 +649,11 @@ void * monitor_thread(void *_) /* {{{ */
 	return NULL;
 }
 /* }}} */
-int cmpul(const void *a, const void *b) {
+int cmpul(const void *a, const void *b) { /* {{{ */
 	return *(uint64_t *)a == *(uint64_t *)b ? 0
 	     : *(uint64_t *)a >  *(uint64_t *)b ? 1 : -1;
 }
+/* }}} */
 double monitor_median_value(monitor_t *monitor, int idx) /* {{{ */
 {
 	assert(monitor != NULL);
@@ -682,30 +672,6 @@ double monitor_median_value(monitor_t *monitor, int idx) /* {{{ */
 		        monitor->timings[idx].data[mid]) / 2.;
 
 	return monitor->timings[idx].data[mid] * 1.;
-}
-void dump_median(monitor_t *monitor, int idx)
-{
-	int n = monitor->timings[idx].samples;
-	fprintf(stderr, "sample set %s\n", MON_TIMINGS[idx]);
-	fprintf(stderr, "  n = %i   (max = %i)\n", n, MON_SAMPLES_MAX);
-	fprintf(stderr, "  v = [");
-
-	int mida, midb;
-	mida = midb = n / 2;
-	if (n % 2 == 0)
-		mida = midb - 1;
-
-	int i;
-	if (n > MON_SAMPLES_MAX) n = MON_SAMPLES_MAX;
-	qsort(monitor->timings[idx].data, n, sizeof(uint64_t), cmpul);
-
-	for (i = 0; i < n; i++)
-		fprintf(stderr, "%s%lu%s%s",
-			(i == mida || i == midb ? "((" : ""),
-			monitor->timings[idx].data[i],
-			(i == mida || i == midb ? "))" : ""),
-			(i == n - 1 ? "" : ", "));
-	fprintf(stderr, "]\n\n");
 }
 /* }}} */
 void monitor_sample(monitor_t *monitor, int idx, uint64_t value) /* {{{ */
