@@ -256,6 +256,8 @@ void monitor_sample(monitor_t *monitor, int idx, uint64_t value);
 void monitor_count(monitor_t *monitor, int idx);
 
 typedef struct {
+	int id;           /* simple identifying number for the thread; used in logging */
+
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
 	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
 
@@ -273,6 +275,8 @@ void * creator_thread(void *_);
 
 
 typedef struct {
+	int id;           /* simple identifying number for the thread; used in logging */
+
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
 	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
 
@@ -802,6 +806,7 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	dispatcher->updater_pool = vcalloc(dispatcher->updater_pool_size, sizeof(updater_t*));
 	for (i = 0; i < dispatcher->updater_pool_size; i++) {
 		dispatcher->updater_pool[i] = vmalloc(sizeof(updater_t));
+		dispatcher->updater_pool[i]->id = i;
 		updater_init(dispatcher->updater_pool[i], ZMQ, options);
 	}
 
@@ -809,6 +814,7 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	dispatcher->creator_pool = vcalloc(dispatcher->creator_pool_size, sizeof(creator_t*));
 	for (i = 0; i < dispatcher->creator_pool_size; i++) {
 		dispatcher->creator_pool[i] = vmalloc(sizeof(creator_t));
+		dispatcher->creator_pool[i]->id = i;
 		creator_init(dispatcher->creator_pool[i], ZMQ, options);
 	}
 
@@ -938,7 +944,6 @@ void * dispatcher_thread(void *_) /* {{{ */
 	int i;
 	logger(LOG_DEBUG, "spinning up updater pool with %lu threads", dispatcher->updater_pool_size);
 	for (i = 0; i < dispatcher->updater_pool_size; i++) {
-		logger(LOG_INFO, "spinning up updater thread #%i (%p)", i+1, dispatcher->updater_pool[i]);
 		rc = pthread_create(&tid, NULL, updater_thread, dispatcher->updater_pool[i]);
 		if (rc != 0)
 			exit(5);
@@ -946,7 +951,6 @@ void * dispatcher_thread(void *_) /* {{{ */
 
 	logger(LOG_DEBUG, "spinning up creator pool with %lu threads", dispatcher->creator_pool_size);
 	for (i = 0; i < dispatcher->creator_pool_size; i++) {
-		logger(LOG_INFO, "spinning up creator thread #%i (%p)", i+1, dispatcher->creator_pool[i]);
 		rc = pthread_create(&tid, NULL, creator_thread, dispatcher->creator_pool[i]);
 		if (rc != 0)
 			exit(5);
@@ -966,17 +970,17 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 
 	int rc;
 
-	logger(LOG_DEBUG, "connecting creator.control -> supervisor");
+	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", creator->id);
 	rc = connect_to_supervisor(ZMQ, &creator->control);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting creator.monitor -> monitor");
+	logger(LOG_DEBUG, "creator[%i] connecting creator.monitor -> monitor", creator->id);
 	rc = connect_to_monitor(ZMQ, &creator->monitor);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting creator.queue -> dispatcher");
+	logger(LOG_DEBUG, "creator[%i] connecting creator.queue -> dispatcher", creator->id);
 	creator->queue = zmq_socket(ZMQ, ZMQ_PULL);
 	if (!creator->queue)
 		return -1;
@@ -984,7 +988,7 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "setting up updater event reactor");
+	logger(LOG_DEBUG, "creator[%i] setting up updater event reactor", creator->id);
 	creator->reactor = reactor_new();
 	if (!creator->reactor)
 		return -1;
@@ -1033,7 +1037,7 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 	if (socket == creator->queue) {
 
 		if (strcmp(pdu_type(pdu), "CREATE") != 0) {
-			logger(LOG_DEBUG, "discarding unhandled [%s] PDU", pdu_type(pdu));
+			logger(LOG_DEBUG, "creator[%i] discarding unhandled [%s] PDU", creator->id, pdu_type(pdu));
 			return VIGOR_REACTOR_CONTINUE;
 		}
 
@@ -1051,7 +1055,7 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		char *file = pdu_string(pdu, 3);
 		struct stat st;
 		if (stat(file, &st) == 0) {
-			logger(LOG_DEBUG, "rrd %s already exists; logging false positive");
+			logger(LOG_DEBUG, "creator[%i] rrd %s already exists; logging false positive", creator->id);
 			pdu_send_and_free(pdu_make(".count", 1, "create.false.positives"), creator->monitor);
 			free(file);
 			return VIGOR_REACTOR_CONTINUE;
@@ -1091,18 +1095,22 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				free(s);
 
 			} else {
-				logger(LOG_WARNING, "rrdcreate %s %s failed: unknown metric type", type, file);
+				logger(LOG_WARNING, "creator[%i] rrdcreate %s %s failed: unknown metric type",
+					creator->id, type, file);
 			}
 
 			if (args) {
+				logger(LOG_DEBUG, "creator[%i] rrdcreate %07s %s",
+						creator->id, type, file);
+
 				rrd_clear_error();
 				rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
 					args->num, (const char **)args->strings);
-				strings_free(args);
-
 				if (rc != 0)
-					logger(LOG_WARNING, "rrdcreate %s %s failed: %s",
-						type, file, rrd_strerror(errno));
+					logger(LOG_WARNING, "creator[%i] rrdcreate %s %s failed: %s",
+						creator->id, type, file, rrd_get_error());
+
+				strings_free(args);
 			}
 		}
 
@@ -1122,7 +1130,7 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		return VIGOR_REACTOR_CONTINUE;
 	}
 
-	logger(LOG_ERR, "unhandled socket!");
+	logger(LOG_ERR, "creator[%i] unhandled socket!", creator->id);
 	return VIGOR_REACTOR_HALT;
 }
 /* }}} */
@@ -1146,17 +1154,17 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 
 	int rc;
 
-	logger(LOG_DEBUG, "connecting updater.control -> supervisor");
+	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", updater->id);
 	rc = connect_to_supervisor(ZMQ, &updater->control);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting updater.monitor -> monitor");
+	logger(LOG_DEBUG, "updater[%i] connecting updater.monitor -> monitor", updater->id);
 	rc = connect_to_monitor(ZMQ, &updater->monitor);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting updater.queue -> dispatcher");
+	logger(LOG_DEBUG, "updater[%i] connecting updater.queue -> dispatcher", updater->id);
 	updater->queue = zmq_socket(ZMQ, ZMQ_PULL);
 	if (!updater->queue)
 		return -1;
@@ -1164,7 +1172,7 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "setting up updater event reactor");
+	logger(LOG_DEBUG, "updater[%i] setting up updater event reactor", updater->id);
 	updater->reactor = reactor_new();
 	if (!updater->reactor)
 		return -1;
@@ -1208,7 +1216,7 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 	if (socket == updater->queue) {
 
 		if (strcmp(pdu_type(pdu), "UPDATE") != 0) {
-			logger(LOG_DEBUG, "discarding unhandled [%s] PDU", pdu_type(pdu));
+			logger(LOG_DEBUG, "updater[%i] discarding unhandled [%s] PDU", updater->id, pdu_type(pdu));
 			return VIGOR_REACTOR_CONTINUE;
 		}
 
@@ -1227,10 +1235,10 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		struct stat st;
 		if (stat(file, &st) != 0) {
 			if (errno == ENOENT) {
-				logger(LOG_DEBUG, "rrd %s does not exist; logging false positive");
+				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging false positive", updater->id);
 				pdu_send_and_free(pdu_make(".count", 1, "update.false.positives"), updater->monitor);
 			} else {
-				logger(LOG_DEBUG, "rrd %s does not exist; logging error");
+				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging error", updater->id);
 				pdu_send_and_free(pdu_make(".count", 1, "update.errors"), updater->monitor);
 			}
 			free(file);
@@ -1279,23 +1287,23 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				free(value);
 
 			} else {
-				logger(LOG_WARNING, "rrdupdate %s %s failed: unknown metric type (%i frames)",
-					type, file, data_frames);
+				logger(LOG_WARNING, "updater[%i] rrdupdate %s %s failed: unknown metric type (%i frames)",
+					updater->id, type, file, data_frames);
 			}
 
 
 			if (update) {
 				char *argv[2] = { update, NULL };
 
+				logger(LOG_DEBUG, "updater[%i] rrdupdate %07s %s (%s)",
+						updater->id, type, file, argv[0]);
 				rrd_clear_error();
 				rc = rrd_update_r(file, NULL, 1, (const char **)argv);
-
 				if (rc != 0)
-					logger(LOG_WARNING, "rrdupdate %s %s (%s) failed: %s",
-						type, file, argv[0], rrd_strerror(errno));
+					logger(LOG_WARNING, "updater[%i] rrdupdate %s %s (%s) failed: %s",
+						updater->id, type, file, argv[0], rrd_get_error());
 
 				free(argv[0]);
-
 			}
 
 			free(type);
@@ -1318,7 +1326,7 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		return VIGOR_REACTOR_CONTINUE;
 	}
 
-	logger(LOG_ERR, "unhandled socket!");
+	logger(LOG_ERR, "updater[%i] unhandled socket!", updater->id);
 	return VIGOR_REACTOR_HALT;
 }
 /* }}} */
@@ -1376,8 +1384,9 @@ void * scheduler_thread(void *_) /* {{{ */
 	int rc;
 	zmq_pollitem_t poller[1] = { { scheduler->control, 0, ZMQ_POLLIN } };
 	while ((rc = zmq_poll(poller, 1, SCHEDULER_TICK)) >= 0) {
-		if (rc == 0) {
-			pdu_send_and_free(pdu_make(".tick", 0), scheduler->tick);
+		if (rc == 1) {
+			logger(LOG_DEBUG, "scheduler ticked (%i); sending broadcast [TICK] PDU", SCHEDULER_TICK);
+			pdu_send_and_free(pdu_make("TICK", 0), scheduler->tick);
 			continue;
 		}
 
