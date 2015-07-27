@@ -221,7 +221,6 @@ rrdfile_t *rrd_filename(const char *root, const char *metric) /* {{{ */
 typedef struct {
 	void *ZMQ;
 	void *command;    /* PUB:  command socket for controlling all other actors */
-	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
 } supervisor_t;
 
 int supervisor_init(supervisor_t *supervisor, void *ZMQ, options_t *options);
@@ -230,6 +229,7 @@ void * supervisor_thread(void *_);
 
 typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
+	void *tock;       /* SUB:  hooked up to scheduler.tick, for timing interrupts */
 
 	void *input;      /* PULL: receives metric submission requests from other actors */
 	void *submission; /* PUSH: connected to bolo submission port (external) */
@@ -290,6 +290,7 @@ void * updater_thread(void *_);
 typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
 	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
+	void *tock;       /* SUB:  hooked up to scheduler.tick, for timing interrupts */
 
 	void *subscriber; /* SUB:  subscriber to bolo broadcast port (external) */
 
@@ -317,7 +318,8 @@ void * dispatcher_thread(void *_);
 #define SCHEDULER_TICK   5000   /* ms */
 typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
-	void *monitor;    /* PUSH: hooked up to monitor.input; used to tick the monitoring */
+
+	void *tick;       /* PUB:  broadcasts timing interrupts */
 } scheduler_t;
 
 int scheduler_init(scheduler_t *scheduler, void *ZMQ, options_t *options);
@@ -345,6 +347,28 @@ int connect_to_monitor(void *ZMQ, void **zocket) /* {{{ */
 }
 /* }}} */
 int connect_to_supervisor(void *ZMQ, void **zocket) /* {{{ */
+{
+	assert(ZMQ != NULL);
+	assert(zocket != NULL);
+
+	int rc;
+
+	*zocket = zmq_socket(ZMQ, ZMQ_SUB);
+	if (!*zocket)
+		return -1;
+
+	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/scheduler.tick");
+	if (rc != 0)
+		return rc;
+
+	rc = zmq_setsockopt(*zocket, ZMQ_SUBSCRIBE, "", 0);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+/* }}} */
+int connect_to_scheduler(void *ZMQ, void **zocket) /* {{{ */
 {
 	assert(ZMQ != NULL);
 	assert(zocket != NULL);
@@ -401,10 +425,6 @@ int supervisor_init(supervisor_t *supervisor, void *ZMQ, options_t *options) /* 
 	if (rc != 0)
 		return rc;
 
-	rc = connect_to_monitor(ZMQ, &supervisor->monitor);
-	if (rc != 0)
-		return rc;
-
 	return 0;
 }
 /* }}} */
@@ -413,7 +433,6 @@ void supervisor_deinit(supervisor_t *supervisor) /* {{{ */
 	assert(supervisor != NULL);
 
 	zmq_close(supervisor->command);  supervisor->command = NULL;
-	zmq_close(supervisor->monitor);  supervisor->monitor = NULL;
 }
 /* }}} */
 void * supervisor_thread(void *_) /* {{{ */
@@ -474,6 +493,10 @@ int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
+	rc = connect_to_scheduler(ZMQ, &monitor->tock);
+	if (rc != 0)
+		return rc;
+
 	monitor->input = zmq_socket(ZMQ, ZMQ_PULL);
 	if (!monitor->input)
 		return -1;
@@ -494,6 +517,9 @@ int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
 	rc = reactor_set(monitor->reactor, monitor->control, monitor_reactor, monitor);
 	if (rc != 0)
 		return rc;
+	rc = reactor_set(monitor->reactor, monitor->tock, monitor_reactor, monitor);
+	if (rc != 0)
+		return rc;
 	rc = reactor_set(monitor->reactor, monitor->input, monitor_reactor, monitor);
 	if (rc != 0)
 		return rc;
@@ -506,6 +532,7 @@ void monitor_deinit(monitor_t *monitor) /* {{{ */
 	assert(monitor != NULL);
 
 	zmq_close(monitor->control);     monitor->control    = NULL;
+	zmq_close(monitor->tock);        monitor->tock       = NULL;
 	zmq_close(monitor->submission);  monitor->submission = NULL;
 	zmq_close(monitor->input);       monitor->input      = NULL;
 
@@ -528,51 +555,45 @@ int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		return obey_supervisor(pdu);
 	}
 
-	if (socket == monitor->input) {
-		if (strcmp(pdu_type(pdu), ".tick") == 0) {
-			/*
-			      +--------------+
-			      | .tick        |
-			      +--------------+
-			 */
+	if (socket == monitor->tock) {
+		logger(LOG_DEBUG, "submitting collected metrics");
+		char *metric;
 
-			logger(LOG_DEBUG, "submitting collected metrics");
-			char *metric;
-
-			int i;
-			for (i = 0; i < MON_COUNT_N; i++) {
-				metric = string("%s:sys:bolo2rrd:%s", monitor->prefix, MON_COUNTS[i]);
-				pdu_send_and_free(
-					counter_pdu(metric, monitor->counts[i]),
-					monitor->submission);
-				free(metric);
-			}
-
-			for (i = 0; i < MON_TIMING_N; i++) {
-				double median = monitor_median_value(monitor, i) / 1001.;
-				if (median > 1.0e4) {
-					logger(LOG_ERR, "calculated median for %s at %lf, which seems suspiciously high; skipping",
-						MON_TIMINGS[i], median);
-					continue;
-				}
-
-				if (median < 0) {
-					logger(LOG_ERR, "calculated negative mdiean for %s (%lf), which should be impossible; skipping",
-						MON_TIMINGS[i], median);
-					continue;
-				}
-
-				metric = string("%s:sys:bolo2rrd:%s.time.s", monitor->prefix, MON_TIMINGS[i]);
-				pdu_send_and_free(sample_pdu(metric, 1, median), monitor->submission);
-				free(metric);
-			}
-
-			memset(monitor->counts,  0, MON_COUNT_N  * sizeof(uint64_t));
-			memset(monitor->timings, 0, MON_TIMING_N * sizeof(monitor->timings[0]));
-
-			return VIGOR_REACTOR_CONTINUE;
+		int i;
+		for (i = 0; i < MON_COUNT_N; i++) {
+			metric = string("%s:sys:bolo2rrd:%s", monitor->prefix, MON_COUNTS[i]);
+			pdu_send_and_free(
+				counter_pdu(metric, monitor->counts[i]),
+				monitor->submission);
+			free(metric);
 		}
 
+		for (i = 0; i < MON_TIMING_N; i++) {
+			double median = monitor_median_value(monitor, i) / 1001.;
+			if (median > 1.0e4) {
+				logger(LOG_ERR, "calculated median for %s at %lf, which seems suspiciously high; skipping",
+					MON_TIMINGS[i], median);
+				continue;
+			}
+
+			if (median < 0) {
+				logger(LOG_ERR, "calculated negative mdiean for %s (%lf), which should be impossible; skipping",
+					MON_TIMINGS[i], median);
+				continue;
+			}
+
+			metric = string("%s:sys:bolo2rrd:%s.time.s", monitor->prefix, MON_TIMINGS[i]);
+			pdu_send_and_free(sample_pdu(metric, 1, median), monitor->submission);
+			free(metric);
+		}
+
+		memset(monitor->counts,  0, MON_COUNT_N  * sizeof(uint64_t));
+		memset(monitor->timings, 0, MON_TIMING_N * sizeof(monitor->timings[0]));
+
+		return VIGOR_REACTOR_CONTINUE;
+	}
+
+	if (socket == monitor->input) {
 		if (strcmp(pdu_type(pdu), ".timing") == 0) {
 			/*
 			      +--------------+
@@ -720,6 +741,11 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	if (rc != 0)
 		return rc;
 
+	logger(LOG_DEBUG, "connecting dispatcher.tock -> scheduler");
+	rc = connect_to_scheduler(ZMQ, &dispatcher->tock);
+	if (rc != 0)
+		return rc;
+
 	logger(LOG_DEBUG, "connecting dispatcher.subscriber -> bolo at %s", options->endpoint);
 	dispatcher->subscriber = zmq_socket(ZMQ, ZMQ_SUB);
 	if (!dispatcher->subscriber)
@@ -752,6 +778,9 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	if (!dispatcher->reactor)
 		return -1;
 	rc = reactor_set(dispatcher->reactor, dispatcher->control, dispatcher_reactor, dispatcher);
+	if (rc != 0)
+		return rc;
+	rc = reactor_set(dispatcher->reactor, dispatcher->tock, dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
 	rc = reactor_set(dispatcher->reactor, dispatcher->subscriber, dispatcher_reactor, dispatcher);
@@ -797,6 +826,7 @@ void dispatcher_deinit(dispatcher_t *dispatcher) /* {{{ */
 	zmq_close(dispatcher->updates);     dispatcher->updates    = NULL;
 	zmq_close(dispatcher->creates);     dispatcher->creates    = NULL;
 	zmq_close(dispatcher->monitor);     dispatcher->monitor    = NULL;
+	zmq_close(dispatcher->tock);        dispatcher->tock       = NULL;
 	zmq_close(dispatcher->control);     dispatcher->control    = NULL;
 
 	reactor_free(dispatcher->reactor);
@@ -824,6 +854,14 @@ int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	if (socket == dispatcher->control) {
 		return obey_supervisor(pdu);
+	}
+
+	if (socket == dispatcher->tock) {
+		logger(LOG_DEBUG, "flushing RRD map to disk");
+		int rc = rrdmap_write(dispatcher->map);
+		if (rc != 0)
+			logger(LOG_WARNING, "failed to write RRD map to disk");
+		return VIGOR_REACTOR_CONTINUE;
 	}
 
 	if (socket == dispatcher->subscriber) {
@@ -1311,8 +1349,11 @@ int scheduler_init(scheduler_t *scheduler, void *ZMQ, options_t *options) /* {{{
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting scheduler.monitor -> monitor");
-	rc = connect_to_monitor(ZMQ, &scheduler->monitor);
+	logger(LOG_DEBUG, "binding PUB socket for scheduler.tick");
+	scheduler->tick = zmq_socket(ZMQ, ZMQ_PUB);
+	if (!scheduler->tick)
+		return -1;
+	rc = zmq_bind(scheduler->tick, "inproc://bolo2rrd/v1/scheduler.tick");
 	if (rc != 0)
 		return rc;
 
@@ -1324,7 +1365,6 @@ void scheduler_deinit(scheduler_t *scheduler) /* {{{ */
 	assert(scheduler != NULL);
 
 	zmq_close(scheduler->control);  scheduler->control = NULL;
-	zmq_close(scheduler->monitor);  scheduler->monitor = NULL;
 }
 /* }}} */
 void * scheduler_thread(void *_) /* {{{ */
@@ -1337,7 +1377,7 @@ void * scheduler_thread(void *_) /* {{{ */
 	zmq_pollitem_t poller[1] = { { scheduler->control, 0, ZMQ_POLLIN } };
 	while ((rc = zmq_poll(poller, 1, SCHEDULER_TICK)) >= 0) {
 		if (rc == 0) {
-			pdu_send_and_free(pdu_make(".tick", 0), scheduler->monitor);
+			pdu_send_and_free(pdu_make(".tick", 0), scheduler->tick);
 			continue;
 		}
 
