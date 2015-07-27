@@ -1426,7 +1426,7 @@ void * scheduler_thread(void *_) /* {{{ */
 	int rc;
 	zmq_pollitem_t poller[1] = { { scheduler->control, 0, ZMQ_POLLIN } };
 	while ((rc = zmq_poll(poller, 1, SCHEDULER_TICK)) >= 0) {
-		if (rc == 1) {
+		if (rc == 0) {
 			logger(LOG_DEBUG, "scheduler ticked (%i); sending broadcast [TICK] PDU", SCHEDULER_TICK);
 			pdu_send_and_free(pdu_make("TICK", 0), scheduler->tick);
 			continue;
