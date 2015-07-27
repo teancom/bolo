@@ -419,9 +419,12 @@ int supervisor_init(supervisor_t *supervisor, void *ZMQ, options_t *options) /* 
 
 	int rc;
 
+	logger(LOG_INFO, "initializing supervisor thread");
+
 	memset(supervisor, 0, sizeof(supervisor_t));
 	supervisor->ZMQ = ZMQ;
 
+	logger(LOG_DEBUG, "binding PUB socket supervisor.command");
 	supervisor->command = zmq_socket(ZMQ, ZMQ_PUB);
 	if (!supervisor->command)
 		return -1;
@@ -490,17 +493,22 @@ int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
 
 	int rc;
 
+	logger(LOG_INFO, "initializing monitor thread");
+
 	memset(monitor, 0, sizeof(monitor_t));
 	monitor->prefix = strdup(options->prefix);
 
+	logger(LOG_DEBUG, "connecting monitor.control -> supervisor");
 	rc = connect_to_supervisor(ZMQ, &monitor->control);
 	if (rc != 0)
 		return rc;
 
+	logger(LOG_DEBUG, "connecting monitor.tock -> scheduler");
 	rc = connect_to_scheduler(ZMQ, &monitor->tock);
 	if (rc != 0)
 		return rc;
 
+	logger(LOG_DEBUG, "binding PULL socket monitor.input");
 	monitor->input = zmq_socket(ZMQ, ZMQ_PULL);
 	if (!monitor->input)
 		return -1;
@@ -508,6 +516,7 @@ int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
+	logger(LOG_DEBUG, "connecting monitor.submission -> bolo at %s", options->submit_to);
 	monitor->submission = zmq_socket(ZMQ, ZMQ_PUSH);
 	if (!monitor->submission)
 		return -1;
@@ -515,15 +524,22 @@ int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
+	logger(LOG_DEBUG, "setting up monitor event reactor");
 	monitor->reactor = reactor_new();
 	if (!monitor->reactor)
 		return -1;
+
+	logger(LOG_DEBUG, "monitor: registering monitor.control with event reactor");
 	rc = reactor_set(monitor->reactor, monitor->control, monitor_reactor, monitor);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "monitor: registering monitor.tock with event reactor");
 	rc = reactor_set(monitor->reactor, monitor->tock, monitor_reactor, monitor);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "monitor: registering monitor.input with event reactor");
 	rc = reactor_set(monitor->reactor, monitor->input, monitor_reactor, monitor);
 	if (rc != 0)
 		return rc;
@@ -566,6 +582,7 @@ int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		int i;
 		for (i = 0; i < MON_COUNT_N; i++) {
 			metric = string("%s:sys:bolo2rrd:%s", monitor->prefix, MON_COUNTS[i]);
+			logger(LOG_DEBUG, "METRIC %s => [%lu]", metric, monitor->counts[i]);
 			pdu_send_and_free(
 				counter_pdu(metric, monitor->counts[i]),
 				monitor->submission);
@@ -587,6 +604,7 @@ int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			}
 
 			metric = string("%s:sys:bolo2rrd:%s.time.s", monitor->prefix, MON_TIMINGS[i]);
+			logger(LOG_DEBUG, "METRIC %s => [%lf]", metric, median);
 			pdu_send_and_free(sample_pdu(metric, 1, median), monitor->submission);
 			free(metric);
 		}
@@ -733,6 +751,8 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 
 	int rc;
 
+	logger(LOG_INFO, "initializing dispatcher thread");
+
 	memset(dispatcher, 0, sizeof(dispatcher_t));
 
 	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
@@ -750,7 +770,7 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "connecting dispatcher.subscriber -> bolo at %s", options->endpoint);
+	logger(LOG_DEBUG, "connecting dispatcher.subscriber <- bolo at %s", options->endpoint);
 	dispatcher->subscriber = zmq_socket(ZMQ, ZMQ_SUB);
 	if (!dispatcher->subscriber)
 		return -1;
@@ -761,7 +781,7 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "binding PUSH socket for updater pool");
+	logger(LOG_DEBUG, "binding PUSH socket dispatcher.updates");
 	dispatcher->updates = zmq_socket(ZMQ, ZMQ_PUSH);
 	if (!dispatcher->updates)
 		return -1;
@@ -769,7 +789,7 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "binding PUSH socket for creator pool");
+	logger(LOG_DEBUG, "binding PUSH socket dispatcher.creates");
 	dispatcher->creates = zmq_socket(ZMQ, ZMQ_PUSH);
 	if (!dispatcher->creates)
 		return -1;
@@ -781,12 +801,18 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	dispatcher->reactor = reactor_new();
 	if (!dispatcher->reactor)
 		return -1;
+
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.control with event reactor");
 	rc = reactor_set(dispatcher->reactor, dispatcher->control, dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.tock with event reactor");
 	rc = reactor_set(dispatcher->reactor, dispatcher->tock, dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.subscriber with event reactor");
 	rc = reactor_set(dispatcher->reactor, dispatcher->subscriber, dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
@@ -970,6 +996,8 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 
 	int rc;
 
+	logger(LOG_INFO, "initializing creator thread #%i", creator->id);
+
 	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", creator->id);
 	rc = connect_to_supervisor(ZMQ, &creator->control);
 	if (rc != 0)
@@ -988,13 +1016,17 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "creator[%i] setting up updater event reactor", creator->id);
+	logger(LOG_DEBUG, "creator[%i] setting up creator event reactor", creator->id);
 	creator->reactor = reactor_new();
 	if (!creator->reactor)
 		return -1;
+
+	logger(LOG_DEBUG, "creator[%i] registering creator.control with event reactor", creator->id);
 	rc = reactor_set(creator->reactor, creator->control, creator_reactor, creator);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "creator[%i] registering creator.queue with event reactor", creator->id);
 	rc = reactor_set(creator->reactor, creator->queue, creator_reactor, creator);
 	if (rc != 0)
 		return rc;
@@ -1100,8 +1132,10 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			}
 
 			if (args) {
+#ifdef BOLO2RRD_DEBUG
 				logger(LOG_DEBUG, "creator[%i] rrdcreate %07s %s",
 						creator->id, type, file);
+#endif
 
 				rrd_clear_error();
 				rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
@@ -1154,6 +1188,8 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 
 	int rc;
 
+	logger(LOG_INFO, "initializing updater thread #%i", updater->id);
+
 	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", updater->id);
 	rc = connect_to_supervisor(ZMQ, &updater->control);
 	if (rc != 0)
@@ -1176,9 +1212,13 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 	updater->reactor = reactor_new();
 	if (!updater->reactor)
 		return -1;
+
+	logger(LOG_DEBUG, "updater[%i] registering updater.control with event reactor", updater->id);
 	rc = reactor_set(updater->reactor, updater->control, updater_reactor, updater);
 	if (rc != 0)
 		return rc;
+
+	logger(LOG_DEBUG, "updater[%i] registering updater.queue with event reactor", updater->id);
 	rc = reactor_set(updater->reactor, updater->queue, updater_reactor, updater);
 	if (rc != 0)
 		return rc;
@@ -1295,8 +1335,10 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			if (update) {
 				char *argv[2] = { update, NULL };
 
+#ifdef BOLO2RRD_DEBUG
 				logger(LOG_DEBUG, "updater[%i] rrdupdate %07s %s (%s)",
 						updater->id, type, file, argv[0]);
+#endif
 				rrd_clear_error();
 				rc = rrd_update_r(file, NULL, 1, (const char **)argv);
 				if (rc != 0)
