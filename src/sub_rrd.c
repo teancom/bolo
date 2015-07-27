@@ -361,7 +361,7 @@ int connect_to_supervisor(void *ZMQ, void **zocket) /* {{{ */
 	if (!*zocket)
 		return -1;
 
-	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/scheduler.tick");
+	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/supervisor.command");
 	if (rc != 0)
 		return rc;
 
@@ -383,7 +383,7 @@ int connect_to_scheduler(void *ZMQ, void **zocket) /* {{{ */
 	if (!*zocket)
 		return -1;
 
-	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/supervisor.command");
+	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/scheduler.tick");
 	if (rc != 0)
 		return rc;
 
