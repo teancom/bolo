@@ -344,15 +344,17 @@ int main(int argc, char **argv)
 		}
 
 		for_each_object(cmd, &COMMANDS, l) {
-			if (cmd->pid > 0 && (pid = waitpid(cmd->pid, &status, WNOHANG)) == cmd->pid) {
-				logger(LOG_INFO, "child %i exited %02x, next run at %lu", cmd->pid, status, cmd->next_run);
+			if (cmd->pid > 0) {
+				if ((pid = waitpid(cmd->pid, &status, WNOHANG)) == cmd->pid) {
+					logger(LOG_INFO, "child %i exited %02x, next run at %lu", cmd->pid, status, cmd->next_run);
 
-				epoll_ctl(epfd, EPOLL_CTL_DEL, cmd->fd, &ev);
-				s_sink(sock, cmd);
+					epoll_ctl(epfd, EPOLL_CTL_DEL, cmd->fd, &ev);
+					s_sink(sock, cmd);
 
-				close(cmd->fd);
-				cmd->pid = -1;
-				cmd->fd  = -1;
+					close(cmd->fd);
+					cmd->pid = -1;
+					cmd->fd  = -1;
+				}
 
 			} else if (cmd->next_run < now) {
 				int pfd[2];
