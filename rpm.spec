@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.9
+Version:        0.2.10
 Release:        1%{?dist}
 Summary:        Monitoring System Server
 
@@ -171,6 +171,9 @@ fi
 #######################################################################
 
 %changelog
+* Mon Jul 27 2015 James Hunt <james@niftylogic.com> 0.2.10-1
+- Upstream release
+
 * Thu Jul 23 2015 James Hunt <james@niftylogic.com> 0.2.9-1
 - Upstream release (memory leak fix)
 
