@@ -156,7 +156,7 @@ int rrdmap_read(rrdmap_t *map, const char *root) /* {{{ */
 
 		x = strrchr(buf, '/');
 		if (!x) continue;
-		sha1 = x++;
+		sha1 = ++x;
 
 		rrdfile_t *file = rrdfile_parse(root, sha1);
 		file->name = strdup(name);
