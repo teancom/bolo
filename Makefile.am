@@ -130,6 +130,8 @@ dist_man_MANS += man/bolo.8
 dist_man_MANS += man/bolo2pg.8
 dist_man_MANS += man/bolo2rrd.8
 dist_man_MANS += man/bolo.conf.5
+dist_man_MANS += man/dbolo.1
+dist_man_MANS += man/dbolo.conf.5
 dist_man_MANS += man/send_bolo.1
 dist_man_MANS += man/stat_bolo.1
 

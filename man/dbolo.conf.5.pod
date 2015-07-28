@@ -1,0 +1,49 @@
+=head1 NAME
+
+dbolo.conf - Distributed Bolo Monitoring Agent commands file
+
+=head1 SYNOPSIS
+
+B</etc/dbolo.conf>
+
+=head1 DESCRIPTION
+
+B<dbolo>(1) reads a list of commands and their execution intervals from
+I</etc/dbolo.conf> (unless a different file is specified via the B<-c>
+option).
+
+Comments start with the '#' character and continue to the end of the line.
+Blank lines are ignored.
+
+Each command / interval is specified on a line by itself, in the following
+form:
+
+    @<time><unit> <command>
+
+Where E<lt>timeE<gt> is a number (integers only, no fractions), E<lt>unitE<gt>
+is a unit of time (B<h> for hours, B<m> for minutes or B<s> for seconds) and
+E<lt>commandE<gt> is the full command to execute, including any arguments.
+
+=head1 EXAMPLE
+
+    # /etc/dbolo.conf
+
+    # run the `linux' collector every minute
+    @60s /usr/lib/bolo/collectors/linux
+
+    # run these every 15s
+    @15s /usr/lib/bolo/collectors/process -n sshd
+    @15s /usr/lib/bolo/collectors/process -n dbolo
+
+    # run the log checks hourly
+    @1h /usr/local/collectors/log_check /var/log/messages
+    @1h /usr/local/collectors/log_check /var/log/syslog
+    @1h /usr/local/collectors/log_check /var/log/secure
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

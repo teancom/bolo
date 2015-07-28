@@ -1,6 +1,6 @@
 Name:           bolo
 Version:        0.2.10
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Monitoring System Server
 
 Group:          Applications/System
@@ -116,8 +116,10 @@ fi
 %{_initrddir}/dbolo
 %{_bindir}/send_bolo
 %{_bindir}/stat_bolo
+%{_mandir}/man1/dbolo.1.gz
 %{_mandir}/man1/send_bolo.1.gz
 %{_mandir}/man1/stat_bolo.1.gz
+%{_mandir}/man5/dbolo.conf.5.gz
 
 
 #######################################################################
@@ -171,6 +173,9 @@ fi
 #######################################################################
 
 %changelog
+* Tue Jul 28 2015 James Hunt <james@niftylogic.com> 0.2.10-2
+- Package new man pages for dbolo(1) and dbolo.conf(5)
+
 * Mon Jul 27 2015 James Hunt <james@niftylogic.com> 0.2.10-1
 - Upstream release
 
