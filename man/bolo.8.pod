@@ -31,7 +31,7 @@ default configuration file (/etc/bolo.conf) is used instead.
 
 Normally, B<bolo> forks into the background and detaches from the
 controlling terminal, so that it can run as a system service.  This flag
-disabled that behavior.  As a side effect, all logging will be forced to go
+disables that behavior.  As a side effect, all logging will be forced to go
 to standard output, regardless of what syslog facility is specified in the
 configuration file.
 
