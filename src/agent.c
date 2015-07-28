@@ -35,6 +35,8 @@ static struct {
 	int   verbose;
 	int   daemonize;
 
+	float splay;
+
 	char *pidfile;
 	char *user;
 	char *group;
@@ -158,8 +160,9 @@ static int s_parse(list_t *list, const char *file)
 			}
 			while (isspace(*a)) a++;
 
+			int offset = rand() * OPTIONS.splay * x / RAND_MAX;
 			command_t *cmd = vmalloc(sizeof(command_t));
-			cmd->next_run =  0;
+			cmd->next_run =  time_s() + offset;
 			cmd->pid      = -1;
 			cmd->fd       = -1;
 			cmd->nread    =  0;
@@ -167,6 +170,9 @@ static int s_parse(list_t *list, const char *file)
 			cmd->interval = x * 1000;
 			cmd->exec = strdup(a);
 			list_push(list, &cmd->l);
+
+			logger(LOG_DEBUG, "check scheduled @%i (+%is / splay %0.2f) to run every %is: `%s`",
+				cmd->next_run, offset, OPTIONS.splay, cmd->interval / 1000, cmd->exec);
 			continue;
 		}
 
@@ -210,10 +216,13 @@ int main(int argc, char **argv)
 	OPTIONS.verbose   = 0;
 	OPTIONS.endpoint  = strdup("tcp://127.0.0.1:2999");
 	OPTIONS.commands  = strdup(DEFAULT_AGENT_FILE);
+	OPTIONS.splay     = 0.5;
 	OPTIONS.daemonize = 1;
 	OPTIONS.pidfile   = strdup("/var/run/dbolo.pid");
 	OPTIONS.user      = strdup("root");
 	OPTIONS.group     = strdup("root");
+
+	char *a; /* for splay */
 
 	struct option long_opts[] = {
 		{ "help",             no_argument, NULL, 'h' },
@@ -222,6 +231,7 @@ int main(int argc, char **argv)
 		{ "endpoint",   required_argument, NULL, 'e' },
 		{ "foreground",       no_argument, NULL, 'F' },
 		{ "commands",   required_argument, NULL, 'c' },
+		{ "splay",      required_argument, NULL, 's' },
 		{ "pidfile",    required_argument, NULL, 'p' },
 		{ "user",       required_argument, NULL, 'u' },
 		{ "group",      required_argument, NULL, 'g' },
@@ -229,7 +239,7 @@ int main(int argc, char **argv)
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+qe:Fc:p:u:g:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+qe:Fc:s:p:u:g:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -259,6 +269,14 @@ int main(int argc, char **argv)
 			OPTIONS.commands = strdup(optarg);
 			break;
 
+		case 's':
+			OPTIONS.splay = strtof(optarg, &a);
+			if (a && *a) {
+				fprintf(stderr, "Invalid --splay value (%s)\n", optarg);
+				exit(1);
+			}
+			break;
+
 		case 'p':
 			free(OPTIONS.pidfile);
 			OPTIONS.pidfile = strdup(optarg);
@@ -279,6 +297,8 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
+
+	seed_randomness();
 
 	if (OPTIONS.daemonize) {
 		log_open("dbolo", "daemon");
