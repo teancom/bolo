@@ -232,8 +232,8 @@ typedef struct {
 
 	void *subscriber; /* SUB:  subscriber to bolo broadcast port (external) */
 
-	void *updates;    /* PUSH: fair-queue of RRD update requests */
-	void *creates;    /* PUSH: fair-queue of RRD create requests */
+	void *updates;    /* PUSH: fair-queue of updater_t workers (for RRD update requests) */
+	void *creates;    /* PUSH: fair-queue of creator_t workers (for RRD create requests) */
 
 	reactor_t *reactor;
 
