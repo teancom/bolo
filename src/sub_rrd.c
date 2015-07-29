@@ -18,41 +18,12 @@
  */
 
 #include "bolo.h"
+#include "subs.h"
 #include <pthread.h>
 #include <signal.h>
 #include <getopt.h>
 #include <rrd.h>
 #include <assert.h>
-
-#define MON_SAMPLES_MAX 1024
-
-#define MON_COUNT_CREATE_FALSE_POSITIVES  0
-#define MON_COUNT_UPDATE_FALSE_POSITIVES  1
-#define MON_COUNT_CREATE_ERRORS           2
-#define MON_COUNT_UPDATE_ERRORS           3
-#define MON_COUNT_CREATE_OPS              4
-#define MON_COUNT_UPDATE_OPS              5
-#define MON_COUNT_N                       6
-
-const char *MON_COUNTS[] = {
-	"create.false.positives",
-	"update.false.positives",
-	"create.errors",
-	"update.errors",
-	"create.ops",
-	"update.ops",
-};
-
-#define MON_TIMING_DISPATCH               0
-#define MON_TIMING_UPDATE                 1
-#define MON_TIMING_CREATE                 2
-#define MON_TIMING_N                      3
-
-const char *MON_TIMINGS[] = {
-	"dispatch",
-	"update",
-	"create",
-};
 
 typedef struct {
 	char *endpoint;
@@ -85,7 +56,7 @@ typedef struct {
 } rrdfile_t;
 
 void rrdfile_free(rrdfile_t *file);
-rrdfile_t *rrdfile_parse(const char *root, const char *sha1);
+rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *sha1);
 rrdfile_t *rrd_filename(const char *root, const char *metric);
 
 typedef struct {
@@ -158,9 +129,7 @@ int rrdmap_read(rrdmap_t *map, const char *root) /* {{{ */
 		if (!x) continue;
 		sha1 = ++x;
 
-		rrdfile_t *file = rrdfile_parse(root, sha1);
-		file->name = strdup(name);
-		hash_set(&map->hash, name, file);
+		hash_set(&map->hash, name, rrdfile_parse(root, name, sha1));
 	}
 
 	fclose(io);
@@ -188,12 +157,14 @@ void rrdfile_free(rrdfile_t *file) /* {{{ */
 	free(file->parents[1]);
 	free(file->relpath);
 	free(file->abspath);
+	free(file->name);
 	free(file);
 }
 /* }}} */
-rrdfile_t *rrdfile_parse(const char *root, const char *sha1) /* {{{ */
+rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *sha1) /* {{{ */
 {
 	rrdfile_t *file = vmalloc(sizeof(rrdfile_t));
+	file->name = strdup(name);
 
 	file->parents[0] = string("%s/%c%c",      root, sha1[0], sha1[1]);
 
@@ -212,48 +183,11 @@ rrdfile_t *rrd_filename(const char *root, const char *metric) /* {{{ */
 {
 	sha1_t sha1;
 	sha1_data(&sha1, metric, strlen(metric));
-	return rrdfile_parse(root, sha1.hex);
+	return rrdfile_parse(root, metric, sha1.hex);
 }
 /* }}} */
 
 /**************************/
-
-typedef struct {
-	void *ZMQ;
-	void *command;    /* PUB:  command socket for controlling all other actors */
-} supervisor_t;
-
-int supervisor_init(supervisor_t *supervisor, void *ZMQ, options_t *options);
-void * supervisor_thread(void *_);
-
-
-typedef struct {
-	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
-	void *tock;       /* SUB:  hooked up to scheduler.tick, for timing interrupts */
-
-	void *input;      /* PULL: receives metric submission requests from other actors */
-	void *submission; /* PUSH: connected to bolo submission port (external) */
-
-	reactor_t *reactor;
-
-	char *prefix;
-
-	struct {
-		int      samples;
-		uint64_t data[MON_SAMPLES_MAX];
-	} timings[MON_TIMING_N];
-
-	uint64_t counts[MON_COUNT_N];
-} monitor_t;
-
-int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options);
-void monitor_deinit(monitor_t *monitor);
-int monitor_reactor(void *socket, pdu_t *pdu, void *_);
-void * monitor_thread(void *_);
-
-double monitor_median_value(monitor_t *monitor, int idx);
-void monitor_sample(monitor_t *monitor, int idx, uint64_t value);
-void monitor_count(monitor_t *monitor, int idx);
 
 typedef struct {
 	int id;           /* simple identifying number for the thread; used in logging */
@@ -318,429 +252,6 @@ void dispatcher_deinit(dispatcher_t *dispatcher);
 int dispatcher_reactor(void *socket, pdu_t *pdu, void *_);
 void * dispatcher_thread(void *_);
 
-
-#define SCHEDULER_TICK   5000   /* ms */
-typedef struct {
-	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
-
-	void *tick;       /* PUB:  broadcasts timing interrupts */
-} scheduler_t;
-
-int scheduler_init(scheduler_t *scheduler, void *ZMQ, options_t *options);
-void scheduler_deinit(scheduler_t *scheduler);
-int scheduler_reactor(void *socket, pdu_t *pdu, void *_);
-void * scheduler_thread(void *_);
-
-
-int connect_to_monitor(void *ZMQ, void **zocket) /* {{{ */
-{
-	assert(ZMQ != NULL);
-	assert(zocket != NULL);
-
-	int rc;
-
-	*zocket = zmq_socket(ZMQ, ZMQ_PUSH);
-	if (!*zocket)
-		return -1;
-
-	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/monitor.input");
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-int connect_to_supervisor(void *ZMQ, void **zocket) /* {{{ */
-{
-	assert(ZMQ != NULL);
-	assert(zocket != NULL);
-
-	int rc;
-
-	*zocket = zmq_socket(ZMQ, ZMQ_SUB);
-	if (!*zocket)
-		return -1;
-
-	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/supervisor.command");
-	if (rc != 0)
-		return rc;
-
-	rc = zmq_setsockopt(*zocket, ZMQ_SUBSCRIBE, "", 0);
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-int connect_to_scheduler(void *ZMQ, void **zocket) /* {{{ */
-{
-	assert(ZMQ != NULL);
-	assert(zocket != NULL);
-
-	int rc;
-
-	*zocket = zmq_socket(ZMQ, ZMQ_SUB);
-	if (!*zocket)
-		return -1;
-
-	rc = zmq_connect(*zocket, "inproc://bolo2rrd/v1/scheduler.tick");
-	if (rc != 0)
-		return rc;
-
-	rc = zmq_setsockopt(*zocket, ZMQ_SUBSCRIBE, "", 0);
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-int obey_supervisor(pdu_t *pdu) /* {{{ */
-{
-	if (strcmp(pdu_type(pdu), "@terminate") == 0)
-		return VIGOR_REACTOR_HALT;
-	else
-		return VIGOR_REACTOR_CONTINUE;
-}
-/* }}} */
-int block_signals_in_thread(void) /* {{{ */
-{
-	sigset_t blocked;
-	sigfillset(&blocked);
-	return pthread_sigmask(SIG_BLOCK, &blocked, NULL);
-}
-/* }}} */
-
-
-int supervisor_init(supervisor_t *supervisor, void *ZMQ, options_t *options) /* {{{ */
-{
-	assert(supervisor != NULL);
-	assert(ZMQ != NULL);
-	assert(options != NULL);
-
-	int rc;
-
-	logger(LOG_INFO, "initializing supervisor thread");
-
-	memset(supervisor, 0, sizeof(supervisor_t));
-	supervisor->ZMQ = ZMQ;
-
-	logger(LOG_DEBUG, "binding PUB socket supervisor.command");
-	supervisor->command = zmq_socket(ZMQ, ZMQ_PUB);
-	if (!supervisor->command)
-		return -1;
-	rc = zmq_bind(supervisor->command, "inproc://bolo2rrd/v1/supervisor.command");
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-void supervisor_deinit(supervisor_t *supervisor) /* {{{ */
-{
-	assert(supervisor != NULL);
-
-	zmq_close(supervisor->command);  supervisor->command = NULL;
-}
-/* }}} */
-void * supervisor_thread(void *_) /* {{{ */
-{
-	assert(_ != NULL);
-
-	supervisor_t *supervisor = (supervisor_t*)_;
-
-	sigset_t signals;
-	sigemptyset(&signals);
-	sigaddset(&signals, SIGTERM);
-	sigaddset(&signals, SIGINT);
-
-	int rc, sig;
-
-	for (;;) {
-		rc = sigwait(&signals, &sig);
-		if (rc != 0) {
-			logger(LOG_ERR, "sigwait: %s", strerror(errno));
-			sig = SIGTERM; /* let's just pretend */
-		}
-
-		if (sig == SIGTERM || sig == SIGINT) {
-			logger(LOG_INFO, "supervisor caught SIG%s; shutting down",
-				sig == SIGTERM ? "TERM" : "INT");
-
-			pdu_send_and_free(pdu_make("@terminate", 0), supervisor->command);
-			supervisor_deinit(supervisor);
-
-			logger(LOG_DEBUG, "destroying context");
-			zmq_ctx_destroy(supervisor->ZMQ);
-
-			logger(LOG_DEBUG, "exiting");
-			exit(0);
-		}
-
-		logger(LOG_ERR, "ignoring unexpected signal %i\n", sig);
-	}
-
-	return NULL;
-}
-/* }}} */
-
-
-int monitor_init(monitor_t *monitor, void *ZMQ, options_t *options) /* {{{ */
-{
-	assert(monitor != NULL);
-	assert(ZMQ != NULL);
-	assert(options != NULL);
-	assert(options->submit_to != NULL);
-
-	int rc;
-
-	logger(LOG_INFO, "initializing monitor thread");
-
-	memset(monitor, 0, sizeof(monitor_t));
-	monitor->prefix = strdup(options->prefix);
-
-	logger(LOG_DEBUG, "connecting monitor.control -> supervisor");
-	rc = connect_to_supervisor(ZMQ, &monitor->control);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "connecting monitor.tock -> scheduler");
-	rc = connect_to_scheduler(ZMQ, &monitor->tock);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "binding PULL socket monitor.input");
-	monitor->input = zmq_socket(ZMQ, ZMQ_PULL);
-	if (!monitor->input)
-		return -1;
-	rc = zmq_bind(monitor->input, "inproc://bolo2rrd/v1/monitor.input");
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "connecting monitor.submission -> bolo at %s", options->submit_to);
-	monitor->submission = zmq_socket(ZMQ, ZMQ_PUSH);
-	if (!monitor->submission)
-		return -1;
-	rc = vzmq_connect_af(monitor->submission, options->submit_to, AF_UNSPEC);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "setting up monitor event reactor");
-	monitor->reactor = reactor_new();
-	if (!monitor->reactor)
-		return -1;
-
-	logger(LOG_DEBUG, "monitor: registering monitor.control with event reactor");
-	rc = reactor_set(monitor->reactor, monitor->control, monitor_reactor, monitor);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "monitor: registering monitor.tock with event reactor");
-	rc = reactor_set(monitor->reactor, monitor->tock, monitor_reactor, monitor);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "monitor: registering monitor.input with event reactor");
-	rc = reactor_set(monitor->reactor, monitor->input, monitor_reactor, monitor);
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-void monitor_deinit(monitor_t *monitor) /* {{{ */
-{
-	assert(monitor != NULL);
-
-	zmq_close(monitor->control);     monitor->control    = NULL;
-	zmq_close(monitor->tock);        monitor->tock       = NULL;
-	zmq_close(monitor->submission);  monitor->submission = NULL;
-	zmq_close(monitor->input);       monitor->input      = NULL;
-
-	reactor_free(monitor->reactor);
-	monitor->reactor = NULL;
-
-	free(monitor->prefix);
-	monitor->prefix = NULL;
-}
-/* }}} */
-int monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
-{
-	assert(socket != NULL);
-	assert(pdu != NULL);
-	assert(_ != NULL);
-
-	monitor_t *monitor = (monitor_t*)_;
-
-	if (socket == monitor->control) {
-		return obey_supervisor(pdu);
-	}
-
-	if (socket == monitor->tock) {
-		logger(LOG_DEBUG, "submitting collected metrics");
-		char *metric;
-
-		int i;
-		for (i = 0; i < MON_COUNT_N; i++) {
-			metric = string("%s:sys:bolo2rrd:%s", monitor->prefix, MON_COUNTS[i]);
-			logger(LOG_DEBUG, "METRIC %s => [%lu]", metric, monitor->counts[i]);
-			pdu_send_and_free(
-				counter_pdu(metric, monitor->counts[i]),
-				monitor->submission);
-			free(metric);
-		}
-
-		for (i = 0; i < MON_TIMING_N; i++) {
-			double median = monitor_median_value(monitor, i) / 1001.;
-			if (median > 1.0e4) {
-				logger(LOG_ERR, "calculated median for %s at %lf, which seems suspiciously high; skipping",
-					MON_TIMINGS[i], median);
-				continue;
-			}
-
-			if (median < 0) {
-				logger(LOG_ERR, "calculated negative mdiean for %s (%lf), which should be impossible; skipping",
-					MON_TIMINGS[i], median);
-				continue;
-			}
-
-			metric = string("%s:sys:bolo2rrd:%s.time.s", monitor->prefix, MON_TIMINGS[i]);
-			logger(LOG_DEBUG, "METRIC %s => [%lf]", metric, median);
-			pdu_send_and_free(sample_pdu(metric, 1, median), monitor->submission);
-			free(metric);
-		}
-
-		memset(monitor->counts,  0, MON_COUNT_N  * sizeof(uint64_t));
-		memset(monitor->timings, 0, MON_TIMING_N * sizeof(monitor->timings[0]));
-
-		return VIGOR_REACTOR_CONTINUE;
-	}
-
-	if (socket == monitor->input) {
-		if (strcmp(pdu_type(pdu), ".timing") == 0) {
-			/*
-			      +--------------+
-			      | .timing      |
-			      +--------------+
-			      | <NAME>       | 1
-			      | <TIME-IN-MS> | 2
-			      +--------------+
-			 */
-			char *name = pdu_string(pdu, 1);
-
-			int i;
-			for (i = 0; i < MON_TIMING_N; i++) {
-				if (strcmp(name, MON_TIMINGS[i]) == 0) {
-					char *time = pdu_string(pdu, 2);
-					uint64_t ms = strtoull(time, NULL, 10);
-					free(time);
-
-					monitor_sample(monitor, i, ms);
-					break;
-				}
-			}
-
-			free(name);
-			return VIGOR_REACTOR_CONTINUE;
-		}
-
-		if (strcmp(pdu_type(pdu), ".count") == 0) {
-			/*
-			      +--------------+
-			      | .count       |
-			      +--------------+
-			      | <NAME>       | 1
-			      +--------------+
-			 */
-
-			char *name = pdu_string(pdu, 1);
-
-			int i;
-			for (i = 0; i < MON_COUNT_N; i++) {
-				if (strcmp(name, MON_COUNTS[i]) == 0) {
-					monitor_count(monitor, i);
-					break;
-				}
-			}
-
-			free(name);
-			return VIGOR_REACTOR_CONTINUE;
-		}
-
-		return VIGOR_REACTOR_CONTINUE;
-	}
-
-	logger(LOG_ERR, "unhandled socket!");
-	return VIGOR_REACTOR_HALT;
-}
-/* }}} */
-void * monitor_thread(void *_) /* {{{ */
-{
-	assert(_ != NULL);
-
-	int rc;
-	monitor_t *monitor = (monitor_t*)_;
-
-	rc = block_signals_in_thread();
-	if (rc != 0)
-		exit(4);
-
-	reactor_go(monitor->reactor);
-	monitor_deinit(monitor);
-	return NULL;
-}
-/* }}} */
-int cmpul(const void *a, const void *b) { /* {{{ */
-	return *(uint64_t *)a == *(uint64_t *)b ? 0
-	     : *(uint64_t *)a >  *(uint64_t *)b ? 1 : -1;
-}
-/* }}} */
-double monitor_median_value(monitor_t *monitor, int idx) /* {{{ */
-{
-	assert(monitor != NULL);
-	assert(idx >= 0);
-	assert(idx < MON_TIMING_N);
-
-	int n = monitor->timings[idx].samples;
-	if (n == 0) return 0.0;
-	if (n > MON_SAMPLES_MAX) n = MON_SAMPLES_MAX;
-
-	qsort(monitor->timings[idx].data, n, sizeof(uint64_t), cmpul);
-	int mid = n / 2;
-
-	if (n % 2 == 0)
-		return (monitor->timings[idx].data[mid - 1] +
-		        monitor->timings[idx].data[mid]) / 2.;
-
-	return monitor->timings[idx].data[mid] * 1.;
-}
-/* }}} */
-void monitor_sample(monitor_t *monitor, int idx, uint64_t value) /* {{{ */
-{
-	assert(monitor != NULL);
-	assert(idx >= 0);
-	assert(idx < MON_TIMING_N);
-
-	if (monitor->timings[idx].samples < MON_SAMPLES_MAX) {
-		monitor->timings[idx].data[monitor->timings[idx].samples++] = value;
-
-	} else {
-		int x = rand() / RAND_MAX * ++monitor->timings[idx].samples;
-		if (x < MON_SAMPLES_MAX)
-			monitor->timings[idx].data[x] = value;
-	}
-}
-/* }}} */
-void monitor_count(monitor_t *monitor, int idx) /* {{{ */
-{
-	assert(monitor != NULL);
-	assert(idx >= 0);
-	assert(idx < MON_COUNT_N);
-
-	monitor->counts[idx]++;
-}
-/* }}} */
-
-
 int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* {{{ */
 {
 	assert(dispatcher != NULL);
@@ -756,17 +267,17 @@ int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* 
 	memset(dispatcher, 0, sizeof(dispatcher_t));
 
 	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
-	rc = connect_to_supervisor(ZMQ, &dispatcher->control);
+	rc = subscriber_connect_supervisor(ZMQ, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting dispatcher.monitor -> monitor");
-	rc = connect_to_monitor(ZMQ, &dispatcher->monitor);
+	rc = subscriber_connect_monitor(ZMQ, &dispatcher->monitor);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting dispatcher.tock -> scheduler");
-	rc = connect_to_scheduler(ZMQ, &dispatcher->tock);
+	rc = subscriber_connect_scheduler(ZMQ, &dispatcher->tock);
 	if (rc != 0)
 		return rc;
 
@@ -884,9 +395,8 @@ int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
 
-	if (socket == dispatcher->control) {
-		return obey_supervisor(pdu);
-	}
+	if (socket == dispatcher->control)
+		return VIGOR_REACTOR_HALT;
 
 	if (socket == dispatcher->tock) {
 		logger(LOG_DEBUG, "flushing RRD map to disk");
@@ -943,8 +453,8 @@ int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				pdu_send_and_free(relay, dispatcher->updates);
 			}
 
-			pdu_t *perf = pdu_make(".timing", 1, "dispatch");
-			pdu_extendf(perf, "%lu", spent);
+			pdu_t *perf = pdu_make("SAMPLE", 1, "dispatch.time.s");
+			pdu_extendf(perf, "%lf", spent / 1000.);
 			pdu_send_and_free(perf, dispatcher->monitor);
 		}
 
@@ -963,10 +473,6 @@ void * dispatcher_thread(void *_) /* {{{ */
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
 	pthread_t tid;
 
-	rc = block_signals_in_thread();
-	if (rc != 0)
-		exit(5);
-
 	int i;
 	logger(LOG_DEBUG, "spinning up updater pool with %lu threads", dispatcher->updater_pool_size);
 	for (i = 0; i < dispatcher->updater_pool_size; i++) {
@@ -983,7 +489,9 @@ void * dispatcher_thread(void *_) /* {{{ */
 	}
 
 	reactor_go(dispatcher->reactor);
+	logger(LOG_DEBUG, "dispatcher: shutting down");
 	dispatcher_deinit(dispatcher);
+	logger(LOG_DEBUG, "dispatcher: terminated");
 	return NULL;
 }
 /* }}} */
@@ -999,12 +507,12 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 	logger(LOG_INFO, "initializing creator thread #%i", creator->id);
 
 	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", creator->id);
-	rc = connect_to_supervisor(ZMQ, &creator->control);
+	rc = subscriber_connect_supervisor(ZMQ, &creator->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "creator[%i] connecting creator.monitor -> monitor", creator->id);
-	rc = connect_to_monitor(ZMQ, &creator->monitor);
+	rc = subscriber_connect_monitor(ZMQ, &creator->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -1039,19 +547,19 @@ int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
 void creator_deinit(creator_t *creator) /* {{{ */
 {
 	assert(creator != NULL);
+	int id = creator->id;
+	logger(LOG_DEBUG, "creator[%i]: shutting down", id);
 
-	zmq_close(creator->control);  creator->control = NULL;
-	zmq_close(creator->monitor);  creator->monitor = NULL;
-	zmq_close(creator->queue);    creator->queue   = NULL;
-
-	free(creator->rras);
-	creator->rras = NULL;
+	zmq_close(creator->control);
+	zmq_close(creator->monitor);
+	zmq_close(creator->queue);
 
 	reactor_free(creator->reactor);
-	creator->reactor = NULL;
 
+	free(creator->rras);
 	free(creator);
-	creator = NULL;
+
+	logger(LOG_DEBUG, "creator[%i]: terminated", id);
 }
 /* }}} */
 int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
@@ -1062,9 +570,8 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	creator_t *creator = (creator_t*)_;
 
-	if (socket == creator->control) {
-		return obey_supervisor(pdu);
-	}
+	if (socket == creator->control)
+		return VIGOR_REACTOR_HALT;
 
 	if (socket == creator->queue) {
 
@@ -1149,14 +656,14 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		}
 
 		if (rc == 0) {
-			pdu_t *perf = pdu_make(".timing", 1, "create");
-			pdu_extendf(perf, "%lu", spent);
+			pdu_t *perf = pdu_make("SAMPLE", 1, "create.time.s");
+			pdu_extendf(perf, "%lf", spent / 1000.);
 			pdu_send_and_free(perf, creator->monitor);
 
-			pdu_send_and_free(pdu_make(".count", 1, "create.ops"), creator->monitor);
+			pdu_send_and_free(pdu_make("COUNT", 1, "create.ops"), creator->monitor);
 
 		} else {
-			pdu_send_and_free(pdu_make(".count", 1, "create.errors"), creator->monitor);
+			pdu_send_and_free(pdu_make("COUNT", 1, "create.errors"), creator->monitor);
 		}
 
 		free(file);
@@ -1191,12 +698,12 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 	logger(LOG_INFO, "initializing updater thread #%i", updater->id);
 
 	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", updater->id);
-	rc = connect_to_supervisor(ZMQ, &updater->control);
+	rc = subscriber_connect_supervisor(ZMQ, &updater->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "updater[%i] connecting updater.monitor -> monitor", updater->id);
-	rc = connect_to_monitor(ZMQ, &updater->monitor);
+	rc = subscriber_connect_monitor(ZMQ, &updater->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -1229,16 +736,17 @@ int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
 void updater_deinit(updater_t *updater) /* {{{ */
 {
 	assert(updater != NULL);
+	int id = updater->id;
+	logger(LOG_DEBUG, "updater[%i]: shutting down", id);
 
-	zmq_close(updater->control);  updater->control = NULL;
-	zmq_close(updater->monitor);  updater->monitor = NULL;
-	zmq_close(updater->queue);    updater->queue   = NULL;
+	zmq_close(updater->control);
+	zmq_close(updater->monitor);
+	zmq_close(updater->queue);
 
 	reactor_free(updater->reactor);
-	updater->reactor = NULL;
 
 	free(updater);
-	updater = NULL;
+	logger(LOG_DEBUG, "updater[%i]: terminated", id);
 }
 /* }}} */
 int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
@@ -1249,9 +757,8 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	updater_t *updater = (updater_t*)_;
 
-	if (socket == updater->control) {
-		return obey_supervisor(pdu);
-	}
+	if (socket == updater->control)
+		return VIGOR_REACTOR_HALT;
 
 	if (socket == updater->queue) {
 
@@ -1353,14 +860,14 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		}
 
 		if (rc == 0) {
-			pdu_t *perf = pdu_make(".timing", 1, "update");
-			pdu_extendf(perf, "%lu", spent);
+			pdu_t *perf = pdu_make("SAMPLE", 1, "update.time.s");
+			pdu_extendf(perf, "%lf", spent / 1000.);
 			pdu_send_and_free(perf, updater->monitor);
 
-			pdu_send_and_free(pdu_make(".count", 1, "update.ops"), updater->monitor);
+			pdu_send_and_free(pdu_make("COUNT", 1, "update.ops"), updater->monitor);
 
 		} else {
-			pdu_send_and_free(pdu_make(".count", 1, "update.errors"), updater->monitor);
+			pdu_send_and_free(pdu_make("COUNT", 1, "update.errors"), updater->monitor);
 		}
 
 		free(file);
@@ -1385,66 +892,6 @@ void * updater_thread(void *_) /* {{{ */
 	return NULL;
 }
 /* }}} */
-
-
-int scheduler_init(scheduler_t *scheduler, void *ZMQ, options_t *options) /* {{{ */
-{
-	assert(scheduler != NULL);
-	assert(ZMQ != NULL);
-
-	int rc;
-
-	logger(LOG_DEBUG, "connecting scheduler.control -> supervisor");
-	rc = connect_to_supervisor(ZMQ, &scheduler->control);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "binding PUB socket for scheduler.tick");
-	scheduler->tick = zmq_socket(ZMQ, ZMQ_PUB);
-	if (!scheduler->tick)
-		return -1;
-	rc = zmq_bind(scheduler->tick, "inproc://bolo2rrd/v1/scheduler.tick");
-	if (rc != 0)
-		return rc;
-
-	return 0;
-}
-/* }}} */
-void scheduler_deinit(scheduler_t *scheduler) /* {{{ */
-{
-	assert(scheduler != NULL);
-
-	zmq_close(scheduler->control);  scheduler->control = NULL;
-}
-/* }}} */
-void * scheduler_thread(void *_) /* {{{ */
-{
-	assert(_ != NULL);
-
-	scheduler_t *scheduler = (scheduler_t*)_;
-
-	int rc;
-	zmq_pollitem_t poller[1] = { { scheduler->control, 0, ZMQ_POLLIN } };
-	while ((rc = zmq_poll(poller, 1, SCHEDULER_TICK)) >= 0) {
-		if (rc == 0) {
-			logger(LOG_DEBUG, "scheduler ticked (%i); sending broadcast [TICK] PDU", SCHEDULER_TICK);
-			pdu_send_and_free(pdu_make("TICK", 0), scheduler->tick);
-			continue;
-		}
-
-		pdu_t *pdu = pdu_recv(scheduler->control);
-		if (obey_supervisor(pdu) == VIGOR_REACTOR_HALT) {
-			pdu_free(pdu);
-			break;
-		}
-		pdu_free(pdu);
-	}
-
-	scheduler_deinit(scheduler);
-	return NULL;
-}
-/* }}} */
-
 
 static char* s_rradefs(const char *filename) /* {{{ */
 {
@@ -1584,8 +1031,11 @@ options_t* parse_options(int argc, char **argv) /* {{{ */
 		}
 	}
 
-	if (!options->prefix)
-		options->prefix = fqdn();
+	if (!options->prefix) {
+		char *s = fqdn();
+		options->prefix = string("%s:sys:bolo2rrd", s);
+		free(s);
+	}
 
 	if (!options->mapfile)
 		options->mapfile = string("%s/map", options->root);
@@ -1629,36 +1079,49 @@ int main(int argc, char **argv) /* {{{ */
 		exit(1);
 	}
 
-	monitor_t MONITOR;
-	if (monitor_init(&MONITOR, ZMQ, options) != 0) {
-		logger(LOG_ERR, "failed to initialize monitor: %s", strerror(errno));
-		exit(2);
-	}
-
-	supervisor_t SUPERVISOR;
-	if (supervisor_init(&SUPERVISOR, ZMQ, options) != 0) {
-		logger(LOG_ERR, "failed to initialize supervisor: %s", strerror(errno));
-		exit(2);
-	}
-
 	dispatcher_t DISPATCHER;
 	if (dispatcher_init(&DISPATCHER, ZMQ, options) != 0) {
 		logger(LOG_ERR, "failed to initialize dispatcher: %s", strerror(errno));
 		exit(2);
 	}
 
-	scheduler_t SCHEDULER;
-	if (scheduler_init(&SCHEDULER, ZMQ, options) != 0) {
-		logger(LOG_ERR, "failed to initialize scheduler: %s", strerror(errno));
+	int rc;
+	rc = subscriber_init();
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to initialize subscriber architecture");
 		exit(2);
 	}
 
+	rc = subscriber_monitor_thread(ZMQ, options->prefix, options->submit_to);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to spin up monitor thread");
+		exit(2);
+	}
+
+	rc = subscriber_scheduler_thread(ZMQ, 5 * 1000);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to spin up scheduler thread");
+		exit(2);
+	}
+
+	rc = subscriber_metrics(ZMQ,
+		"COUNT",  "create.ops",
+		"COUNT",  "update.ops",
+		"COUNT",  "create.errors",
+		"COUNT",  "update.errors",
+
+		"SAMPLE", "dispatch.time.s",
+		"SAMPLE", "create.time.s",
+		"SAMPLE", "update.time.s",
+		NULL);
+	if (rc != 0) {
+		logger(LOG_WARNING, "failed to provision metrics");
+		/* non-fatal, but still a problem... */
+	}
+
 	pthread_t tid;
-	pthread_create(&tid, NULL, monitor_thread,    &MONITOR);
 	pthread_create(&tid, NULL, dispatcher_thread, &DISPATCHER);
-	pthread_create(&tid, NULL, scheduler_thread,  &SCHEDULER);
-	supervisor_thread(&SUPERVISOR);
-	pthread_exit(0);
+	subscriber_supervisor(ZMQ);
 	return 0;
 }
 /* }}} */
