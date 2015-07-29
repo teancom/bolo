@@ -25,6 +25,7 @@ CORE_SRC += src/binf.c
 CORE_SRC += src/send.c
 
 SUBS_SRC  = $(CORE_SRC)
+SUBS_SRC += src/subs.h
 SUBS_SRC += src/subs.c
 
 EXTRA_DIST += README.md
