@@ -25,27 +25,6 @@
 #include <rrd.h>
 #include <assert.h>
 
-typedef struct {
-	char *endpoint;
-	char *root;
-	char *mapfile;
-
-	int   verbose;
-	int   daemonize;
-
-	char *pidfile;
-	char *user;
-	char *group;
-
-	int   updaters;
-	int   creators;
-
-	char *submit_to;
-	char *prefix;
-
-	char *rras;
-} options_t;
-
 /**************************/
 
 typedef struct {
@@ -202,10 +181,7 @@ typedef struct {
 	char *rras;
 } creator_t;
 
-int creator_init(creator_t *creator, void *ZMQ, options_t *options);
-void creator_deinit(creator_t *creator);
-int creator_reactor(void *socket, pdu_t *pdu, void *_);
-void * creator_thread(void *_);
+int creator_thread(void *zmq, int id, const char *rras);
 
 
 typedef struct {
@@ -219,10 +195,7 @@ typedef struct {
 	reactor_t *reactor;
 } updater_t;
 
-int updater_init(updater_t *updater, void *ZMQ, options_t *options);
-void updater_deinit(updater_t *updater);
-int updater_reactor(void *socket, pdu_t *pdu, void *_);
-void * updater_thread(void *_);
+int updater_thread(void *zmq, int id);
 
 
 typedef struct {
@@ -237,157 +210,13 @@ typedef struct {
 
 	reactor_t *reactor;
 
-	int   updater_pool_size;
-	int   creator_pool_size;
-
-	updater_t **updater_pool;
-	creator_t **creator_pool;
-
 	rrdmap_t *map;
 	char     *root;
 } dispatcher_t;
 
-int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options);
-void dispatcher_deinit(dispatcher_t *dispatcher);
-int dispatcher_reactor(void *socket, pdu_t *pdu, void *_);
-void * dispatcher_thread(void *_);
+int dispatcher_thread(void *zmq, const char *endpoint, const char *root, const char *mapfile);
 
-int dispatcher_init(dispatcher_t *dispatcher, void *ZMQ, options_t *options) /* {{{ */
-{
-	assert(dispatcher != NULL);
-	assert(ZMQ != NULL);
-	assert(options != NULL);
-	assert(options->endpoint != NULL);
-	assert(options->mapfile != NULL);
-
-	int rc;
-
-	logger(LOG_INFO, "initializing dispatcher thread");
-
-	memset(dispatcher, 0, sizeof(dispatcher_t));
-
-	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
-	rc = subscriber_connect_supervisor(ZMQ, &dispatcher->control);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "connecting dispatcher.monitor -> monitor");
-	rc = subscriber_connect_monitor(ZMQ, &dispatcher->monitor);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "connecting dispatcher.tock -> scheduler");
-	rc = subscriber_connect_scheduler(ZMQ, &dispatcher->tock);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "connecting dispatcher.subscriber <- bolo at %s", options->endpoint);
-	dispatcher->subscriber = zmq_socket(ZMQ, ZMQ_SUB);
-	if (!dispatcher->subscriber)
-		return -1;
-	rc = zmq_setsockopt(dispatcher->subscriber, ZMQ_SUBSCRIBE, "", 0);
-	if (rc != 0)
-		return rc;
-	rc = vzmq_connect_af(dispatcher->subscriber, options->endpoint, AF_UNSPEC);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "binding PUSH socket dispatcher.updates");
-	dispatcher->updates = zmq_socket(ZMQ, ZMQ_PUSH);
-	if (!dispatcher->updates)
-		return -1;
-	rc = zmq_bind(dispatcher->updates, "inproc://bolo2rrd/v1/dispatcher.updates");
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "binding PUSH socket dispatcher.creates");
-	dispatcher->creates = zmq_socket(ZMQ, ZMQ_PUSH);
-	if (!dispatcher->creates)
-		return -1;
-	rc = zmq_bind(dispatcher->creates, "inproc://bolo2rrd/v1/dispatcher.creates");
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "setting up dispatcher event reactor");
-	dispatcher->reactor = reactor_new();
-	if (!dispatcher->reactor)
-		return -1;
-
-	logger(LOG_DEBUG, "dispatcher: registering dispatcher.control with event reactor");
-	rc = reactor_set(dispatcher->reactor, dispatcher->control, dispatcher_reactor, dispatcher);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "dispatcher: registering dispatcher.tock with event reactor");
-	rc = reactor_set(dispatcher->reactor, dispatcher->tock, dispatcher_reactor, dispatcher);
-	if (rc != 0)
-		return rc;
-
-	logger(LOG_DEBUG, "dispatcher: registering dispatcher.subscriber with event reactor");
-	rc = reactor_set(dispatcher->reactor, dispatcher->subscriber, dispatcher_reactor, dispatcher);
-	if (rc != 0)
-		return rc;
-
-	dispatcher->root = strdup(options->root);
-	dispatcher->updater_pool_size = options->updaters;
-	dispatcher->creator_pool_size = options->creators;
-
-	dispatcher->map = rrdmap_new(options->mapfile);
-	rc = rrdmap_read(dispatcher->map, dispatcher->root);
-	if (rc != 0)
-		return rc;
-
-	int i;
-
-	logger(LOG_DEBUG, "setting up updater pool with %lu threads", dispatcher->updater_pool_size);
-	dispatcher->updater_pool = vcalloc(dispatcher->updater_pool_size, sizeof(updater_t*));
-	for (i = 0; i < dispatcher->updater_pool_size; i++) {
-		dispatcher->updater_pool[i] = vmalloc(sizeof(updater_t));
-		dispatcher->updater_pool[i]->id = i;
-		updater_init(dispatcher->updater_pool[i], ZMQ, options);
-	}
-
-	logger(LOG_DEBUG, "setting up creator pool with %lu threads", dispatcher->creator_pool_size);
-	dispatcher->creator_pool = vcalloc(dispatcher->creator_pool_size, sizeof(creator_t*));
-	for (i = 0; i < dispatcher->creator_pool_size; i++) {
-		dispatcher->creator_pool[i] = vmalloc(sizeof(creator_t));
-		dispatcher->creator_pool[i]->id = i;
-		creator_init(dispatcher->creator_pool[i], ZMQ, options);
-	}
-
-	return 0;
-}
-/* }}} */
-void dispatcher_deinit(dispatcher_t *dispatcher) /* {{{ */
-{
-	assert(dispatcher != NULL);
-
-	free(dispatcher->root);
-	rrdmap_free(dispatcher->map);
-
-	zmq_close(dispatcher->subscriber);  dispatcher->subscriber = NULL;
-	zmq_close(dispatcher->updates);     dispatcher->updates    = NULL;
-	zmq_close(dispatcher->creates);     dispatcher->creates    = NULL;
-	zmq_close(dispatcher->monitor);     dispatcher->monitor    = NULL;
-	zmq_close(dispatcher->tock);        dispatcher->tock       = NULL;
-	zmq_close(dispatcher->control);     dispatcher->control    = NULL;
-
-	reactor_free(dispatcher->reactor);
-	dispatcher->reactor = NULL;
-
-	int i;
-	for (i = 0; i < dispatcher->updater_pool_size; i++)
-		dispatcher->updater_pool[i] = NULL;
-	free(dispatcher->updater_pool);
-	dispatcher->updater_pool = NULL;
-
-	for (i = 0; i < dispatcher->creator_pool_size; i++)
-		dispatcher->creator_pool[i] = NULL;
-	free(dispatcher->creator_pool);
-	dispatcher->creator_pool = NULL;
-}
-/* }}} */
-int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
+static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 {
 	assert(socket != NULL);
 	assert(pdu != NULL);
@@ -465,104 +294,124 @@ int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 	return VIGOR_REACTOR_HALT;
 }
 /* }}} */
-void * dispatcher_thread(void *_) /* {{{ */
+static void * _dispatcher_thread(void *_) /* {{{ */
 {
 	assert(_ != NULL);
 
-	int rc;
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
-	pthread_t tid;
-
-	int i;
-	logger(LOG_DEBUG, "spinning up updater pool with %lu threads", dispatcher->updater_pool_size);
-	for (i = 0; i < dispatcher->updater_pool_size; i++) {
-		rc = pthread_create(&tid, NULL, updater_thread, dispatcher->updater_pool[i]);
-		if (rc != 0)
-			exit(5);
-	}
-
-	logger(LOG_DEBUG, "spinning up creator pool with %lu threads", dispatcher->creator_pool_size);
-	for (i = 0; i < dispatcher->creator_pool_size; i++) {
-		rc = pthread_create(&tid, NULL, creator_thread, dispatcher->creator_pool[i]);
-		if (rc != 0)
-			exit(5);
-	}
 
 	reactor_go(dispatcher->reactor);
+
 	logger(LOG_DEBUG, "dispatcher: shutting down");
-	dispatcher_deinit(dispatcher);
+
+	zmq_close(dispatcher->subscriber);
+	zmq_close(dispatcher->updates);
+	zmq_close(dispatcher->creates);
+	zmq_close(dispatcher->monitor);
+	zmq_close(dispatcher->tock);
+	zmq_close(dispatcher->control);
+
+	reactor_free(dispatcher->reactor);
+	rrdmap_free(dispatcher->map);
+	free(dispatcher->root);
+	free(dispatcher);
+
 	logger(LOG_DEBUG, "dispatcher: terminated");
 	return NULL;
 }
 /* }}} */
-
-
-int creator_init(creator_t *creator, void *ZMQ, options_t *options) /* {{{ */
+int dispatcher_thread(void *zmq, const char *endpoint, const char *root, const char *mapfile) /* {{{ */
 {
-	assert(creator != NULL);
-	assert(ZMQ != NULL);
+	assert(zmq != NULL);
+	assert(endpoint != NULL);
+	assert(mapfile != NULL);
 
 	int rc;
 
-	logger(LOG_INFO, "initializing creator thread #%i", creator->id);
+	logger(LOG_INFO, "initializing dispatcher thread");
 
-	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", creator->id);
-	rc = subscriber_connect_supervisor(ZMQ, &creator->control);
+	dispatcher_t *dispatcher = vmalloc(sizeof(dispatcher_t));
+	dispatcher->root = strdup(root);
+
+	dispatcher->map = rrdmap_new(mapfile);
+	rc = rrdmap_read(dispatcher->map, root);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "creator[%i] connecting creator.monitor -> monitor", creator->id);
-	rc = subscriber_connect_monitor(ZMQ, &creator->monitor);
+
+	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
+	rc = subscriber_connect_supervisor(zmq, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "creator[%i] connecting creator.queue -> dispatcher", creator->id);
-	creator->queue = zmq_socket(ZMQ, ZMQ_PULL);
-	if (!creator->queue)
+	logger(LOG_DEBUG, "connecting dispatcher.monitor -> monitor");
+	rc = subscriber_connect_monitor(zmq, &dispatcher->monitor);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "connecting dispatcher.tock -> scheduler");
+	rc = subscriber_connect_scheduler(zmq, &dispatcher->tock);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "connecting dispatcher.subscriber <- bolo at %s", endpoint);
+	dispatcher->subscriber = zmq_socket(zmq, ZMQ_SUB);
+	if (!dispatcher->subscriber)
 		return -1;
-	rc = zmq_connect(creator->queue, "inproc://bolo2rrd/v1/dispatcher.creates");
+	rc = zmq_setsockopt(dispatcher->subscriber, ZMQ_SUBSCRIBE, "", 0);
+	if (rc != 0)
+		return rc;
+	rc = vzmq_connect_af(dispatcher->subscriber, endpoint, AF_UNSPEC);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "creator[%i] setting up creator event reactor", creator->id);
-	creator->reactor = reactor_new();
-	if (!creator->reactor)
+	logger(LOG_DEBUG, "binding PUSH socket dispatcher.updates");
+	dispatcher->updates = zmq_socket(zmq, ZMQ_PUSH);
+	if (!dispatcher->updates)
+		return -1;
+	rc = zmq_bind(dispatcher->updates, "inproc://bolo2rrd/v1/dispatcher.updates");
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "binding PUSH socket dispatcher.creates");
+	dispatcher->creates = zmq_socket(zmq, ZMQ_PUSH);
+	if (!dispatcher->creates)
+		return -1;
+	rc = zmq_bind(dispatcher->creates, "inproc://bolo2rrd/v1/dispatcher.creates");
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "setting up dispatcher event reactor");
+	dispatcher->reactor = reactor_new();
+	if (!dispatcher->reactor)
 		return -1;
 
-	logger(LOG_DEBUG, "creator[%i] registering creator.control with event reactor", creator->id);
-	rc = reactor_set(creator->reactor, creator->control, creator_reactor, creator);
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.control with event reactor");
+	rc = reactor_set(dispatcher->reactor, dispatcher->control, _dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "creator[%i] registering creator.queue with event reactor", creator->id);
-	rc = reactor_set(creator->reactor, creator->queue, creator_reactor, creator);
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.tock with event reactor");
+	rc = reactor_set(dispatcher->reactor, dispatcher->tock, _dispatcher_reactor, dispatcher);
 	if (rc != 0)
 		return rc;
 
-	creator->rras = strdup(options->rras);
+	logger(LOG_DEBUG, "dispatcher: registering dispatcher.subscriber with event reactor");
+	rc = reactor_set(dispatcher->reactor, dispatcher->subscriber, _dispatcher_reactor, dispatcher);
+	if (rc != 0)
+		return rc;
+
+	pthread_t tid;
+	rc = pthread_create(&tid, NULL, _dispatcher_thread, dispatcher);
+	if (rc != 0)
+		return rc;
 
 	return 0;
 }
 /* }}} */
-void creator_deinit(creator_t *creator) /* {{{ */
-{
-	assert(creator != NULL);
-	int id = creator->id;
-	logger(LOG_DEBUG, "creator[%i]: shutting down", id);
 
-	zmq_close(creator->control);
-	zmq_close(creator->monitor);
-	zmq_close(creator->queue);
 
-	reactor_free(creator->reactor);
-
-	free(creator->rras);
-	free(creator);
-
-	logger(LOG_DEBUG, "creator[%i]: terminated", id);
-}
-/* }}} */
-int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
+static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 {
 	assert(socket != NULL);
 	assert(pdu != NULL);
@@ -675,81 +524,86 @@ int creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 	return VIGOR_REACTOR_HALT;
 }
 /* }}} */
-void * creator_thread(void *_) /* {{{ */
+static void * _creator_thread(void *_) /* {{{ */
 {
 	assert(_ != NULL);
 
 	creator_t *creator = (creator_t*)_;
 
 	reactor_go(creator->reactor);
-	creator_deinit(creator);
+
+	int id = creator->id;
+	logger(LOG_DEBUG, "creator[%i]: shutting down", id);
+
+	zmq_close(creator->control);
+	zmq_close(creator->monitor);
+	zmq_close(creator->queue);
+
+	reactor_free(creator->reactor);
+
+	free(creator->rras);
+	free(creator);
+
+	logger(LOG_DEBUG, "creator[%i]: terminated", id);
 	return NULL;
 }
 /* }}} */
-
-
-int updater_init(updater_t *updater, void *ZMQ, options_t *options) /* {{{ */
+int creator_thread(void *zmq, int id, const char *rras) /* {{{ */
 {
-	assert(updater != NULL);
-	assert(ZMQ != NULL);
+	assert(zmq != NULL);
+
+	creator_t *creator = vmalloc(sizeof(creator_t));
+	creator->id = id;
+	creator->rras = strdup(rras);
 
 	int rc;
 
-	logger(LOG_INFO, "initializing updater thread #%i", updater->id);
+	logger(LOG_INFO, "initializing creator thread #%i", id);
 
-	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", updater->id);
-	rc = subscriber_connect_supervisor(ZMQ, &updater->control);
+	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", id);
+	rc = subscriber_connect_supervisor(zmq, &creator->control);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "updater[%i] connecting updater.monitor -> monitor", updater->id);
-	rc = subscriber_connect_monitor(ZMQ, &updater->monitor);
+	logger(LOG_DEBUG, "creator[%i] connecting creator.monitor -> monitor", id);
+	rc = subscriber_connect_monitor(zmq, &creator->monitor);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "updater[%i] connecting updater.queue -> dispatcher", updater->id);
-	updater->queue = zmq_socket(ZMQ, ZMQ_PULL);
-	if (!updater->queue)
+	logger(LOG_DEBUG, "creator[%i] connecting creator.queue -> dispatcher", id);
+	creator->queue = zmq_socket(zmq, ZMQ_PULL);
+	if (!creator->queue)
 		return -1;
-	rc = zmq_connect(updater->queue, "inproc://bolo2rrd/v1/dispatcher.updates");
+	rc = zmq_connect(creator->queue, "inproc://bolo2rrd/v1/dispatcher.creates");
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "updater[%i] setting up updater event reactor", updater->id);
-	updater->reactor = reactor_new();
-	if (!updater->reactor)
+	logger(LOG_DEBUG, "creator[%i] setting up creator event reactor", id);
+	creator->reactor = reactor_new();
+	if (!creator->reactor)
 		return -1;
 
-	logger(LOG_DEBUG, "updater[%i] registering updater.control with event reactor", updater->id);
-	rc = reactor_set(updater->reactor, updater->control, updater_reactor, updater);
+	logger(LOG_DEBUG, "creator[%i] registering creator.control with event reactor", id);
+	rc = reactor_set(creator->reactor, creator->control, _creator_reactor, creator);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG, "updater[%i] registering updater.queue with event reactor", updater->id);
-	rc = reactor_set(updater->reactor, updater->queue, updater_reactor, updater);
+	logger(LOG_DEBUG, "creator[%i] registering creator.queue with event reactor", id);
+	rc = reactor_set(creator->reactor, creator->queue, _creator_reactor, creator);
+	if (rc != 0)
+		return rc;
+
+	pthread_t tid;
+	rc = pthread_create(&tid, NULL, _creator_thread, creator);
 	if (rc != 0)
 		return rc;
 
 	return 0;
 }
 /* }}} */
-void updater_deinit(updater_t *updater) /* {{{ */
-{
-	assert(updater != NULL);
-	int id = updater->id;
-	logger(LOG_DEBUG, "updater[%i]: shutting down", id);
 
-	zmq_close(updater->control);
-	zmq_close(updater->monitor);
-	zmq_close(updater->queue);
 
-	reactor_free(updater->reactor);
-
-	free(updater);
-	logger(LOG_DEBUG, "updater[%i]: terminated", id);
-}
-/* }}} */
-int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
+static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 {
 	assert(socket != NULL);
 	assert(pdu != NULL);
@@ -879,7 +733,7 @@ int updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 	return VIGOR_REACTOR_HALT;
 }
 /* }}} */
-void * updater_thread(void *_) /* {{{ */
+void * _updater_thread(void *_) /* {{{ */
 {
 	assert(_ != NULL);
 
@@ -888,10 +742,74 @@ void * updater_thread(void *_) /* {{{ */
 	rrd_get_context();
 
 	reactor_go(updater->reactor);
-	updater_deinit(updater);
+
+	int id = updater->id;
+	logger(LOG_DEBUG, "updater[%i]: shutting down", id);
+
+	zmq_close(updater->control);
+	zmq_close(updater->monitor);
+	zmq_close(updater->queue);
+
+	reactor_free(updater->reactor);
+	free(updater);
+
+	logger(LOG_DEBUG, "updater[%i]: terminated", id);
 	return NULL;
 }
 /* }}} */
+int updater_thread(void *zmq, int id) /* {{{ */
+{
+	assert(zmq != NULL);
+
+	int rc;
+
+	updater_t *updater = vmalloc(sizeof(updater_t));
+	updater->id = id;
+
+	logger(LOG_INFO, "initializing updater thread #%i", id);
+
+	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", id);
+	rc = subscriber_connect_supervisor(zmq, &updater->control);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "updater[%i] connecting updater.monitor -> monitor", id);
+	rc = subscriber_connect_monitor(zmq, &updater->monitor);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "updater[%i] connecting updater.queue -> dispatcher", id);
+	updater->queue = zmq_socket(zmq, ZMQ_PULL);
+	if (!updater->queue)
+		return -1;
+	rc = zmq_connect(updater->queue, "inproc://bolo2rrd/v1/dispatcher.updates");
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "updater[%i] setting up updater event reactor", id);
+	updater->reactor = reactor_new();
+	if (!updater->reactor)
+		return -1;
+
+	logger(LOG_DEBUG, "updater[%i] registering updater.control with event reactor", id);
+	rc = reactor_set(updater->reactor, updater->control, _updater_reactor, updater);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "updater[%i] registering updater.queue with event reactor", id);
+	rc = reactor_set(updater->reactor, updater->queue, _updater_reactor, updater);
+	if (rc != 0)
+		return rc;
+
+	pthread_t tid;
+	rc = pthread_create(&tid, NULL, _updater_thread, updater);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+/* }}} */
+
 
 static char* s_rradefs(const char *filename) /* {{{ */
 {
@@ -920,22 +838,39 @@ static char* s_rradefs(const char *filename) /* {{{ */
 	return s;
 }
 /* }}} */
-options_t* parse_options(int argc, char **argv) /* {{{ */
+int main(int argc, char **argv) /* {{{ */
 {
-	options_t *options = vmalloc(sizeof(options_t));
+	struct {
+		char *endpoint;
+		char *root;
+		char *mapfile;
 
-	options->verbose   = 0;
-	options->endpoint  = strdup("tcp://127.0.0.1:2997");
-	options->submit_to = strdup("tcp://127.0.0.1:2999");
-	options->root      = strdup("/var/lib/bolo/rrd");
-	options->mapfile   = NULL; /* will be set later, based on root */
-	options->daemonize = 1;
-	options->pidfile   = strdup("/var/run/bolo2rrd.pid");
-	options->user      = strdup("root");
-	options->group     = strdup("root");
-	options->creators  = 2;
-	options->updaters  = 8;
-	options->prefix    = NULL; /* will be set later, if needed */
+		int   verbose;
+		int   daemonize;
+
+		char *pidfile;
+		char *user;
+		char *group;
+
+		int   updaters;
+		int   creators;
+
+		char *submit_to;
+		char *prefix;
+	} OPTIONS = {
+		.verbose   = 0,
+		.endpoint  = strdup("tcp://127.0.0.1:2997"),
+		.submit_to = strdup("tcp://127.0.0.1:2999"),
+		.root      = strdup("/var/lib/bolo/rrd"),
+		.mapfile   = NULL, /* will be set later, based on root */
+		.daemonize = 1,
+		.pidfile   = strdup("/var/run/bolo2rrd.pid"),
+		.user      = strdup("root"),
+		.group     = strdup("root"),
+		.creators  = 2,
+		.updaters  = 8,
+		.prefix    = NULL, /* will be set later, if needed */
+	};
 
 	struct option long_opts[] = {
 		{ "help",             no_argument, NULL, 'h' },
@@ -966,41 +901,41 @@ options_t* parse_options(int argc, char **argv) /* {{{ */
 			break;
 
 		case 'v':
-			options->verbose++;
+			OPTIONS.verbose++;
 			break;
 
 		case 'e':
-			free(options->endpoint);
-			options->endpoint = strdup(optarg);
+			free(OPTIONS.endpoint);
+			OPTIONS.endpoint = strdup(optarg);
 			break;
 
 		case 'r':
-			free(options->root);
-			options->root = strdup(optarg);
+			free(OPTIONS.root);
+			OPTIONS.root = strdup(optarg);
 			break;
 
 		case 'F':
-			options->daemonize = 0;
+			OPTIONS.daemonize = 0;
 			break;
 
 		case 'p':
-			free(options->pidfile);
-			options->pidfile = strdup(optarg);
+			free(OPTIONS.pidfile);
+			OPTIONS.pidfile = strdup(optarg);
 			break;
 
 		case 'u':
-			free(options->user);
-			options->user = strdup(optarg);
+			free(OPTIONS.user);
+			OPTIONS.user = strdup(optarg);
 			break;
 
 		case 'g':
-			free(options->group);
-			options->group = strdup(optarg);
+			free(OPTIONS.group);
+			OPTIONS.group = strdup(optarg);
 			break;
 
 		case 'H':
-			free(options->mapfile);
-			options->mapfile = strdup(optarg);
+			free(OPTIONS.mapfile);
+			OPTIONS.mapfile = strdup(optarg);
 			break;
 
 		case 'C':
@@ -1008,21 +943,21 @@ options_t* parse_options(int argc, char **argv) /* {{{ */
 			break;
 
 		case 'U':
-			options->updaters = strtoll(optarg, NULL, 10);
+			OPTIONS.updaters = strtoll(optarg, NULL, 10);
 			break;
 
 		case 'c':
-			options->creators = strtoll(optarg, NULL, 10);
+			OPTIONS.creators = strtoll(optarg, NULL, 10);
 			break;
 
 		case 'S':
-			free(options->submit_to);
-			options->submit_to = strdup(optarg);
+			free(OPTIONS.submit_to);
+			OPTIONS.submit_to = strdup(optarg);
 			break;
 
 		case 'P':
-			free(options->prefix);
-			options->prefix = strdup(optarg);
+			free(OPTIONS.prefix);
+			OPTIONS.prefix = strdup(optarg);
 			break;
 
 		default:
@@ -1031,58 +966,42 @@ options_t* parse_options(int argc, char **argv) /* {{{ */
 		}
 	}
 
-	if (!options->prefix) {
+	if (!OPTIONS.prefix) {
 		char *s = fqdn();
-		options->prefix = string("%s:sys:bolo2rrd", s);
+		OPTIONS.prefix = string("%s:sys:bolo2rrd", s);
 		free(s);
 	}
 
-	if (!options->mapfile)
-		options->mapfile = string("%s/map", options->root);
+	if (!OPTIONS.mapfile)
+		OPTIONS.mapfile = string("%s/map", OPTIONS.root);
 
 	struct stat st;
-	if (stat(options->root, &st) != 0) {
-		fprintf(stderr, "%s: %s\n", options->root, strerror(errno));
+	if (stat(OPTIONS.root, &st) != 0) {
+		fprintf(stderr, "%s: %s\n", OPTIONS.root, strerror(errno));
 		exit(1);
 	}
 
-	options->rras = s_rradefs("/usr/lib/bolo/bolo2rrd/rra.def");
-
-	return options;
-}
-/* }}} */
-int main(int argc, char **argv) /* {{{ */
-{
-	options_t *options = parse_options(argc, argv);
-
-
-	if (options->daemonize) {
+	if (OPTIONS.daemonize) {
 		log_open("bolo2rrd", "daemon");
-		log_level(LOG_ERR + options->verbose, NULL);
+		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
-		if (daemonize(options->pidfile, options->user, options->group) != 0) {
+		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
 			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
 			exit(3);
 		}
 		umask(um);
 	} else {
 		log_open("bolo2rrd", "console");
-		log_level(LOG_INFO + options->verbose, NULL);
+		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");
 
 
-	void *ZMQ = zmq_ctx_new();
-	if (!ZMQ) {
+	void *zmq = zmq_ctx_new();
+	if (!zmq) {
 		logger(LOG_ERR, "failed to initialize 0MQ context");
 		exit(1);
-	}
-
-	dispatcher_t DISPATCHER;
-	if (dispatcher_init(&DISPATCHER, ZMQ, options) != 0) {
-		logger(LOG_ERR, "failed to initialize dispatcher: %s", strerror(errno));
-		exit(2);
 	}
 
 	int rc;
@@ -1092,19 +1011,19 @@ int main(int argc, char **argv) /* {{{ */
 		exit(2);
 	}
 
-	rc = subscriber_monitor_thread(ZMQ, options->prefix, options->submit_to);
+	rc = subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up monitor thread");
 		exit(2);
 	}
 
-	rc = subscriber_scheduler_thread(ZMQ, 5 * 1000);
+	rc = subscriber_scheduler_thread(zmq, 5 * 1000);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up scheduler thread");
 		exit(2);
 	}
 
-	rc = subscriber_metrics(ZMQ,
+	rc = subscriber_metrics(zmq,
 		"COUNT",  "create.ops",
 		"COUNT",  "update.ops",
 		"COUNT",  "create.errors",
@@ -1119,9 +1038,46 @@ int main(int argc, char **argv) /* {{{ */
 		/* non-fatal, but still a problem... */
 	}
 
-	pthread_t tid;
-	pthread_create(&tid, NULL, dispatcher_thread, &DISPATCHER);
-	subscriber_supervisor(ZMQ);
+	rc = dispatcher_thread(zmq, OPTIONS.endpoint, OPTIONS.root, OPTIONS.mapfile);
+	if (rc != 0) {
+		logger(LOG_ERR, "failed to initialize dispatcher: %s", strerror(errno));
+		exit(2);
+	}
+
+	int i;
+	logger(LOG_DEBUG, "setting up creator pool with %lu threads", OPTIONS.creators);
+	char *rras = s_rradefs("/usr/lib/bolo/bolo2rrd/rra.def");
+	for (i = 0; i < OPTIONS.creators; i++) {
+		rc = creator_thread(zmq, i, rras);
+		if (rc != 0) {
+			logger(LOG_ERR, "failed to initialize creator #%i", i);
+			exit(2);
+		}
+	}
+	free(rras);
+
+	logger(LOG_DEBUG, "setting up updater pool with %lu threads", OPTIONS.updaters);
+	for (i = 0; i < OPTIONS.updaters; i++) {
+		rc = updater_thread(zmq, i);
+		if (rc != 0) {
+			logger(LOG_ERR, "failed to initialize updater #%i", i);
+			exit(2);
+		}
+	}
+
+	subscriber_supervisor(zmq);
+
+	free(OPTIONS.endpoint);
+	free(OPTIONS.root);
+	free(OPTIONS.mapfile);
+
+	free(OPTIONS.pidfile);
+	free(OPTIONS.user);
+	free(OPTIONS.group);
+
+	free(OPTIONS.submit_to);
+	free(OPTIONS.prefix);
+
 	return 0;
 }
 /* }}} */
