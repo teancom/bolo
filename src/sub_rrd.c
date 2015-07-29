@@ -452,11 +452,11 @@ int dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 				pdu_send_and_free(relay, dispatcher->updates);
 			}
-
-			pdu_t *perf = pdu_make("SAMPLE", 1, "dispatch.time.s");
-			pdu_extendf(perf, "%lf", spent / 1000.);
-			pdu_send_and_free(perf, dispatcher->monitor);
 		}
+
+		pdu_t *perf = pdu_make("SAMPLE", 1, "dispatch.time.s");
+		pdu_extendf(perf, "%lf", spent / 1000.);
+		pdu_send_and_free(perf, dispatcher->monitor);
 
 		return VIGOR_REACTOR_CONTINUE;
 	}
