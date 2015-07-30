@@ -116,7 +116,7 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 					NULL, 0); /* all text formats */
 
 				if (PQresultStatus(r) != PGRES_COMMAND_OK) {
-					fprintf(stderr, "INSERT_STAGING with $1 = '%s', $2 = '%s', $3 = '%s', $4 = '%s' failed\nerror: %s",
+					logger(LOG_ERR, "failed to insert into staging table ($1 = '%s', $2 = '%s', $3 = '%s', $4 = '%s'): %s",
 						params[0], params[1], params[2], params[3],
 						PQresultErrorMessage(r));
 					rc = -1;
@@ -226,7 +226,7 @@ int inserter_thread(void *zmq, int id, const char *dsn) /* {{{ */
 	if (!inserter->db)
 		return -1;
 	if (PQstatus(inserter->db) != CONNECTION_OK) {
-		fprintf(stderr, "inserter[%i]: connection failed: %s\n",
+		logger(LOG_ERR, "inserter[%i]: connection failed: %s\n",
 				id, PQerrorMessage(inserter->db));
 		return -1;
 	}
@@ -239,7 +239,7 @@ int inserter_thread(void *zmq, int id, const char *dsn) /* {{{ */
 	PGresult *r = PQprepare(inserter->db, "INSERT_STAGING", sql, 4, NULL);
 
 	if (PQresultStatus(r) != PGRES_COMMAND_OK) {
-		fprintf(stderr, "Unable to prepare SQL `%s`: %s", sql, PQresultErrorMessage(r));
+		logger(LOG_ERR, "Unable to prepare SQL `%s`: %s", sql, PQresultErrorMessage(r));
 
 		PQclear(r);
 		PQfinish(inserter->db);
@@ -282,7 +282,7 @@ static int _reconciler_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			const char *sql = "SELECT reconcile()";
 			PGresult *r = PQexec(reconciler->db, sql);
 			if (PQresultStatus(r) != PGRES_TUPLES_OK) {
-				fprintf(stderr, "`%s' failed\nerror: %s", sql, PQresultErrorMessage(r));
+				logger(LOG_ERR, "`%s' failed\nerror: %s", sql, PQresultErrorMessage(r));
 				rc = -1;
 			}
 			PQclear(r);
@@ -375,7 +375,7 @@ int reconciler_thread(void *zmq, const char *dsn) /* {{{ */
 	if (!reconciler->db)
 		return -1;
 	if (PQstatus(reconciler->db) != CONNECTION_OK) {
-		fprintf(stderr, "reconciler: connection failed :%s\n", PQerrorMessage(reconciler->db));
+		logger(LOG_ERR, "reconciler: connection failed :%s\n", PQerrorMessage(reconciler->db));
 		return -1;
 	}
 
@@ -527,7 +527,7 @@ static int s_read_creds(const char *file, char **user, char **pass)
 
 	char buf[256];
 	if (fgets(buf, 256, io) == NULL) {
-		fprintf(stderr, "no credentials found");
+		logger(LOG_ERR, "no credentials found");
 		return 1;
 	}
 
@@ -535,7 +535,7 @@ static int s_read_creds(const char *file, char **user, char **pass)
 	char *end = strrchr(buf, '\n');
 
 	if (!sep || !end) {
-		fprintf(stderr, "no credentials found");
+		logger(LOG_ERR, "no credentials found");
 		return 1;
 	}
 
@@ -692,7 +692,7 @@ int main(int argc, char **argv)
 
 		mode_t um = umask(0);
 		if (daemonize(OPTIONS.pidfile, OPTIONS.user, OPTIONS.group) != 0) {
-			fprintf(stderr, "daemonization failed: (%i) %s\n", errno, strerror(errno));
+			logger(LOG_ERR, "daemonization failed: (%i) %s\n", errno, strerror(errno));
 			return 3;
 		}
 		umask(um);
