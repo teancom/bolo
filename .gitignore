@@ -43,6 +43,8 @@ bolo2rrd
 !redhat/init.d/bolo2rrd
 bolo2pg
 !redhat/init.d/bolo2pg
+bolo2meta
+!redhat/init.d/bolo2meta
 bolo2sqlite
 bolo_nsca
 send_bolo

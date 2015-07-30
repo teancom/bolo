@@ -37,10 +37,11 @@ EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
 EXTRA_DIST += redhat
 
-sbin_PROGRAMS = bolo bolo2log bolo2console dbolo
+sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo
 bolo_SOURCES            = $(CORE_SRC) src/daemon.c
 bolo2log_SOURCES        = $(SUBS_SRC) src/sub_log.c
 bolo2console_SOURCES    = $(SUBS_SRC) src/sub_console.c
+bolo2meta_SOURCES       = $(SUBS_SRC) src/sub_meta.c
 dbolo_SOURCES           = $(CORE_SRC) src/agent.c
 
 if build_rrd_subscriber
