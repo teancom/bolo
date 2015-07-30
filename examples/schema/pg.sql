@@ -73,7 +73,7 @@ CREATE TABLE history_anomalies (
 );
 
 
-CREATE FUNCTION reconcile() RETURNS INTEGER AS $$
+CREATE OR REPLACE FUNCTION reconcile() RETURNS INTEGER AS $$
 DECLARE
 	st   RECORD;
 	cur  RECORD;
@@ -148,7 +148,7 @@ BEGIN
 		 */
 		SELECT * INTO prev FROM history
 			WHERE name = st.name
-			  AND started_at < st.occurred_at
+			  AND started_at <= st.occurred_at
 			ORDER BY started_at DESC
 			LIMIT 1;
 
