@@ -732,6 +732,13 @@ void* kernel(void *u)
 				broadcast_sample(k, sample);
 				sample_reset(sample);
 			}
+			rate_t *rate;
+			for_each_key_value(&k->server->db.rates, name, rate) {
+				if (rate->last_seen == 0 || winend(rate, rate->last_seen) >= ts)
+					continue;
+				broadcast_rate(k, rate);
+				rate_reset(rate);
+			}
 			a = pdu_reply(q, "OK", 0);
 			free(name);
 
