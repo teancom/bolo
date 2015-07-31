@@ -73,6 +73,8 @@ typedef struct {
 	void *inserts;    /* PUSH: fair-queue of inserter_t workers (for INSERT requests) */
 
 	reactor_t *reactor;
+
+	hash_t seen;
 } dispatcher_t;
 
 int dispatcher_thread(void *zmq, const char *endpoint);
@@ -390,6 +392,7 @@ int reconciler_thread(void *zmq, const char *dsn) /* {{{ */
 
 /***********************************************************/
 
+#define SEEN (char**)0x42
 static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 {
 	assert(socket != NULL);
@@ -408,7 +411,21 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 		STOPWATCH(&watch, spent) {
 			if (strcmp(pdu_type(pdu), "STATE") == 0 && pdu_size(pdu) == 6) {
-				pdu_send_and_free(pdu_dup(pdu, NULL), dispatcher->inserts);
+				char *state = pdu_string(pdu, 1);
+				if (!hash_get(&dispatcher->seen, state)) {
+					hash_set(&dispatcher->seen, state, SEEN);
+					pdu_send_and_free(pdu_dup(pdu, NULL), dispatcher->inserts);
+				} else {
+					pdu_send_and_free(pdu_make("COUNT", 1, "dispatch.skips"), dispatcher->monitor);
+				}
+				free(state);
+
+			} else if (strcmp(pdu_type(pdu), "TRANSITION") == 0 && pdu_size(pdu) == 6) {
+				char *state = pdu_string(pdu, 1);
+				hash_set(&dispatcher->seen, state, SEEN);
+				free(state);
+
+				pdu_send_and_free(pdu_dup(pdu, "STATE"), dispatcher->inserts);
 
 			} else {
 #ifdef BOLO2PG_DEBUG
@@ -446,6 +463,7 @@ static void * _dispatcher_thread(void *_) /* {{{ */
 	zmq_close(dispatcher->inserts);
 
 	reactor_free(dispatcher->reactor);
+	hash_done(&dispatcher->seen, 0);
 	free(dispatcher);
 
 	logger(LOG_DEBUG, "dispatcher: terminated");
@@ -748,6 +766,7 @@ int main(int argc, char **argv)
 		"COUNT",  "reconcile.ops",
 		"COUNT",  "insert.errors",
 		"COUNT",  "reconcile.errors",
+		"COUNT",  "dispatch.skips",
 
 		"SAMPLE", "dispatch.time.s",
 		"SAMPLE", "insert.time.s",
