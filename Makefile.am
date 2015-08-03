@@ -70,6 +70,7 @@ bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
 CTAP_TESTS  =
 CTAP_TESTS += t/00-config
+CTAP_TESTS += t/core
 CTAP_TESTS += t/01-kernel
 CTAP_TESTS += t/02-sched
 CTAP_TESTS += t/03-lsnr
@@ -107,6 +108,7 @@ EXTRA_DIST  += $(TEST_EXTRAS)
 TESTS = $(CTAP_TESTS) $(SHELL_TESTS)
 check_PROGRAMS = $(CTAP_TESTS)
 t_00_config_SOURCES = $(TEST_SRC) t/00-config.c
+t_core_SOURCES      = $(TEST_SRC) t/core.c src/core.c
 t_01_kernel_SOURCES = $(TEST_SRC) t/01-kernel.c
 t_02_sched_SOURCES  = $(TEST_SRC) t/02-sched.c
 t_03_lsnr_SOURCES   = $(TEST_SRC) t/03-lsnr.c

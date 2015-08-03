@@ -318,6 +318,9 @@ void* controller(void *u);
 void* kernel(void *u);
 void* scheduler(void *u);
 
+int core_scheduler_thread(void *zmq, int interval);
+int core_kernel_thread(void *zmq, server_t *server);
+
 /* utilities - candidates for libvigor */
 pdu_t *vx_pdu_dup(pdu_t *orig, const char *type);
 int vx_pdu_copy(pdu_t *to, pdu_t *from, int start, int n);

@@ -1,5 +1,12 @@
 TODO
 
+- collapse bolo core into:
+  - a kernel thread
+  - a scheduler thread
+  - a supervisor thread
+- adopt reactor pattern in core
+- drop pthread_cleanup stuff in core
+
 - debian package should create bolo user
 - dump should probably dump counters and samples as well
 - consistent hashing / dht algo

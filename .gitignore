@@ -53,6 +53,7 @@ bolospy
 
 t/tmp
 t/00-config
+t/core
 t/01-kernel
 t/02-sched
 t/03-lsnr
