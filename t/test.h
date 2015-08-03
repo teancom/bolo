@@ -59,16 +59,19 @@ HELPER
 static void diag_hex(const char *pre, const char *buf, size_t n)
 {
 	char *p, line[16 * 3 + 1];
+	char *a, ascii[16 + 1];
 	size_t i, no;
 
 	diag("%s         0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15", pre);
 	diag("%s       --- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --", pre);
 	for (i = no = 0; i < n; no++) {
 		p = line;
+		a = ascii;
 
 #define HEXEN \
 	*p++ = HEX[(buf[i] & 0xf0) >> 4]; \
 	*p++ = HEX[(buf[i] & 0x0f)];      \
+	*a++ = (isprint(buf[i]) ? buf[i] : '.'); \
 	*p++ = ' '; i++
 
 		switch ((n - i) > 16 ? 0 : n % 16) {
@@ -90,8 +93,8 @@ static void diag_hex(const char *pre, const char *buf, size_t n)
 			case  1: HEXEN;
 		}
 #undef HEXEN
-		*p = '\0';
-		diag("%s % 4u | %s", pre, no, line);
+		*p = *a = '\0';
+		diag("%s % 4u | %- 48s        %s", pre, no, line, ascii);
 	}
 	diag("");
 }
