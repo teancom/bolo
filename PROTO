@@ -13,50 +13,45 @@
 
    Architecture:
 
-                                                [EVENT]
-                                                [TRANSITION]
-                                                [RATE]
-                                                [STATE]      .----------------------
-   ----------------.                            [COUNTER]   /
-                   |                            [SAMPLE]   /        (clients)
-     NSCA gateway  |                           .--------->         tcp://*:2997
-       TCP/5667    |------. [PUT.RATE]         |           \    PUB/SUB BROADCAST
-                   |      | [PUT.STATE]        |            \
-   ----------------'      | [PUT.COUNTER]      |             '----------------------
-                          | [PUT.SAMPLE]       |
-                          | [SET.KEYS]         |      [GET.STATE]
-                          | [NEW.EVENT]        |      [GET.EVENTS]
-   ----------------.      |                    |      [GET.KEYS]     .----------------
-                   |      |    .-------------------.  [DEL.KEYS]     |
-       LISTENER    |      |    |      kernel       |  [SEARCH.KEYS]  |   CONTROLLER
-     tcp://*:2999  |------'--->|  inproc://kernel  |<----------------|  tcp://*:2998
-                   |           '-------------------'  [DUMP]         |
-   ----------------'                    ^                            '----------------
-                                        |  [TICK]
-   [STATE]                              |  [CHECKFRESH]
-   [COUNTER]                            |  [SAVESTATE]
-   [SAMPLE]                             |
-   [RATE]                               |
-   [SET.KEYS]                  .-----------------.
-   [DEL.KEYS]                  |    scheduler    |
-   [EVENT]                     '-----------------'
+      ----------------.                                      .----------------
+                      |--------------.     .-----------------|
+          LISTENER    |              |     |                 |    MANAGER
+        tcp://*:2999  |      [STATE] |     | [STATE]         |  tcp://*:2998
+                      |    [COUNTER] |     | [GET.EVENTS]    |
+      ----------------'     [SAMPLE] |     | [GET.KEYS]      '----------------
+                              [RATE] |     | [DEL.KEYS]
+                             [EVENT] |     | [SEARCH.KEYS]
+                          [SET.KEYS] |     | [DUMP]
+                                     |     | [SAVESTATE]
+                                     v     v
+                              .-------------------.
+                              |    BOLO KERNEL    |
+                              '-------------------'
+                                        |
+                                        | [EVENT]
+                                        | [TRANSITION]
+                                        | [RATE]
+           ----------------.            | [STATE]
+ client <--                 \           | [COUNTER]
+               PUBLISHER     \          | [SAMPLE]
+ client <--                   <---------'
+              tcp://*:2997   /
+ client <--                 /
+           ----------------'
 
 
   ##############################################################################
-   Threads:
-     1. listener     - Handles inbound state/counter/sample result submission
-     2. NSCA gateway - Demuxes inbound NSCA packets into state/sample results
-     3. controller   - Handles inbound control messages, like DUMP
-     4. kernel       - Manages the internal database / broadcast events
-     5. scheduler    - Issues timed commands (a la interrupts) to the kernel
+  PDUs (LISTENER):
 
+  Socket type:           PULL
+  Expected peer socket:  PUSH
 
-  ##############################################################################
-   PDUs (kernel):
+     (Note: none of these PDUs have responses, because it is a pull, or
+      _write-only_ channel, for performance reasons)
 
      ---------------------------------------------------------------------------
 
-     PUT.STATE             OK                ; update the named state, with a
+     STATE                                   ; update the named state, with a
      <TIMESTAMP>                             ; new status code and summary
      <NAME>                                  ; message, in response to data
      <NUMERIC-CODE>                          ; submitted by monitored systems.
@@ -64,21 +59,21 @@
 
      ---------------------------------------------------------------------------
 
-     PUT.COUNTER           OK                ; increment a counter
+     COUNTER                                 ; increment a counter
      <TIMESTAMP>
      <NAME>
      <INCREMENT>
 
      ---------------------------------------------------------------------------
 
-     PUT.SAMPLE            OK                ; update a sample set with an
+     SAMPLE                                  ; update a sample set with an
      <TIMESTAMP>                             ; arbitrary number of new samples,
      <NAME>                                  ; recalculating min/max/mean/variance
      <VALUE>                                 ; as necessary
 
      ---------------------------------------------------------------------------
 
-     PUT.RATE              OK                ; update a sample set with a
+     RATE                                    ; update a sample set with a
      <TIMESTAMP>                             ; number, and calculate the rate
      <NAME>                                  ; (per the sample window).  This is
      <VALUE>                                 ; useful for ever-increasing values
@@ -86,7 +81,7 @@
 
      ---------------------------------------------------------------------------
 
-     SET.KEYS              OK                ; set new keys in the config hash.
+     SET.KEYS                                ; set new keys in the config hash.
      <KEY 1>                                 ; semantics of the keys are entirely
      <VALUE 1>                               ; left up to the discretion of the
      ...                                     ; site administrator.
@@ -95,58 +90,19 @@
 
      ---------------------------------------------------------------------------
 
-     NEW.EVENT              OK               ; submit a new event, happening at
+     EVENT                                   ; submit a new event, happening at
      <TIMESTAMP>                             ; a specified time.  name and extra
      <NAME>                                  ; data have no special meaning to
      <EXTRA DATA>                            ; the bolo kernel.
 
      ---------------------------------------------------------------------------
 
-     GET.EVENTS            EVENTS            ; get a list of events that occurred
-     <KEY>                 <FILE>            ; on or after timestamp.  Data will
-     <TIMESTAMP>                             ; be dumped to a file, as YAML.
-
-     ---------------------------------------------------------------------------
-
-     GET.STATE             STATE             ; retrieve a single state, by name,
-     <NAME>                <NAME>            ; from the current database
-                           <LAST-SEEN>
-                           <FRESH>           ; yes or no
-                           <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
-                           <SUMMARY MSG>
-
-     ---------------------------------------------------------------------------
-
-     DUMP                  DUMP              ; dumps all stats in a YAML file.
-     <KEY>                 <FILE>
-
-     ---------------------------------------------------------------------------
-
-     TICK                  OK                ; fired every interval.  used by the
-                                             ; kernel for closing out sample and
-                                             ; counter windows.
-
-     ---------------------------------------------------------------------------
-
-     CHECKFRESH            OK                ; prompts the kernel to assess the
-                                             ; freshness of all tracked states
-
-     ---------------------------------------------------------------------------
-
-     SAVESTATE             OK                ; prompts the kernel to write the
-                                             ; current state to a binary file
-                                             ; that it can re-read on next boot
-
-     ---------------------------------------------------------------------------
-
-     *                     ERROR             ; error reply, with friendly error
-                           <MESSAGE>         ; message text
-
-     ---------------------------------------------------------------------------
-
 
   ##############################################################################
-  PDUs (broadcast):
+  PDUs (PUBLISHER):
+
+  Socket type:           PUB
+  Expected peer socket:  SUB
 
      (Note: none of these PDUs have responses, because it is a broadcast, or
       _write-only_ channel.  The kernel doesn't care if anyone is listening)
@@ -208,71 +164,15 @@
 
 
   ##############################################################################
-  PDUs (native listener):
+  PDUs (MANAGER):
 
-     ---------------------------------------------------------------------------
-
-     STATE                                   ; set the code / status / summary
-     <TS>                                    ; of a state.  yields a PUT.STATE
-     <NAME>                                  ; to the kernel
-     <NUMERIC-CODE>
-     <SUMMARY>
-
-     ---------------------------------------------------------------------------
-
-     COUNTER                                 ; increment a counter
-     <TS>                                    ; yields a PUT.COUNTER to the kernel
-     <NAME>
-     <INCREMENT>
-
-     ---------------------------------------------------------------------------
-
-     SAMPLE                                  ; update a sample set with a new
-     <TS>                                    ; sample, recalculating
-     <NAME>                                  ; min/max/mean/variance as necessary
-     <VALUE>                                 ; yields a PUT.SAMPLE to the kernel
-     <...>
-
-     ---------------------------------------------------------------------------
-
-     RATE                                    ; update a sample set with a new
-     <TS>                                    ; rate-calculation (for absolute
-     <NAME>                                  ; values like %user jiffies)
-     <VALUE>
-
-     ---------------------------------------------------------------------------
-
-     SET.KEYS                                ; set new keys in the config hash.
-     <KEY 1>                                 ; semantics of the keys are entirely
-     <VALUE 1>                               ; left up to the discretion of the
-     ...                                     ; site administrator.
-     <KEY N>
-     <VALUE N>
-
-     ---------------------------------------------------------------------------
-
-     DEL.KEYS                                ; delete keys from the config hash.
-     <KEY 1>
-     ...
-     <KEY N>
-
-     ---------------------------------------------------------------------------
-
-     EVENT                                   ; submit a new event to bolo.
-     <TS>
-     <NAME>
-     <EXTRA>
-
-     ---------------------------------------------------------------------------
-
-
-  ##############################################################################
-  PDUs (controller):
+  Socket type:           ROUTER
+  Expected peer socket:  DEALER
 
      ---------------------------------------------------------------------------
 
      STATE                 STATE             ; retrieve a single state by name.
-     <NAME>                <NAME>            ; yields a GET.STATE to the kernel
+     <NAME>                <NAME>
                            <LAST-SEEN>
                            <FRESH>           ; yes or no
                            <STATUS>          ; OK, WARNING, CRITICAL or UNKNOWN
@@ -311,10 +211,12 @@
      ---------------------------------------------------------------------------
 
      DUMP                  DUMP              ; request a full dump of data, in
-                           <YAML-DATA>       ; YAML format.  yields a DUMP to
-                                             ; the kernel
+                           <YAML-DATA>       ; YAML format.
 
      ---------------------------------------------------------------------------
+
+     SAVESTATE             OK                ; request that the kernel save its
+                                             ; state and keys databases.
 
 
   ##############################################################################
