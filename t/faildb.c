@@ -19,12 +19,13 @@
 
 #include "test.h"
 
-TESTS {
-	DEBUGGING("t/fail03-db");
-	NEED_FS();
+static void test_failure(const char *name, const char *raw, size_t len)
+{
+	diag("test: %s", name);
 	TIMEOUT(5);
 
 	server_t *svr = CONFIGURE("");
+	write_file(svr->config.savefile, raw, len);
 
 	CHECK(svr->zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
@@ -42,7 +43,7 @@ TESTS {
 	recv_ok(mgr, "OK", 0);
 
 	char s[18];
-	memcpy(s, "BOLO\0\1\0\0....\0\0\0\0" "\0\0", 18);
+	memcpy(s, "BOLO\0\1\0\0....\0\0\0\0" "\0\0", 16 + 2);
 	*(uint32_t*)(s+8) = htonl(time);
 	binfile_is("t/tmp/save", s, 18, "empty save file");
 
@@ -52,4 +53,25 @@ TESTS {
 	zmq_close(super);
 	zmq_close(mgr);
 	zmq_ctx_destroy(svr->zmq);
+}
+
+TESTS {
+	DEBUGGING("t/faildb");
+	NEED_FS();
+
+	test_failure("General Corruption", "FAILURE", 7);
+
+	test_failure("DB Version Mismatch",
+		"BOLO\0\x42\0\0T\x92""e\xe0\0\0\0\2" /* version 42; WRONG! */
+		"\0%T\x92=[\2\0test.state.1\0critically-ness\0"
+		"\0%T\x92=[\1\0test.state.0\0its problematic\0"
+		"\0\0", 92);
+
+	test_failure("Short Record Header",
+		"BOLO\0\x1\0\0T\x92""e\xe0\0\0\0\2"
+		"\0%T\x92=[", 22); /* SHORT record header.  ZOMG! */
+
+	test_failure("Short Record Payload",
+		"BOLO\0\x1\0\0T\x92""e\xe0\0\0\0\2"
+		"\0%T\x92=[\2\0test.stat", 33); /* SHORT record payload. OH NOES!! */
 }

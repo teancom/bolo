@@ -63,7 +63,7 @@ t/match
 t/events
 t/12-rate
 t/13-send
-t/fail*-db
+t/faildb
 t/vx-pdu
 
 src/bits.h

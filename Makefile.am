@@ -75,13 +75,7 @@ CTAP_TESTS += t/match
 CTAP_TESTS += t/events
 CTAP_TESTS += t/12-rate
 CTAP_TESTS += t/13-send
-
-CTAP_TESTS += t/fail01-db
-CTAP_TESTS += t/fail02-db
-CTAP_TESTS += t/fail03-db
-CTAP_TESTS += t/fail04-db
-CTAP_TESTS += t/fail05-db
-CTAP_TESTS += t/fail06-db
+CTAP_TESTS += t/faildb
 
 CTAP_TESTS += t/vx-pdu
 
@@ -109,14 +103,7 @@ t_match_SOURCES     = $(TEST_SRC) t/match.c
 t_events_SOURCES    = $(TEST_SRC) t/events.c
 t_12_rate_SOURCES   = $(TEST_SRC) t/12-rate.c
 t_13_send_SOURCES   = $(TEST_SRC) t/13-send.c
-
-t_fail01_db_SOURCES = $(TEST_SRC) t/fail01-db.c
-t_fail02_db_SOURCES = $(TEST_SRC) t/fail02-db.c
-t_fail03_db_SOURCES = $(TEST_SRC) t/fail03-db.c
-t_fail04_db_SOURCES = $(TEST_SRC) t/fail04-db.c
-t_fail05_db_SOURCES = $(TEST_SRC) t/fail05-db.c
-t_fail06_db_SOURCES = $(TEST_SRC) t/fail06-db.c
-
+t_faildb_SOURCES    = $(TEST_SRC) t/faildb.c
 t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
 dist_man_MANS  =
