@@ -195,7 +195,6 @@ typedef struct {
 		char     *runas_group;
 		char     *savefile;
 		char     *keysfile;
-		char     *eventsfile;
 
 		int       events_max;
 		int       events_keep;
