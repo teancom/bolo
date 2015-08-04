@@ -19,6 +19,7 @@
 
 #include "bolo.h"
 #include <sys/mman.h>
+#include <signal.h>
 #include <assert.h>
 
 typedef struct {
@@ -294,7 +295,7 @@ static void buffer_event(db_t *db, event_t *ev, int max, int keep) /* {{{ */
 
 /*************************************************************************/
 
-int core_connect_scheduler(void *zmq, void **zocket) /* {{{ */
+static int core_connect_scheduler(void *zmq, void **zocket) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(zocket != NULL);
@@ -305,7 +306,7 @@ int core_connect_scheduler(void *zmq, void **zocket) /* {{{ */
 	if (!*zocket)
 		return -1;
 
-	rc = zmq_connect(*zocket, "inproc://bolo.sub/v1/scheduler.tick");
+	rc = zmq_connect(*zocket, "inproc://bolo/v1/scheduler.tick");
 	if (rc != 0)
 		return rc;
 
@@ -316,7 +317,7 @@ int core_connect_scheduler(void *zmq, void **zocket) /* {{{ */
 	return 0;
 }
 /* }}} */
-int core_connect_supervisor(void *zmq, void **zocket) /* {{{ */
+static int core_connect_supervisor(void *zmq, void **zocket) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(zocket != NULL);
@@ -433,6 +434,7 @@ static void * _kernel_thread(void *_) /* {{{ */
 
 	reactor_free(kernel->reactor);
 	deconfigure(kernel->server);
+	free(kernel->server);
 	free(kernel);
 
 	logger(LOG_DEBUG, "kernel: terminated");
@@ -447,13 +449,19 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	kernel_t *kernel = (kernel_t*)_;
 
-	if (socket == kernel->control)
+	if (socket == kernel->control) {
+		logger(LOG_DEBUG, "received TERMINATE");
 		return VIGOR_REACTOR_HALT;
+	}
 
 	/* {{{ kernel.tock timing interrupts */
 	if (socket == kernel->tock) {
 		int32_t now = time_s();
+		logger(LOG_DEBUG, "kernel received TICK from scheduler at %i", now);
+
 		if (kernel->tick.last + kernel->tick.interval < now) {
+			kernel->tick.last = now;
+
 			char *name;
 			int32_t ts = now - 15; /* FIXME: make configurable */
 
@@ -482,10 +490,14 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		}
 
 		if (kernel->freshness.last + kernel->freshness.interval < now) {
+			kernel->freshness.last = now;
+
 			check_freshness(kernel);
 		}
 
 		if (kernel->savestate.last + kernel->savestate.interval < now) {
+			kernel->savestate.last = now;
+
 			binf_write(&kernel->server->db, kernel->server->config.savefile);
 			save_keys(&kernel->server->keys, kernel->server->config.keysfile);
 		}
@@ -510,6 +522,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				pdu_send_and_free(a, socket);
 			}
 			free(name);
+			return VIGOR_REACTOR_CONTINUE;
 		}
 		/* }}} */
 		/* [ DUMP ] {{{ */
@@ -670,7 +683,8 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		}
 		/* }}} */
 
-		logger(LOG_WARNING, "unhandled [%s] PDU received on management port", pdu_type(pdu));
+		logger(LOG_WARNING, "unhandled [%s] PDU (of %i frames) received on management port",
+			pdu_type(pdu), pdu_size(pdu));
 		return VIGOR_REACTOR_CONTINUE;
 	}
 
@@ -866,7 +880,8 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		}
 		/* }}} */
 
-		logger(LOG_WARNING, "unhandled [%s] PDU received on listener port", pdu_type(pdu));
+		logger(LOG_WARNING, "unhandled [%s] PDU (of %i frames) received on listener port",
+			pdu_type(pdu), pdu_size(pdu));
 		return VIGOR_REACTOR_CONTINUE;
 	}
 
@@ -897,12 +912,12 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 		}
 	}
 
-	logger(LOG_DEBUG, "kernel: binding kernel.control to supervisor.command");
+	logger(LOG_DEBUG, "kernel: connecting kernel.control to supervisor.command");
 	rc = core_connect_supervisor(zmq, &kernel->control);
 	if (rc != 0)
 		return rc;
 
-	logger(LOG_DEBUG," kernel: binding kernel.tock to scheduler.tick");
+	logger(LOG_DEBUG,"kernel: connecting kernel.tock to scheduler.tick");
 	rc = core_connect_scheduler(zmq, &kernel->tock);
 	if (rc != 0)
 		return rc;
@@ -951,6 +966,16 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 	if (!kernel->reactor)
 		return -1;
 
+	logger(LOG_DEBUG, "kernel: registering kernel.control with event reactor");
+	rc = reactor_set(kernel->reactor, kernel->control, _kernel_reactor, kernel);
+	if (rc != 0)
+		return rc;
+
+	logger(LOG_DEBUG, "kernel: registering kernel.tock with event reactor");
+	rc = reactor_set(kernel->reactor, kernel->tock, _kernel_reactor, kernel);
+	if (rc != 0)
+		return rc;
+
 	if (kernel->listener) {
 		logger(LOG_DEBUG, "kernel: registering kernel.listener with event reactor");
 		rc = reactor_set(kernel->reactor, kernel->listener, _kernel_reactor, kernel);
@@ -970,6 +995,53 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 	if (rc != 0)
 		return rc;
 
+	return 0;
+}
+/* }}} */
+
+int core_supervisor(void *zmq) /* {{{ */
+{
+	int rc, sig;
+	void *command;
+
+	logger(LOG_DEBUG, "binding PUB socket supervisor.command");
+	command = zmq_socket(zmq, ZMQ_PUB);
+	if (!command)
+		return -1;
+	rc = zmq_bind(command, "inproc://bolo/v1/supervisor.command");
+	if (rc != 0)
+		return rc;
+
+	sigset_t signals;
+	sigemptyset(&signals);
+	sigaddset(&signals, SIGTERM);
+	sigaddset(&signals, SIGINT);
+
+	rc = pthread_sigmask(SIG_UNBLOCK, &signals, NULL);
+	if (rc != 0)
+		return rc;
+
+	for (;;) {
+		rc = sigwait(&signals, &sig);
+		if (rc != 0) {
+			logger(LOG_ERR, "sigwait: %s", strerror(errno));
+			sig = SIGTERM; /* let's just pretend */
+		}
+
+		if (sig == SIGTERM || sig == SIGINT) {
+			logger(LOG_INFO, "supervisor caught SIG%s; shutting down",
+				sig == SIGTERM ? "TERM" : "INT");
+
+			pdu_send_and_free(pdu_make("TERMINATE", 0), command);
+			break;
+		}
+
+		logger(LOG_ERR, "ignoring unexpected signal %i\n", sig);
+	}
+
+	zmq_close(command);
+	zmq_ctx_destroy(zmq);
+	logger(LOG_DEBUG, "supervisor: terminated");
 	return 0;
 }
 /* }}} */

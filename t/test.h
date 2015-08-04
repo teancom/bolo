@@ -35,6 +35,52 @@
 /* FIXME: move this into ctap proper */
 #define CHECK(x,msg) do { if (!(x)) { diag(strerror(errno)); BAIL_OUT(msg); } } while (0)
 
+/*************************************************/
+
+HELPER
+static int send_ok(pdu_t *pdu, void *zocket)
+{
+	is_int(pdu_send(pdu, zocket), 0, "sent [%s] PDU", pdu_type(pdu));
+	pdu_free(pdu);
+	return 0;
+}
+
+HELPER
+static int recv_ok(void *zocket, const char *type, int n, ...)
+{
+	va_list ap;
+
+	pdu_t *pdu = pdu_recv(zocket);
+	isnt_null(pdu, "received a PDU");
+	if (!pdu)
+		return 0;
+
+	is(pdu_type(pdu), type, "received a [%s] PDU", pdu_type(pdu));
+	if (strcmp(pdu_type(pdu), type) != 0) {
+		pdu_free(pdu);
+		return 0;
+	};
+
+	is_int(pdu_size(pdu), n + 1, "PDU received is %i data frames long", n);
+	if (pdu_size(pdu) != n + 1) {
+		pdu_free(pdu);
+		return 0;
+	}
+
+	va_start(ap, n);
+	int i;
+	for (i = 0; i < n; i++) {
+		const char *expect = va_arg(ap, const char *);
+		char *s = pdu_string(pdu, i+1);
+		is_string(s, expect, "[%s] data frame #%i", type, i+1);
+		free(s);
+	}
+	va_end(ap);
+	pdu_free(pdu);
+
+	return 0;
+}
+
 HELPER
 static int file_is(const char *path, const char *expect, const char *msg)
 {
@@ -160,4 +206,127 @@ static int within(double a, double b, double ep)
 		diag("");
 	}
 	return rc;
+}
+
+/*************************************************/
+
+HELPER
+void TIME_ALIGN(void)
+{
+	struct timeval tv;
+	CHECK(gettimeofday(&tv, NULL) == 0, "failed to gettimeofday()");
+	sleep_ms(1000 - tv.tv_usec / 1000);
+	CHECK(gettimeofday(&tv, NULL) == 0, "failed to gettimeofday()");
+	diag("tv.usec = %lu", tv.tv_usec);
+}
+
+HELPER
+void DEBUGGING(const char *prog)
+{
+	if (getenv("DEBUG_TESTS")) {
+		log_open(prog, "console");
+		log_level(0, "debug");
+	}
+}
+
+HELPER
+void NEED_FS(void)
+{
+	system("/bin/rm -rf t/tmp/");
+	mkdir("t/tmp", 0755);
+}
+
+HELPER
+void TIMEOUT(int s)
+{
+	alarm(s);
+}
+
+HELPER
+void KERNEL(void *zmq, server_t *server)
+{
+	CHECK(core_kernel_thread(zmq, server) == 0,
+		"failed to spin up kernel thread");
+}
+
+HELPER
+void SCHEDULER(void *zmq, int ms)
+{
+	CHECK(core_scheduler_thread(zmq, ms) == 0,
+		"failed to spin up scheduler thread");
+}
+
+HELPER
+void* SUPERVISOR(void *zmq)
+{
+	void* super;
+
+	CHECK(super = zmq_socket(zmq, ZMQ_PUB),
+		"failed to create supervisor control socket");
+	CHECK(zmq_bind(super, "inproc://bolo/v1/supervisor.command") == 0,
+		"failed to bind supervisor control socket");
+
+	return super;
+}
+
+HELPER
+void* SUBSCRIBER(void *zmq)
+{
+	void *sub;
+
+	CHECK(sub = zmq_socket(zmq, ZMQ_SUB),
+		"failed to create kernel subscriber socket");
+	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
+		"failed to set subscriber filter");
+	CHECK(zmq_connect(sub, "inproc://test.broadcast") == 0,
+		"failed to connect to broadcast endpoint");
+
+	return sub;
+}
+
+HELPER
+void* MANAGER(void *zmq)
+{
+	void *mgr;
+
+	CHECK(mgr = zmq_socket(zmq, ZMQ_DEALER),
+		"failed to create kernel manager socket");
+	CHECK(zmq_connect(mgr, "inproc://test.controller") == 0,
+		"failed to connect to manager endpoint");
+
+	return mgr;
+}
+
+HELPER
+void* CLIENT(void *zmq)
+{
+	void *client;
+
+	CHECK(client = zmq_socket(zmq, ZMQ_PUSH),
+		"failed to create mock kernel test socket");
+	CHECK(zmq_connect(client, "inproc://test.listener") == 0,
+		"failed to connect to kernel socket");
+
+	return client;
+}
+
+HELPER
+server_t* CONFIGURE(const char *config)
+{
+	server_t *svr = vmalloc(sizeof(server_t));
+	svr->interval.tick      = 1000;
+	svr->interval.freshness = 1;
+	svr->interval.savestate = 15;
+
+	char *s = string(""
+		"controller inproc://test.controller\n"
+		"listener   inproc://test.listener\n"
+		"broadcast  inproc://test.broadcast\n"
+		"savefile   t/tmp/save\n"
+		"keysfile   t/tmp/keys\n"
+		"%s", config);
+	write_file("t/tmp/config", s, 0); free(s);
+	CHECK(configure("t/tmp/config", svr) == 0,
+		"failed to configure bolo");
+	return svr;
 }

@@ -312,14 +312,9 @@ int submit_setkeys (void *zmq, const char *endpoint, int n, ...);
 int submit_event   (void *zmq, const char *endpoint, const char *name, const char *extra);
 
 /* threads */
-void* listener(void *u);
-void* nsca_gateway(void *u);
-void* controller(void *u);
-void* kernel(void *u);
-void* scheduler(void *u);
-
 int core_scheduler_thread(void *zmq, int interval);
 int core_kernel_thread(void *zmq, server_t *server);
+int core_supervisor(void *zmq);
 
 /* utilities - candidates for libvigor */
 pdu_t *vx_pdu_dup(pdu_t *orig, const char *type);

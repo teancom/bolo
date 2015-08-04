@@ -19,35 +19,16 @@
 
 #include "test.h"
 
-#define TEST_CONFIG_FILE "t/tmp/bolo.cfg"
 #define TEST_SAVE_FILE   "t/tmp/save"
 #define TEST_KEYS_FILE   "t/tmp/keys"
 
 TESTS {
-	mkdir("t/tmp", 0755);
+	DEBUGGING("t/core");
+	NEED_FS();
+	TIME_ALIGN();
+	TIMEOUT(5);
 
-	alarm(5);
-	server_t svr;
-	int rc;
-	void *zmq;
-	void *super;  /* supervisor.command socket; for shutting down the kernel */
-	void *client; /* connected to kernel.listener, for submitting results */
-	void *mgr;    /* connected to kernel.controller, for management commands */
-	void *sub;    /* connected to kernel.broadcast, for testing broadcast PDUs */
-
-	if (getenv("DEBUG_TESTS")) {
-		log_open("t/core", "console");
-		log_level(0, "debug");
-	}
-
-	memset(&svr, 0, sizeof(svr));
-	write_file(TEST_CONFIG_FILE,
-		"listener   inproc://test.listener\n"
-		"controller inproc://test.controller\n"
-		"broadcast  inproc://test.broadcast\n"
-		"savefile  " TEST_SAVE_FILE "\n"
-		"keysfile  " TEST_KEYS_FILE "\n"
-		"dumpfiles t/tmp/dump.\%s\n"
+	server_t *svr = CONFIGURE(
 		"max.events 5\n"
 		""
 		"type :default {\n"
@@ -64,8 +45,8 @@ TESTS {
 		""
 		"counter @minutely counter1\n"
 		"sample  @hourly   res.df:/\n"
-		"rate    @minutely rate1\n"
-		"", 0);
+		"rate    @minutely rate1\n");
+
 	write_file(TEST_SAVE_FILE,
 		"BOLO\0\1\0\0T\x92J\x97\0\0\0\4"                     /* 16 */
 		"\0'\0\1T\x92=[\2\0test.state.1\0critically-ness\0"  /* 39 */
@@ -84,236 +65,106 @@ TESTS {
 		"host01.netmask = 255.255.255.0\n" /* 31 */
 		"", 11 + 9 + 20 + 31);
 
-	CHECK(configure("t/tmp/bolo.cfg", &svr) == 0,
-		"failed to read configuration file " TEST_CONFIG_FILE);
+	void *zmq;
 	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-	CHECK(core_kernel_thread(zmq, &svr) == 0,
-		"failed to spin up kernel thread");
 
-	CHECK(super = zmq_socket(zmq, ZMQ_PUB),
-		"failed to create supervisor control socket");
-	CHECK(zmq_bind(super, "inproc://bolo/v1/supervisor.command") == 0,
-		"failed to bind supervisor control socket");
-
-	CHECK(client = zmq_socket(zmq, ZMQ_PUSH),
-		"failed to create mock kernel test socket");
-	CHECK(zmq_connect(client, "inproc://test.listener") == 0,
-		"failed to connect to kernel socket");
-
-	CHECK(mgr = zmq_socket(zmq, ZMQ_DEALER),
-		"failed to create mock kernel manager socket");
-	CHECK(zmq_connect(mgr, svr.config.controller) == 0,
-		"failed to connect to kernel controller socket");
-
-	CHECK(sub = zmq_socket(zmq, ZMQ_SUB),
-		"failed to create mock kernel subscriber socket");
-	CHECK(zmq_setsockopt(sub, ZMQ_SUBSCRIBE, "", 0) == 0,
-		"failed to set ZMQ_SUBSCRIBE option to '' on kernel subscriber socket");
-	CHECK(zmq_connect(sub, svr.config.broadcast) == 0,
-		"failed to connect to kernel publisher socket");
+	KERNEL(zmq, svr);
+	void *super  = SUPERVISOR(zmq);
+	void *client = CLIENT(zmq);
+	void *mgr    = MANAGER(zmq);
+	void *sub    = SUBSCRIBER(zmq);
 
 	/* ----------------------------- */
 
-	pdu_t *p;
 	uint32_t time = time_s();
 	char *ts = string("%u", time);
 	char *s;
 
 	/* send an invalid PDU */
-	p = pdu_make("@INVALID!", 2, "foo", "bar");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [@INVALID!] PDU to kernel");
+	send_ok(pdu_make("@INVALID!", 2, "foo", "bar"), client);
 
 	/* send test.state.3 (not found) initial ok */
-	p = pdu_make("STATE", 4, ts, "test.state.3", "0", "NEW");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [STATE] to kernel");
+	send_ok(pdu_make("STATE", 4, ts, "test.state.3", "0", "NEW"), client);
 
 	/* update a nameless state */
-	p = pdu_make("STATE", 4, ts, "", "1", "warning...");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [STATE] to kernel");
+	send_ok(pdu_make("STATE", 4, ts, "", "1", "warning..."), client);
 
 	/* update a good state with an empty summary */
-	p = pdu_make("STATE", 4, ts, "test.state.0", "1", "");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [STATE] to kernel");
+	send_ok(pdu_make("STATE", 4, ts, "test.state.0", "1", ""), client);
 
 	/* send test.state.0 recovery */
-	p = pdu_make("STATE", 4, ts, "test.state.0", "0", "all good");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [STATE] PDU to kernel");
+	send_ok(pdu_make("STATE", 4, ts, "test.state.0", "0", "all good"), client);
 
 	/* check the publisher pipeline */
-	p = pdu_recv(sub);
-	is_string(pdu_type(p), "TRANSITION", "kernel broadcast an [TRANSITION] PDU");
-	is_string(s = pdu_string(p, 1), "test.state.0", "TRANSITION[0] is state name");   free(s);
-	is_string(s = pdu_string(p, 2), ts,             "TRANSITION[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "fresh",        "TRANSITION[2] is freshness");    free(s);
-	is_string(s = pdu_string(p, 4), "OK",           "TRANSITION[3] is status");       free(s);
-	is_string(s = pdu_string(p, 5), "all good",     "TRANSITION[4] is summary");      free(s);
-	pdu_free(p);
-
-	p = pdu_recv(sub);
-	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");
-	is_string(s = pdu_string(p, 1), "test.state.0", "STATE[0] is state name");   free(s);
-	is_string(s = pdu_string(p, 2), ts,             "STATE[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "fresh",        "STATE[2] is freshness");    free(s);
-	is_string(s = pdu_string(p, 4), "OK",           "STATE[3] is status");       free(s);
-	is_string(s = pdu_string(p, 5), "all good",     "STATE[4] is summary");      free(s);
-	pdu_free(p);
+	recv_ok(sub, "TRANSITION", 5, "test.state.0", ts, "fresh", "OK", "all good");
+	recv_ok(sub, "STATE",      5, "test.state.0", ts, "fresh", "OK", "all good");
 
 	/* send test.state.1 continuing crit */
-	p = pdu_make("STATE", 4, ts, "test.state.1", "2", "critically-ness");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent 2nd [STATE] PDU to kernel");
+	send_ok(pdu_make("STATE", 4, ts, "test.state.1", "2", "critically-ness"), client);
 
 	/* check the publisher pipeline */
-
 	/* no TRANSITION pdu, since its an ongoing state */
-
-	p = pdu_recv(sub);
-	is_string(pdu_type(p), "STATE", "kernel broadcast a [STATE] PDU");
-	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name");   free(s);
-	is_string(s = pdu_string(p, 2), ts,                "STATE[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness");    free(s);
-	is_string(s = pdu_string(p, 4), "CRITICAL",        "STATE[3] is status");       free(s);
-	is_string(s = pdu_string(p, 5), "critically-ness", "STATE[4] is summary");      free(s);
-	pdu_free(p);
+	recv_ok(sub, "STATE", 5, "test.state.1", ts, "fresh", "CRITICAL", "critically-ness");
 
 	/* send a malformed event */
-	p = pdu_make("EVENT", 2, "12345", "malformed.event");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [EVENT] to kernel");
+	send_ok(pdu_make("EVENT", 2, "12345", "malformed.event"), client);
 
 	/* send an event */
-	p = pdu_make("EVENT", 3, "12345", "my.sample.event", "this is the extra data");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [EVENT] to kernel");
-
+	send_ok(pdu_make("EVENT", 3, "12345", "my.sample.event", "this is the extra data"), client);
 	/* check the publisher pipeline for our event */
-	p = pdu_recv(sub);
-	is_string(pdu_type(p), "EVENT", "kernel broadcast an [EVENT] PDU");
-	is_string(s = pdu_string(p, 1), "12345",                  "EVENT[0] is timestamp");  free(s);
-	is_string(s = pdu_string(p, 2), "my.sample.event",        "EVENT[1] is event name"); free(s);
-	is_string(s = pdu_string(p, 3), "this is the extra data", "EVENT[2] is extra data"); free(s);
-	pdu_free(p);
+	recv_ok(sub, "EVENT", 3, "12345", "my.sample.event", "this is the extra data");
 
 	/* dump the state file (to /t/tmp/dump.test) */
 	unlink("t/tmp/dump.test");
-	p = pdu_make("DUMP", 0);
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [DUMP] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received reply PDU from kernel");
-	is_string(pdu_type(p), "DUMP", "kernel replied with a [DUMP]");
-	char *tmp = string("---\n"
-	                   "# generated by bolo\n"
-	                   "test.state.0:\n"
-	                   "  status:    OK\n"
-	                   "  message:   all good\n"
-	                   "  last_seen: %s\n"
-	                   "  fresh:     yes\n"
-	                   "test.state.1:\n"
-	                   "  status:    CRITICAL\n"
-	                   "  message:   critically-ness\n"
-	                   "  last_seen: %s\n"
-	                   "  fresh:     yes\n", ts, ts);
-	is_string(s = pdu_string(p, 1), tmp, "dumped to YAML");
-	free(s); free(tmp);
+	send_ok(pdu_make("DUMP", 0), mgr);
+	recv_ok(mgr, "DUMP", 1, s = string("---\n"
+	                                   "# generated by bolo\n"
+	                                   "test.state.0:\n"
+	                                   "  status:    OK\n"
+	                                   "  message:   all good\n"
+	                                   "  last_seen: %s\n"
+	                                   "  fresh:     yes\n"
+	                                   "test.state.1:\n"
+	                                   "  status:    CRITICAL\n"
+	                                   "  message:   critically-ness\n"
+	                                   "  last_seen: %s\n"
+	                                   "  fresh:     yes\n", ts, ts));
+	free(s);
 
 	/* get state of test.state.1 via [STATE] */
-	p = pdu_make("STATE", 1, "test.state.1");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [STATE] query to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received reply PDU from kernel");
-	is_string(pdu_type(p), "STATE", "kernel replied with a [STATE]");
-	is_string(s = pdu_string(p, 1), "test.state.1",    "STATE[0] is state name"); free(s);
-	is_string(s = pdu_string(p, 2), ts,                "STATE[1] is last seen ts"); free(s);
-	is_string(s = pdu_string(p, 3), "fresh",           "STATE[2] is freshness boolean"); free(s);
-	is_string(s = pdu_string(p, 4), "CRITICAL",        "STATE[3] is status"); free(s);
-	is_string(s = pdu_string(p, 5), "critically-ness", "STATE[4] is summary"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("STATE", 1, "test.state.1"), mgr);
+	recv_ok(mgr, "STATE", 5, "test.state.1", ts, "fresh", "CRITICAL", "critically-ness");
 
 	/* get non-existent state via [STATE] */
-	p = pdu_make("STATE", 1, "fail.enoent//0");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [STATE] query to kernel");
+	send_ok(pdu_make("STATE", 1, "fail.enoent//0"), mgr);
+	recv_ok(mgr, "ERROR", 1, "State Not Found");
 
-	p = pdu_recv(mgr);
-	isnt_null(p, "received reply PDU from kernel");
-	is_string(pdu_type(p), "ERROR", "kernel replied with an [ERROR]");
-	is_string(s = pdu_string(p, 1), "State Not Found", "Error message returned"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("COUNTER", 3, ts, "XYZZY.counter", "1"), client); /* enoent */
+	send_ok(pdu_make("COUNTER", 3, ts, "", "101"),            client); /* missing name */
 
-	/* increment a bad counter */
-	p = pdu_make("COUNTER", 3, ts, "XYZZY.counter", "1");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [COUNTER] to kernel");
+	send_ok(pdu_make("COUNTER", 3, ts, "counter1", "1"), client); /* valid */
+	send_ok(pdu_make("COUNTER", 3, ts, "counter1", "4"), client); /* valid */
 
-	/* increment a nameless counter */
-	p = pdu_make("COUNTER", 3, ts, "", "101");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [COUNTER] to kernel");
 
-	/* increment counter counter1 value a few times */
-	p = pdu_make("COUNTER", 3, ts, "counter1", "1");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [COUNTER] to kernel");
+	send_ok(pdu_make("SAMPLE", 3, ts, "XYZZY.sample", "101"), client); /* enoent */
+	send_ok(pdu_make("SAMPLE", 3, ts, "", "101"),             client); /* missing name */
 
-	p = pdu_make("COUNTER", 3, ts, "counter1", "4");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent second [COUNTER] to kernel");
+	send_ok(pdu_make("SAMPLE", 3, ts, "res.df:/", "42"), client);
 
-	/* update a bad sample */
-	p = pdu_make("SAMPLE", 3, ts, "XYZZY.sample", "101");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [SAMPLE] to kernel");
 
-	/* update a nameless sample */
-	p = pdu_make("SAMPLE", 3, ts, "", "101");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [SAMPLE] to kernel");
+	send_ok(pdu_make("RATE", 3, ts, "XYZZY.rate", "101"), client); /* enoent */
+	send_ok(pdu_make("RATE", 3, ts, "", "101"),           client); /* missing name */
 
-	/* add samples to res.df:/ */
-	p = pdu_make("SAMPLE", 3, ts, "res.df:/", "42");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [SAMPLE] to kernel");
-
-	/* update rate1 */
-	p = pdu_make("RATE", 3, ts, "rate1", "1000");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [RATE] to kernel");
-
-	p = pdu_make("RATE", 3, ts, "rate1", "1347");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent another [RATE] to kernel");
-
-	/* update a bad rate */
-	p = pdu_make("RATE", 3, ts, "XYZZY.rate", "101");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [RATE] to kernel");
-
-	/* update a nameless rate */
-	p = pdu_make("RATE", 3, ts, "", "101");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [RATE] to kernel");
+	send_ok(pdu_make("RATE", 3, ts, "rate1", "1000") ,client);
+	send_ok(pdu_make("RATE", 3, ts, "rate1", "1347") ,client);
 
 	/* wait for the PULL pipeline to catch up before we interleave our [SAVESTATE] */
 	sleep_ms(150);
 
 	/* save state */
-	p = pdu_make("SAVESTATE", 0);
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [SAVESTATE] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "OK", "kernel replied with a [OK] PDU");
+	send_ok(pdu_make("SAVESTATE", 0), mgr);
+	recv_ok(mgr, "OK", 0);
 
 	s = calloc(276, sizeof(char));
 	memcpy(s, "BOLO"     /* H:magic      +4    0 */
@@ -404,145 +255,61 @@ TESTS {
 		"save file (binary)"); free(s);
 
 	/* get a single key */
-	p = pdu_make("GET.KEYS", 1, "host01.ip");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 3, "[VALUES] reply PDU is 3 frames long");
-	is_string(s = pdu_string(p, 1), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
-	is_string(s = pdu_string(p, 2), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("GET.KEYS", 1, "host01.ip"), mgr);
+	recv_ok(mgr, "VALUES", 2, "host01.ip", "1.2.3.4");
 
 	/* get multiple keys */
-	p = pdu_make("GET.KEYS", 2, "host01.netmask", "host01.ip");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
-	is_string(s = pdu_string(p, 1), "host01.netmask", "GET.KEYS returned the host01.netmask key"); free(s);
-	is_string(s = pdu_string(p, 2), "255.255.255.0", "host01.netmask == 255.255.255.0"); free(s);
-	is_string(s = pdu_string(p, 3), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
-	is_string(s = pdu_string(p, 4), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("GET.KEYS", 2, "host01.netmask", "host01.ip"), mgr);
+	recv_ok(mgr, "VALUES", 4, "host01.netmask", "255.255.255.0",
+	                          "host01.ip",      "1.2.3.4");
 
 	/* get some non-existent keys */
-	p = pdu_make("GET.KEYS", 4,
+	send_ok(pdu_make("GET.KEYS", 4,
 			"host01.netmask", "host01.ip",
-			"host02.netmask", "host02.ip");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
-	is_string(s = pdu_string(p, 1), "host01.netmask", "GET.KEYS returned the host01.netmask key"); free(s);
-	is_string(s = pdu_string(p, 2), "255.255.255.0", "host01.netmask == 255.255.255.0"); free(s);
-	is_string(s = pdu_string(p, 3), "host01.ip", "GET.KEYS returned the host01.ip key"); free(s);
-	is_string(s = pdu_string(p, 4), "1.2.3.4", "host01.ip == 1.2.3.4"); free(s);
-	pdu_free(p);
+			"host02.netmask", "host02.ip"), mgr);
+	recv_ok(mgr, "VALUES", 4, "host01.netmask", "255.255.255.0",
+	                          "host01.ip",      "1.2.3.4");
 
 	/* do a literal key search */
-	p = pdu_make("SEARCH.KEYS", 1, "host01");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [SEARCH.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "KEYS", "kernel replied with a [KEYS] PDU");
-	is_int(pdu_size(p), 3, "[KEYS] reply PDU is 3 frames long");
-	is_string(s = pdu_string(p, 1), "host01.netmask", "SEARCH.KEYS returned the host01.netmask key"); free(s);
-	is_string(s = pdu_string(p, 2), "host01.ip", "SEARCH.KEYS returned the host01.ip key"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("SEARCH.KEYS", 1, "host01"), mgr);
+	recv_ok(mgr, "KEYS", 2, "host01.netmask", "host01.ip");
 
 	/* do a more complicated pattern key search */
-	p = pdu_make("SEARCH.KEYS", 1, "(host|service)0[1357].(ip|address)");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [SEARCH.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "KEYS", "kernel replied with a [KEYS] PDU");
-	is_int(pdu_size(p), 2, "[KEYS] reply PDU is 2 frames long");
-	is_string(s = pdu_string(p, 1), "host01.ip", "SEARCH.KEYS returned the host01.ip key"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("SEARCH.KEYS", 1, "(host|service)0[1357].(ip|address)"), mgr);
+	recv_ok(mgr, "KEYS", 1, "host01.ip");
 
 	/* set a key */
-	p = pdu_make("SET.KEYS", 4, "key-the-first", "value1", "key-the-second", "value2");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [SET.KEYS] PDU to kernel");
+	send_ok(pdu_make("SET.KEYS", 4, "key-the-first", "value1", "key-the-second", "value2"), client);
 
 	/* retrieve our key */
-	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
-	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
-	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
-	is_string(s = pdu_string(p, 3), "key-the-second", "retrieved key-the-second"); free(s);
-	is_string(s = pdu_string(p, 4), "value2", "retrieved value2"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second"), mgr);
+	recv_ok(mgr, "VALUES", 4, "key-the-first",  "value1",
+	                          "key-the-second", "value2");
 
 	/* overwrite our key */
-	p = pdu_make("SET.KEYS", 2, "key-the-second", "OVERRIDE");
-	rc = pdu_send_and_free(p, client);
-	is_int(rc, 0, "sent [SET.KEYS] PDU to kernel");
+	send_ok(pdu_make("SET.KEYS", 2, "key-the-second", "OVERRIDE"), client);
 
 	/* retrieve overwritten key */
-	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 5, "[VALUES] reply PDU is 5 frames long");
-	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
-	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
-	is_string(s = pdu_string(p, 3), "key-the-second", "retrieved key-the-second"); free(s);
-	is_string(s = pdu_string(p, 4), "OVERRIDE", "retrieved OVERRIDE"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second"), mgr);
+	recv_ok(mgr, "VALUES", 4, "key-the-first",   "value1",
+	                          "key-the-second",  "OVERRIDE");
 
 	/* delete key */
-	p = pdu_make("DEL.KEYS", 1, "key-the-second");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [DEL.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "OK", "kernel replied with an [OK] PDU");
-	pdu_free(p);
+	send_ok(pdu_make("DEL.KEYS", 1, "key-the-second"), mgr);
+	recv_ok(mgr, "OK", 0);
 
 	/* get deleted key */
-	p = pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second");
-	rc = pdu_send_and_free(p, mgr);
-	is_int(rc, 0, "sent [GET.KEYS] PDU to kernel");
-
-	p = pdu_recv(mgr);
-	isnt_null(p, "received a reply PDU from kernel");
-	is_string(pdu_type(p), "VALUES", "kernel replied with a [VALUES] PDU");
-	is_int(pdu_size(p), 3, "[VALUES] reply PDU is 3 frames long");
-	is_string(s = pdu_string(p, 1), "key-the-first", "retrieved key-the-first"); free(s);
-	is_string(s = pdu_string(p, 2), "value1", "retrieved value1"); free(s);
-	pdu_free(p);
+	send_ok(pdu_make("GET.KEYS", 2, "key-the-first", "key-the-second"), mgr);
+	recv_ok(mgr, "VALUES", 2, "key-the-first", "value1");
 
 	/* ----------------------------- */
 	free(ts);
 
-	deconfigure(&svr);
-
+	pdu_send_and_free(pdu_make("TERMINATE", 0), super);
+	zmq_close(super);
 	zmq_close(client);
 	zmq_close(sub);
 	zmq_close(mgr);
-	zmq_ctx_destroy(svr.zmq);
+	zmq_ctx_destroy(svr->zmq);
+	sleep_ms(1150);
 }
