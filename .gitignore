@@ -58,10 +58,9 @@ t/05-nsca
 t/fresh
 t/rollover
 t/08-tick
-t/09-sample
+t/data
 t/match
 t/events
-t/12-rate
 t/13-send
 t/faildb
 t/vx-pdu
