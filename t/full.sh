@@ -54,7 +54,6 @@ broadcast  tcp://*:9992
 
 log info console
 savefile $TMPROOT/save.db
-dumpfiles $TMPROOT/dump.%s
 
 type :check {
   freshness 10

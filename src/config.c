@@ -322,7 +322,8 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
 		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
-		case T_KEYWORD_DUMPFILES:  SERVER_STRING(s->config.dumpfiles);   break;
+
+		case T_KEYWORD_DUMPFILES: /* noop */ break;
 
 		case T_KEYWORD_MAXEVENTS:
 			NEXT;
@@ -734,7 +735,6 @@ int deconfigure(server_t *s)
 	free(s->config.runas_group);  s->config.runas_group  = NULL;
 	free(s->config.savefile);     s->config.savefile     = NULL;
 	free(s->config.keysfile);     s->config.keysfile     = NULL;
-	free(s->config.dumpfiles);    s->config.dumpfiles    = NULL;
 	free(s->config.log_level);    s->config.log_level    = NULL;
 	free(s->config.log_facility); s->config.log_facility = NULL;
 

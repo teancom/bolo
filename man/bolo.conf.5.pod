@@ -65,6 +65,8 @@ data (via KEY statements through B<send_bolo>(1)) will be written there.
 
 =item B<dumpfiles> /var/tmp/mon.%s
 
+B<NOTE:> this configuration directive is DEPRECATED, and will be ignored.
+
 When B<stat_bolo>(1) initiates a DUMP to get all of the state, event and
 metric data from B<bolo>, that information is written to disk, using this
 pattern to generate randomized temporary files.  The first `%s' will be

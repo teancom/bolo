@@ -46,7 +46,6 @@ TESTS {
 			"\n"
 			"# file paths\n"
 			"savefile  t/tmp/save\n"
-			"dumpfiles /tmp/dump.\%s\n"
 			"\n"
 			"type :test {\n"
 			"  freshness 300\n"
@@ -107,7 +106,6 @@ TESTS {
 		is(svr.config.runas_group,   "amgs",           "run-as group set");
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
 		is(svr.config.savefile,      "t/tmp/save",     "savefile set");
-		is(svr.config.dumpfiles,     "/tmp/dump.\%s",  "dumpfiles set");
 
 		is_int(svr.config.nsca_port, 5669, "nsca.port set");
 		is_int(svr.config.events_max, 8 * 3600, "max.events set to 8h (in seconds)");

@@ -20,7 +20,6 @@ int main(int argc, char **argv)
 	s.config.runas_group  = strdup(DEFAULT_RUNAS_GROUP);
 	s.config.pidfile      = strdup(DEFAULT_PIDFILE);
 	s.config.savefile     = strdup(DEFAULT_SAVEFILE);
-	s.config.dumpfiles    = strdup(DEFAULT_DUMPFILES);
 
 	if (configure(argv[1], &s) != 0) {
 		perror(argv[1]);

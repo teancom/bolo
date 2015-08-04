@@ -29,7 +29,6 @@ TESTS {
 		"broadcast inproc://test.broadcast\n"
 		"listener  inproc://test.listener\n"
 		"controller inproc://test.controller\n"
-		"dumpfiles t/tmp/dump.\%s\n"
 		"savefile  t/tmp/save\n"
 		"keysfile  t/tmp/keys\n"
 		"window @default 2\n"

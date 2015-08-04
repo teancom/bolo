@@ -91,7 +91,6 @@ int main(int argc, char **argv)
 	svr->config.runas_group  = strdup(DEFAULT_RUNAS_GROUP);
 	svr->config.pidfile      = strdup(DEFAULT_PIDFILE);
 	svr->config.savefile     = strdup(DEFAULT_SAVEFILE);
-	svr->config.dumpfiles    = strdup(DEFAULT_DUMPFILES);
 
 	svr->interval.tick       = 1000;
 	svr->interval.freshness  = 2;

@@ -34,7 +34,6 @@ TESTS {
 		"controller inproc://test.controller\n"
 		"savefile  " TEST_SAVE_FILE "\n"
 		"keysfile  " TEST_KEYS_FILE "\n"
-		"dumpfiles t/tmp/dump.\%s\n"
 		""
 		"type :default {\n"
 		"  freshness 60\n"

@@ -61,7 +61,6 @@
 #define DEFAULT_RUNAS_GROUP  "bolo"
 #define DEFAULT_PIDFILE      "/var/run/bolo.pid"
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
-#define DEFAULT_DUMPFILES    "/var/tmp/bolo.%s"
 
 #define KERNEL_ENDPOINT "inproc://kernel"
 
@@ -197,7 +196,6 @@ typedef struct {
 		char     *savefile;
 		char     *keysfile;
 		char     *eventsfile;
-		char     *dumpfiles;
 
 		int       events_max;
 		int       events_keep;
