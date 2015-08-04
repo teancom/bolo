@@ -80,5 +80,5 @@ else
 	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 0, [PCRE library exports pcre_free_study()])
 fi
 
-AC_CONFIG_FILES([Makefile src/bits.h])
+AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

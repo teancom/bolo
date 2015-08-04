@@ -20,6 +20,7 @@
 #ifndef BOLO_H
 #define BOLO_H
 #include "../config.h"
+#define BOLO_VERSION PACKAGE_VERSION
 
 #include <stdint.h>
 #include <vigor.h>
@@ -41,8 +42,6 @@
 #endif
 
 #define PACKED __attribute__((packed))
-
-#include "bits.h"
 
 #define OK       0
 #define WARNING  1

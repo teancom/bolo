@@ -64,8 +64,6 @@ t/send
 t/faildb
 t/vx-pdu
 
-src/bits.h
-
 .deps
 config.log
 config.status
