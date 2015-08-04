@@ -22,6 +22,7 @@
 TESTS {
 	DEBUGGING("t/fail01-db");
 	NEED_FS();
+	TIME_ALIGN();
 	TIMEOUT(5);
 
 	server_t *svr = CONFIGURE("");

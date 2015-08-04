@@ -224,7 +224,10 @@ static int read_keys(hash_t *keys, const char *file) /* {{{ */
 		while (*nl && *nl != '\n') nl++;
 		*nl = '\0';
 
-		hash_set(keys, key, strdup(value));
+		value = strdup(value);
+		char *existing = hash_set(keys, key, value);
+		if (existing != value)
+			free(existing);
 	}
 
 	fclose(io);

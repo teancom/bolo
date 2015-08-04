@@ -251,25 +251,35 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 	switch (binf_record_type(&record)) {
 	case RECORD_TYPE_STATE:
 		payload.state = calloc(1, sizeof(state_t));
+		if (!payload.state)
+			return 1;
 
 		n = read(fd, &body.state, want = sizeof(body.state));
-		if (n != want)
+		if (n != want) {
+			free(payload.state);
 			return 1;
+		}
 
 		payload.state->last_seen = ntohl(body.state.last_seen);
 		payload.state->status    = body.state.status;
 		payload.state->stale     = body.state.stale;
 
 		want = record.len - sizeof(record) - sizeof(body.state);
-		if (want > 4095)
+		if (want > 4095) {
+			free(payload.state);
 			return 1;
+		}
 		n = read(fd, buf, want);
-		if (n != want)
+		if (n != want) {
+			free(payload.state);
 			return 1;
+		}
 		buf[n] = '\0';
 		for (p = buf; *p++; );
-		if (p - buf + 1 == want)
+		if (p - buf + 1 == want) {
+			free(payload.state);
 			return 1;
+		}
 		payload.state->name    = strdup(buf);
 		payload.state->summary = strdup(p);
 
@@ -278,20 +288,28 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 
 	case RECORD_TYPE_COUNTER:
 		payload.counter = calloc(1, sizeof(counter_t));
+		if (!payload.counter)
+			return 1;
 
 		n = read(fd, &body.counter, want = sizeof(body.counter));
-		if (n != want)
+		if (n != want) {
+			free(payload.counter);
 			return 1;
+		}
 
 		payload.counter->last_seen = ntohl(body.counter.last_seen);
 		payload.counter->value     = ntohll(body.counter.value);
 
 		want = record.len - sizeof(record) - sizeof(body.counter);
-		if (want > 4095)
+		if (want > 4095) {
+			free(payload.counter);
 			return 1;
+		}
 		n = read(fd, buf, want);
-		if (n != want)
+		if (n != want) {
+			free(payload.counter);
 			return 1;
+		}
 		buf[n] = '\0';
 		payload.counter->name = strdup(buf);
 
@@ -302,8 +320,10 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.sample = calloc(1, sizeof(sample_t));
 
 		n = read(fd, &body.sample, want = sizeof(body.sample));
-		if (n != want)
+		if (n != want) {
+			free(payload.sample);
 			return 1;
+		}
 
 		payload.sample->last_seen = ntohl(body.sample.last_seen);
 		payload.sample->n         = ntohll(body.sample.n);
@@ -316,11 +336,15 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.sample->var_      = ntohl(body.sample.var_);
 
 		want = record.len - sizeof(record) - sizeof(body.sample);
-		if (want > 4095)
+		if (want > 4095) {
+			free(payload.sample);
 			return 1;
+		}
 		n = read(fd, buf, want);
-		if (n != want)
+		if (n != want) {
+			free(payload.sample);
 			return 1;
+		}
 		buf[n] = '\0';
 		payload.sample->name = strdup(buf);
 
@@ -329,22 +353,32 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 
 	case RECORD_TYPE_EVENT:
 		payload.event = calloc(1, sizeof(event_t));
+		if (!payload.event)
+			return 1;
 
 		n = read(fd, &body.event, want = sizeof(body.event));
-		if (n != want)
+		if (n != want) {
+			free(payload.event);
 			return 1;
+		}
 
 		payload.event->timestamp = ntohl(body.event.timestamp);
 		want = record.len - sizeof(record) - sizeof(body.event);
-		if (want > 4095)
+		if (want > 4095) {
+			free(payload.event);
 			return 1;
+		}
 		n = read(fd, buf, want);
-		if (n != want)
+		if (n != want) {
+			free(payload.event);
 			return 1;
+		}
 		buf[n] = '\0';
 		for (p = buf; *p++; );
-		if (p - buf + 1 == want)
+		if (p - buf + 1 == want) {
+			free(payload.event);
 			return 1;
+		}
 		payload.event->name  = strdup(buf);
 		payload.event->extra = strdup(p);
 
@@ -353,10 +387,14 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 
 	case RECORD_TYPE_RATE:
 		payload.rate = calloc(1, sizeof(rate_t));
+		if (!payload.rate)
+			return 1;
 
 		n = read(fd, &body.rate, want = sizeof(body.rate));
-		if (n != want)
+		if (n != want) {
+			free(payload.rate);
 			return 1;
+		}
 
 		payload.rate->first_seen = ntohl(body.rate.first_seen);
 		payload.rate->last_seen  = ntohl(body.rate.last_seen);
@@ -364,16 +402,22 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.rate->last       = ntohll(body.rate.last);
 
 		want = record.len - sizeof(record) - sizeof(body.rate);
-		if (want > 4095)
+		if (want > 4095) {
+			free(payload.rate);
 			return 1;
+		}
 		n = read(fd, buf, want);
-		if (n != want)
+		if (n != want) {
+			free(payload.rate);
 			return 1;
+		}
 		buf[n] = '\0';
 		for (p = buf; *p++; );
-		if (p - buf + 1 == want)
+		if (p - buf + 1 == want) {
+			free(payload.rate);
 			return 1;
-		payload.rate->name  = strdup(buf);
+		}
+		payload.rate->name = strdup(buf);
 
 		*r = payload.rate;
 		return 0;

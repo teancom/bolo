@@ -724,6 +724,8 @@ int deconfigure(server_t *s)
 		free(rcounter);
 	}
 
+	hash_done(&s->keys, 1);
+
 	free(s->config.listener);     s->config.listener     = NULL;
 	free(s->config.controller);   s->config.controller   = NULL;
 	free(s->config.broadcast);    s->config.broadcast   = NULL;

@@ -213,6 +213,8 @@ TESTS {
 	binfile_is("t/tmp/save", s, 241,
 		"save file (binary)"); free(s);
 
+	free(ts);
+
 	/* ----------------------------- */
 
 	pdu_send_and_free(pdu_make("TERMINATE", 0), super);

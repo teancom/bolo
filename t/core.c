@@ -310,6 +310,5 @@ TESTS {
 	zmq_close(client);
 	zmq_close(sub);
 	zmq_close(mgr);
-	zmq_ctx_destroy(svr->zmq);
-	sleep_ms(1150);
+	zmq_ctx_destroy(zmq);
 }
