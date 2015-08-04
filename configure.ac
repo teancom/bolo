@@ -54,7 +54,7 @@ BOLO_SUBSCRIBER([rrd], [auto], [stores sample data in round-robin database files
 	[#define HAVE_STDINT_H
 	 #include <rrd.h>
 	 int main() { return 0; }
-	], [-lrrd])
+	], [-lrrd_th])
 
 AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
 BOLO_SUBSCRIBER([pg], [auto], [stores sample and state data in a Postgres database],
