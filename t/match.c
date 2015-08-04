@@ -25,6 +25,7 @@
 TESTS {
 	DEBUGGING("t/match");
 	NEED_FS();
+	TIME_ALIGN();
 	TIMEOUT(5);
 
 	server_t *svr = CONFIGURE(
@@ -62,13 +63,14 @@ TESTS {
 		"\0\0", 16 + 39 + 39 + 39 + 25 + 81 + 2);
 	unlink(TEST_KEYS_FILE);
 
-	CHECK(svr->zmq = zmq_ctx_new(),
+	void *zmq;
+	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
-	KERNEL(svr->zmq, svr);
-	void *super  = SUPERVISOR(svr->zmq);
-	void *client = CLIENT(svr->zmq);
-	void *mgr    = MANAGER(svr->zmq);
-	void *sub    = SUBSCRIBER(svr->zmq);
+	KERNEL(zmq, svr);
+	void *super  = SUPERVISOR(zmq);
+	void *client = CLIENT(zmq);
+	void *mgr    = MANAGER(zmq);
+	void *sub    = SUBSCRIBER(zmq);
 
 	/* ----------------------------- */
 
@@ -222,6 +224,6 @@ TESTS {
 	zmq_close(client);
 	zmq_close(mgr);
 	zmq_close(sub);
-	zmq_ctx_destroy(svr->zmq);
+	zmq_ctx_destroy(zmq);
 	done_testing();
 }

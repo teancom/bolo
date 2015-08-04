@@ -38,14 +38,15 @@ TESTS {
 	/* there is no keysfile */
 	unlink(svr->config.keysfile);
 
-	CHECK(svr->zmq = zmq_ctx_new(),
+	void *zmq;
+	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 
-	KERNEL(svr->zmq, svr);
-	SCHEDULER(svr->zmq, 200);
-	void *super = SUPERVISOR(svr->zmq);
-	void *sub   = SUBSCRIBER(svr->zmq);
-	void *mgr   = MANAGER(svr->zmq);
+	KERNEL(zmq, svr);
+	SCHEDULER(zmq, 200);
+	void *super = SUPERVISOR(zmq);
+	void *sub   = SUBSCRIBER(zmq);
+	void *mgr   = MANAGER(zmq);
 
 	/* ----------------------------- */
 
@@ -74,7 +75,7 @@ TESTS {
 	zmq_close(super);
 	zmq_close(sub);
 	zmq_close(mgr);
-	zmq_ctx_destroy(svr->zmq);
+	zmq_ctx_destroy(zmq);
 
 	alarm(0);
 	done_testing();

@@ -111,8 +111,8 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	svr->zmq = zmq_ctx_new();
-	if (!svr->zmq) {
+	void *zmq = zmq_ctx_new();
+	if (!zmq) {
 		fprintf(stderr, "Failed to initialize 0MQ\n");
 		deconfigure(svr);
 		free(svr);
@@ -136,14 +136,14 @@ int main(int argc, char **argv)
 	}
 	logger(LOG_INFO, "log level is %s", svr->config.log_level);
 
-	rc = core_kernel_thread(svr->zmq, svr);
+	rc = core_kernel_thread(zmq, svr);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up database manager thread\nAborting...\n");
 		deconfigure(svr);
 		free(svr);
 		return 2;
 	}
-	rc = core_scheduler_thread(svr->zmq, 1000);
+	rc = core_scheduler_thread(zmq, 1000);
 	if (rc != 0) {
 		fprintf(stderr, "Failed to start up scheduler thread\nAborting...\n");
 		deconfigure(svr);
@@ -151,7 +151,7 @@ int main(int argc, char **argv)
 		return 2;
 	}
 
-	rc = core_supervisor(svr->zmq);
+	rc = core_supervisor(zmq);
 	logger(LOG_NOTICE, "shutting down");
 	return rc;
 }

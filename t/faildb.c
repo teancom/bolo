@@ -27,12 +27,13 @@ static void test_failure(const char *name, const char *raw, size_t len)
 	server_t *svr = CONFIGURE("");
 	write_file(svr->config.savefile, raw, len);
 
-	CHECK(svr->zmq = zmq_ctx_new(),
+	void *zmq;
+	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 
-	KERNEL(svr->zmq, svr);
-	void *super = SUPERVISOR(svr->zmq);
-	void *mgr   = MANAGER(svr->zmq);
+	KERNEL(zmq, svr);
+	void *super = SUPERVISOR(zmq);
+	void *mgr   = MANAGER(zmq);
 
 	/* ----------------------------- */
 
@@ -52,7 +53,7 @@ static void test_failure(const char *name, const char *raw, size_t len)
 	pdu_send_and_free(pdu_make("TERMINATE", 0), super);
 	zmq_close(super);
 	zmq_close(mgr);
-	zmq_ctx_destroy(svr->zmq);
+	zmq_ctx_destroy(zmq);
 }
 
 TESTS {

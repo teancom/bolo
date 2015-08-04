@@ -179,7 +179,6 @@ typedef struct {
 #define EVENTS_KEEP_TIME   1
 
 typedef struct {
-	void   *zmq;
 	db_t    db;
 	hash_t  keys;
 

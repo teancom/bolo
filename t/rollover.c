@@ -36,14 +36,15 @@ TESTS {
 		"sample  @default sample1\n"
 		"counter @default counter1\n");
 
-	CHECK(svr->zmq = zmq_ctx_new(),
+	void *zmq;
+	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 
-	KERNEL(svr->zmq, svr);
-	SCHEDULER(svr->zmq, 200);
-	void *super  = SUPERVISOR(svr->zmq);
-	void *sub    = SUBSCRIBER(svr->zmq);
-	void *client = CLIENT(svr->zmq);
+	KERNEL(zmq, svr);
+	SCHEDULER(zmq, 200);
+	void *super  = SUPERVISOR(zmq);
+	void *sub    = SUBSCRIBER(zmq);
+	void *client = CLIENT(zmq);
 
 	/* ----------------------------- */
 
@@ -73,7 +74,7 @@ TESTS {
 	zmq_close(super);
 	zmq_close(sub);
 	zmq_close(client);
-	zmq_ctx_destroy(svr->zmq);
+	zmq_ctx_destroy(zmq);
 
 	alarm(0);
 	done_testing();

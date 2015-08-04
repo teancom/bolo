@@ -26,13 +26,14 @@ TESTS {
 
 	server_t *svr = CONFIGURE("max.events 3\n");
 
-	CHECK(svr->zmq = zmq_ctx_new(),
+	void *zmq;
+	CHECK(zmq = zmq_ctx_new(),
 		"failed to create a new 0MQ context");
 
-	KERNEL(svr->zmq, svr);
-	void *super  = SUPERVISOR(svr->zmq);
-	void *client = CLIENT(svr->zmq);
-	void *mgr    = MANAGER(svr->zmq);
+	KERNEL(zmq, svr);
+	void *super  = SUPERVISOR(zmq);
+	void *client = CLIENT(zmq);
+	void *mgr    = MANAGER(zmq);
 
 	/* ----------------------------- */
 
@@ -88,5 +89,5 @@ TESTS {
 	zmq_close(super);
 	zmq_close(client);
 	zmq_close(mgr);
-	zmq_ctx_destroy(svr->zmq);
+	zmq_ctx_destroy(zmq);
 }
