@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.10
+Version:        0.2.12
 Release:        2%{?dist}
 Summary:        Monitoring System Server
 
@@ -173,6 +173,9 @@ fi
 #######################################################################
 
 %changelog
+* Tue Aug  4 2015 James Hunt <james@niftylogic.com> 0.2.12-1
+- New release
+
 * Tue Jul 28 2015 James Hunt <james@niftylogic.com> 0.2.10-2
 - Package new man pages for dbolo(1) and dbolo.conf(5)
 
