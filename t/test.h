@@ -71,6 +71,7 @@ static int recv_ok(void *zocket, const char *type, int n, ...)
 	int i;
 	for (i = 0; i < n; i++) {
 		const char *expect = va_arg(ap, const char *);
+		if (!expect) continue;
 		char *s = pdu_string(pdu, i+1);
 		is_string(s, expect, "[%s] data frame #%i", type, i+1);
 		free(s);
