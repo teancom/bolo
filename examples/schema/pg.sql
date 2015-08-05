@@ -205,6 +205,7 @@ BEGIN
 			and insert a new open history state.
 		 */
 		ELSIF prev.ended_at IS NULL
+		  AND prev.tentative_ended_at < st.occurred_at
 		  AND prev.status != st.status THEN
 			UPDATE history
 				SET           ended_at = st.occurred_at,
