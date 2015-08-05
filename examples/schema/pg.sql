@@ -83,7 +83,7 @@ BEGIN
 	n := 0;
 
 	RAISE NOTICE 'Importing state data from staging tables...';
-	FOR st IN SELECT * FROM states_staging ORDER BY name, occurred_at LOOP
+	FOR st IN SELECT * FROM states_staging ORDER BY occurred_at, name LIMIT 500 LOOP
 
 		n := n + 1;
 
