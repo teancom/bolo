@@ -31,6 +31,8 @@ AX_TEST_COVERAGE
 
 AC_PROG_CC
 
+BOLO_WITH([postgres], [the PostgreSQL libraries (libpq) and header files])
+
 AC_HAVE_LIBRARY(pthread,,  AC_MSG_ERROR(Missing pthread library))
 AC_HAVE_LIBRARY(ctap,,     AC_MSG_ERROR(Missing ctap testing library - see http://github.com/filefrog/ctap))
 AC_HAVE_LIBRARY(vigor,,    AC_MSG_ERROR(Missing libvigor - see http://github.com/filefrog/libvigor))
@@ -56,13 +58,8 @@ BOLO_SUBSCRIBER([rrd], [auto], [stores sample data in round-robin database files
 	 int main() { return 0; }
 	], [-lrrd_th])
 
-AC_CHECK_HEADERS([libpq-fe.h postgresql/libpq-fe.h])
 BOLO_SUBSCRIBER([pg], [auto], [stores sample and state data in a Postgres database],
-	[#ifdef HAVE_POSTGRESQL_LIBPQ_FE_H
-	 #  include <postgresql/libpq-fe.h>
-	 #else
-	 #  include <libpq-fe.h>
-	 #endif
+	[#include <libpq-fe.h>
 	 int main() { return 0; }
 	], [-lpq])
 

@@ -21,13 +21,7 @@
 #include "subs.h"
 #include <assert.h>
 #include <getopt.h>
-#if HAVE_POSTGRESQL_LIBPQ_FE_H
-#  include <postgresql/libpq-fe.h>
-#elif HAVE_LIBPQ_FE_H
-#  include <libpq-fe.h>
-#else
-#  error No libpq-fe.h found in include path!
-#endif
+#include <libpq-fe.h>
 
 /***********************************************************/
 
