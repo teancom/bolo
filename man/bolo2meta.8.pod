@@ -1,0 +1,128 @@
+=head1 NAME
+
+bolo2meta - Bolo Meta Performance Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2meta>
+
+B<bolo2meta> -e tcp://host:port -F
+
+B<bolo2meta> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2meta> is a subscriber that listens to all data broadcast by B<bolo>
+and reports in new metrics about the throughput of the subscriber subsystem.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-S>, B<--submit> I<tcp://host:port>
+
+The bolo listener endpoint.  Metrics collected by B<bolo2meta> will be
+submitted here, for storage and aggregation.  Defaults to
+I<tcp://127.0.0.1:2999>.  Supports DNS resolution for both IPv4 and IPv6
+endpoints.
+
+=item B<-P>, B<--prefix> I<PREFIX>
+
+A string that will be used to prefix all submitted metric names.
+Defaults to I<$fqdn:sys:bolo>, where I<$fqdn> is the fully-qualified domain
+name of the local host.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2meta> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2meta> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2meta.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2meta> will run as
+root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 COLLECTED METADATA
+
+The following metrics are tracked and submitted back to bolo:
+
+=over
+
+=item B<state>
+
+=item B<bogon.state>
+
+=item B<sample>
+
+=item B<bogon.sample>
+
+=item B<rate>
+
+=item B<bogon.rate>
+
+=item B<counter>
+
+=item B<bogon.counter>
+
+=item B<transition>
+
+=item B<bogon.transition>
+
+=item B<event>
+
+=item B<bogon.event>
+
+=item B<bogon.unknown>
+
+=back
+
+Each tracks the number of broadcast PDUs seen as a COUNTER.  This allows the
+bolo core to be configured however the administrator sees fit with respect
+to windows and intervals.
+
+The B<bogon.*> metrics track how many malformed broadcast PDUs were seen, of
+each type.  In this context, a malformed PDU is one with the correct PDU
+type (i.e. C<STATE> or C<SAMPLE>) but the wrong number of data frames.
+
+The B<bogon.unknown> metric tracks unknown PDU types.
+
+Ideally, all of the B<bogon.*> metrics will always be zero.  If not, the
+broadcasting bolo core is either experiencing network problems (highly
+unlikely, but possible) or is buggy.
+
+Each of these metrics is submitted to the core every 5 seconds, even if the
+value of the metric is 0.
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

@@ -181,7 +181,7 @@ int main(int argc, char **argv) /* {{{ */
 		.endpoint  = strdup("tcp://127.0.0.1:2997"),
 		.submit_to = strdup("tcp://127.0.0.1:2999"),
 		.daemonize = 1,
-		.pidfile   = strdup("/var/run/bolo2rrd.pid"),
+		.pidfile   = strdup("/var/run/bolo2meta.pid"),
 		.user      = strdup("root"),
 		.group     = strdup("root"),
 		.prefix    = NULL, /* will be set later, if needed */
@@ -191,7 +191,6 @@ int main(int argc, char **argv) /* {{{ */
 		{ "help",             no_argument, NULL, 'h' },
 		{ "verbose",          no_argument, NULL, 'v' },
 		{ "endpoint",   required_argument, NULL, 'e' },
-		{ "root",       required_argument, NULL, 'r' },
 		{ "foreground",       no_argument, NULL, 'F' },
 		{ "pidfile",    required_argument, NULL, 'p' },
 		{ "user",       required_argument, NULL, 'u' },
@@ -202,7 +201,7 @@ int main(int argc, char **argv) /* {{{ */
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:r:Fp:u:g:S:P:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?v+e:Fp:u:g:S:P:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {

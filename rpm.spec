@@ -47,6 +47,7 @@ install -m 0755 -D redhat/init.d/dbolo      $RPM_BUILD_ROOT%{_initrddir}/dbolo
 install -m 0755 -D redhat/init.d/bolo       $RPM_BUILD_ROOT%{_initrddir}/bolo
 install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initrddir}/bolo2rrd
 install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initrddir}/bolo2pg
+install -m 0755 -D redhat/init.d/bolo2meta  $RPM_BUILD_ROOT%{_initrddir}/bolo2meta
 
 
 %clean
@@ -138,6 +139,7 @@ This package provides subscriber components for bolo.
 %post subscribers
 /sbin/chkconfig --add bolo2rrd
 /sbin/chkconfig --add bolo2pg
+/sbin/chkconfig --add bolo2meta
 
 
 %preun subscribers
@@ -147,6 +149,9 @@ if [ $1 == 0 ]; then # erase!
 
 	/sbin/service stop bolo2pg
 	/sbin/chkconfig --del bolo2pg
+
+	/sbin/service stop bolo2meta
+	/sbin/chkconfig --del bolo2meta
 fi
 
 
@@ -154,6 +159,7 @@ fi
 if [ $1 == 0 ]; then # upgrade!
 	/sbin/service condrestart bolo2rrd
 	/sbin/service condrestart bolo2pg
+	/sbin/service condrestart bolo2meta
 fi
 
 
@@ -162,10 +168,13 @@ fi
 %{_sbindir}/bolo2console
 %{_sbindir}/bolo2log
 %{_sbindir}/bolo2pg
+%{_sbindir}/bolo2meta
 %{_sbindir}/bolo2rrd
 %{_initrddir}/bolo2pg
+%{_initrddir}/bolo2meta
 %{_initrddir}/bolo2rrd
 %{_mandir}/man8/bolo2pg.8.gz
+%{_mandir}/man8/bolo2meta.8.gz
 %{_mandir}/man8/bolo2rrd.8.gz
 %doc %{_datadir}/bolo
 
@@ -173,6 +182,9 @@ fi
 #######################################################################
 
 %changelog
+* Thu Aug  6 2015 James Hunt <james@niftylogic.com> 0.2.12-2
+- Package bolo2meta subscriber
+
 * Tue Aug  4 2015 James Hunt <james@niftylogic.com> 0.2.12-1
 - New release
 
