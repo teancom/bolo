@@ -75,6 +75,7 @@ int main(int argc, char **argv)
 	struct option long_opts[] = {
 		{ "help",             no_argument, NULL, 'h' },
 		{ "verbose",          no_argument, NULL, 'v' },
+		{ "version",          no_argument, NULL, 'V' },
 		{ "endpoint",   required_argument, NULL, 'e' },
 		{ "match",      required_argument, NULL, 'm' },
 		{ "transitions",      no_argument, NULL, 'T' },
@@ -87,13 +88,33 @@ int main(int argc, char **argv)
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:m:TRACES", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?Vv+e:m:TRACES", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			printf("bolo2console v%s\n", BOLO_VERSION);
+			printf("Usage: bolo2console [-h?Vv] [-e tcp://host:port] [-TRACES] [-m PATTERN]\n\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -V, --version        show version information and exit\n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -e, --endpoint       bolo broadcast endpoint to connect to\n");
+			printf("  -T, --transitions    show TRANSITION data\n");
+			printf("  -R, --rates          show RATE data\n");
+			printf("  -A, --states         show STATE data\n");
+			printf("  -C, --counters       show COUNTER data\n");
+			printf("  -E, --events         show EVENT data\n");
+			printf("  -S, --samples        show SAMPLE data\n");
+			printf("  -m, --match          only display things matching a PCRE pattern\n");
+			exit(0);
+
+		case 'V':
+			printf("bolo2console v%s\n"
+			       "Copyright (C) 2015 James Hunt\n",
+			       BOLO_VERSION);
+			exit(0);
 
 		case 'v':
 			OPTIONS.verbose++;

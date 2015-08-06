@@ -289,6 +289,7 @@ int main(int argc, char **argv)
 
 	struct option long_opts[] = {
 		{ "help",              no_argument, NULL, 'h' },
+		{ "version",           no_argument, NULL, 'V' },
 		{ "verbose",           no_argument, NULL, 'v' },
 		{ "endpoint",    required_argument, NULL, 'e' },
 		{ "foreground",        no_argument, NULL, 'F' },
@@ -300,13 +301,33 @@ int main(int argc, char **argv)
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?v+e:Fp:u:g:d:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?Vv+e:Fp:u:g:d:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			printf("bolo2sqlite v%s\n", BOLO_VERSION);
+			printf("Usage: bolo2sqlite [-h?FVv] [-e tcp://host:port] [-d /path/to/db]\n"
+			       "                   [-u user] [-g group] [-p /path/to/pidfile]\n\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -F, --foreground     don't daemonize, stay in the foreground\n");
+			printf("  -V, --version        show version information and exit\n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -e, --endpoint       bolo broadcast endpoint to connect to\n");
+			printf("  -d, --database       path of the database to use\n");
+			printf("  -u, --user           user to run as (if daemonized)\n");
+			printf("  -g, --group          group to run as (if daemonized)\n");
+			printf("  -p, --pidfile        where to store the pidfile (if daemonized)\n");
+			exit(0);
+
+		case 'V':
+			logger(LOG_DEBUG, "handling -V/--version");
+			printf("bolo2sqlite v%s\n"
+			       "Copyright (C) 2015 James Hunt\n",
+			       BOLO_VERSION);
+			exit(0);
 
 		case 'v':
 			OPTIONS.verbose++;
