@@ -134,28 +134,28 @@ int main(int argc, char **argv)
 	pdu_t *pdu = NULL;
 
 	if (OPTIONS.type == TYPE_STATE) {
-		pdu = make_state_pdu(argc - optind, argv + optind, NULL);
+		pdu = parse_state_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t state name code message\n", argv[0]);
 			return 1;
 		}
 
 	} else if (OPTIONS.type == TYPE_COUNTER) {
-		pdu = make_counter_pdu(argc - optind, argv + optind, NULL);
+		pdu = parse_counter_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t counter name [increment]\n", argv[0]);
 			return 1;
 		}
 
 	} else if (OPTIONS.type == TYPE_SAMPLE) {
-		pdu = make_sample_pdu(argc - optind, argv + optind, NULL);
+		pdu = parse_sample_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t sample name value [value ...]\n", argv[0]);
 			return 1;
 		}
 
 	} else if (OPTIONS.type == TYPE_RATE) {
-		pdu = make_rate_pdu(argc - optind, argv + optind, NULL);
+		pdu = parse_rate_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t rate name value\n", argv[0]);
 			return 1;
@@ -168,14 +168,14 @@ int main(int argc, char **argv)
 		}
 
 	} else if (OPTIONS.type == TYPE_KEY) {
-		pdu = make_setkeys_pdu(argc - optind, argv + optind);
+		pdu = parse_setkeys_pdu(argc - optind, argv + optind);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t key key1=value1 key2=value2 ...\n", argv[0]);
 			return 1;
 		}
 
 	} else if (OPTIONS.type == TYPE_EVENT) {
-		pdu = make_event_pdu(argc - optind, argv + optind, NULL);
+		pdu = parse_event_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t event name [extra description ...]\n", argv[0]);
 			return 1;

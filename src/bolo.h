@@ -229,12 +229,12 @@ counter_t* find_counter(db_t*, const char *name);
 sample_t*  find_sample( db_t*, const char *name);
 rate_t*    find_rate(   db_t*, const char *name);
 
-pdu_t *make_state_pdu  (int argc, char **argv, const char *ts);
-pdu_t *make_counter_pdu(int argc, char **argv, const char *ts);
-pdu_t *make_sample_pdu (int argc, char **argv, const char *ts);
-pdu_t *make_rate_pdu   (int argc, char **argv, const char *ts);
-pdu_t *make_setkeys_pdu(int argc, char **argv);
-pdu_t *make_event_pdu  (int argc, char **argv, const char *ts);
+pdu_t *parse_state_pdu  (int argc, char **argv, const char *ts);
+pdu_t *parse_counter_pdu(int argc, char **argv, const char *ts);
+pdu_t *parse_sample_pdu (int argc, char **argv, const char *ts);
+pdu_t *parse_rate_pdu   (int argc, char **argv, const char *ts);
+pdu_t *parse_setkeys_pdu(int argc, char **argv);
+pdu_t *parse_event_pdu  (int argc, char **argv, const char *ts);
 pdu_t *stream_pdu(const char *line);
 
 pdu_t *state_pdu   (const char *name, int status, const char *msg);
