@@ -14,8 +14,8 @@ B<bolo2pg> -u nobody -g nogroup --pidfile /var/run/my.pid
 
 #INTRO
 
-B<bolo2pg> is a subscriber that listens to STATE data broadcast by B<bolo>
-and stores it in a PostgreSQL database.
+B<bolo2pg> is a subscriber that listens to STATEs and TRANSITIONs broadcast
+by B<bolo> and stores it in a PostgreSQL database.
 
 =head1 OPTIONS
 
@@ -27,8 +27,21 @@ Print version and copyright information.
 
 =item B<-e>, B<--endpoint> I<tcp://host:port>
 
-The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2999>.
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
 Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-S>, B<--submit> I<tcp://host:port>
+
+The bolo listener endpoint.  Metrics collected by B<bolo2pg> will be
+submitted here, for storage and aggregation.  Defaults to
+I<tcp://127.0.0.1:2999>.  Supports DNS resolution for both IPv4 and IPv6
+endpoints.
+
+=item B<-n>, B<--prefix> I<PREFIX>
+
+A string that will be used to prefix all submitted metric names.
+Defaults to I<$fqdn:sys:bolo2pg>, where I<$fqdn> is the fully-qualified
+domain name of the local host.
 
 =item B<-F>, B<--foreground>
 
@@ -71,11 +84,106 @@ password for authenticating, in the format "<user>:<password>\n".
 By default, no credentials file is used, and binds to the database are attempted
 without authentication.
 
+=item B<-I>, B<--inserters> I<NUMBER>
+
+How many inserter threads to spin up.  Each thread will make its own
+connection to the backend database, and will independently load new inbound
+STATE and TRANSITION data into the staging tables.
+
+See B<INTERNALS> for more details.
+
 =item B<-v>, B<--verbose>
 
 Enable verbose mode, printing debugging information to standard error.
 
 =back
+
+=head1 COLLECTED METRICS
+
+The following metrics are tracked and submitted back to bolo:
+
+=over
+
+=item B<insert.time.s>
+
+How long it takes each insert operation to complete.  The median value of
+all collected samples will be submitted up to the bolo core as a SAMPLE
+metric.
+
+=item B<insert.ops>
+
+How many insertion operations were performed successfully across all
+inserter threads, as a COUNTER.
+
+=item B<insert.errors>
+
+How many insertion operations failed, across all inserter threads, as a
+COUNTER.
+
+=item B<reconcile.time.s>
+
+How long each reconcile oeprations takes to complete.  The median value of
+all collected samples will be submitted up to the bolo core as a SAMPLE
+metric.
+
+=item B<reconcile.ops>
+
+How many reconcile operations were performed successfully, as a COUNTER.
+
+=item B<reconcile.errors>
+
+How many reconcile operations failed, as a COUNTER.
+
+=item B<dispatch.skips>
+
+How many inbound STATE PDUs were ignored by the dispatcher (and I<not> sent
+to an inserter thread) based on the suppression mechanism.  See B<INTERNALS>
+section for more details.
+
+=item B<dispatch.time.s>
+
+How long each dispatch operation took.  The median value of all collected
+samples will be submitted to the bolo core as a SAMPLE metric.
+
+=back
+
+=head1 INTERNALS
+
+(Note: this section is a bit technical, and gets into the implementation of
+B<bolo2pg>.)
+
+The B<bolo2pg> subscriber uses the B<Threaded Subscriber Architecture> in
+order to scale.
+
+The primary thread is the I<dispatcher>, which subscribes to the bolo
+broadcast stream, and dispatches handling of STATEs and TRANSITIONs to a
+pool of I<inserters>.
+
+Each I<inserter> maintains a connection to the backend database.  For every
+inbound request received, these worker threads insert a single record into
+the C<states_staging> table.
+
+The I<reconciler> thread regularly looks through the C<states_staging> table
+and reconciles found records with the C<states> table (which tracks the
+current state of all things monitored) and the C<history> table (a history
+of all state transitions).  For performance reasons, the I<reconciler> only
+ever considers the first 500 staging records.  This helps it to avoid long
+transactions when the staging table has several (hundreds of thousands) of
+records to process.
+
+The number of I<inserter> threads in the pool is governed by the B<-I>
+option.  There is only ever one I<reconciler> thread.
+
+For performance reasons, the I<dispatcher> keeps track of states that it has
+seen either a STATE or a TRANSITION PDU for.  This allows it to skip
+redundant STATE PDUs and substantially lighten the load on the inserter
+threads.  The number of skipped operations is reported back to the bolo core
+as the B<dispatch.skips> metric.
+
+This "skip strategy" helps B<bolo2pg> to keep the database in a consistent
+state in the face of missed TRANSITION PDUs that occur while it was offline
+(i.e. during a service restart or a system reboot), without placing undue
+stress on the Postgres database instance.
 
 =head1 SEE ALSO
 
