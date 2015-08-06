@@ -38,15 +38,15 @@ AC_HAVE_LIBRARY(zmq,,      AC_MSG_ERROR(Missing 0MQ library))
 AC_HAVE_LIBRARY(pcre,,     AC_MSG_ERROR(Missing PCRE library))
 
 build_ALL=auto
-AC_ARG_WITH([all-collectors],
-	[AS_HELP_STRING([--with-all-collectors],
-		[Build all optional collector programs (--with-X-collector)])],
+AC_ARG_WITH([all-subscribers],
+	[AS_HELP_STRING([--with-all-subscribers],
+		[Build all optional subscriber programs (--with-X-subscriber)])],
 	[echo "triggered build_ALL logic"
 	 case "${withval}" in
-	 yes)  build_ALL=yes;  AC_MSG_NOTICE([Will build ALL optional collectors])            ;;
-	 no)   build_ALL=no;   AC_MSG_NOTICE([Will not build any optional collectors])        ;;
-	 auto) build_ALL=auto; AC_MSG_NOTICE([Will attempt to build ALL optional collectors]) ;;
-	 *)    AC_MSG_ERROR([bad value ${withval} for --with-all-collectors]) ;;
+	 yes)  build_ALL=yes;  AC_MSG_NOTICE([Will build ALL optional subscribers])            ;;
+	 no)   build_ALL=no;   AC_MSG_NOTICE([Will not build any optional subscribers])        ;;
+	 auto) build_ALL=auto; AC_MSG_NOTICE([Will attempt to build ALL optional subscribers]) ;;
+	 *)    AC_MSG_ERROR([bad value ${withval} for --with-all-subscribers]) ;;
 	 esac],
 	[build_ALL=auto])
 
