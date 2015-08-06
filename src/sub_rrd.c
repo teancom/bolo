@@ -443,8 +443,8 @@ static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		char *file = pdu_string(pdu, 3);
 		struct stat st;
 		if (stat(file, &st) == 0) {
-			logger(LOG_DEBUG, "creator[%i] rrd %s already exists; logging false positive", creator->id);
-			pdu_send_and_free(pdu_make(".count", 1, "create.false.positives"), creator->monitor);
+			logger(LOG_DEBUG, "creator[%i] rrd %s already exists; logging create.misdirect", creator->id);
+			pdu_send_and_free(pdu_make("COUNT", 1, "create.misdirects"), creator->monitor);
 			free(file);
 			return VIGOR_REACTOR_CONTINUE;
 		}
@@ -636,11 +636,11 @@ static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		struct stat st;
 		if (stat(file, &st) != 0) {
 			if (errno == ENOENT) {
-				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging false positive", updater->id);
-				pdu_send_and_free(pdu_make(".count", 1, "update.false.positives"), updater->monitor);
+				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging update.misdirect", updater->id);
+				pdu_send_and_free(pdu_make("COUNT", 1, "update.misdirects"), updater->monitor);
 			} else {
 				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging error", updater->id);
-				pdu_send_and_free(pdu_make(".count", 1, "update.errors"), updater->monitor);
+				pdu_send_and_free(pdu_make("COUNT", 1, "update.errors"), updater->monitor);
 			}
 			free(file);
 			return VIGOR_REACTOR_CONTINUE;
@@ -1028,6 +1028,8 @@ int main(int argc, char **argv) /* {{{ */
 		"COUNT",  "update.ops",
 		"COUNT",  "create.errors",
 		"COUNT",  "update.errors",
+		"COUNT",  "create.misdirects",
+		"COUNT",  "update.misdirects",
 
 		"SAMPLE", "dispatch.time.s",
 		"SAMPLE", "create.time.s",

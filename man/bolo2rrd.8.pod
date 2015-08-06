@@ -14,8 +14,8 @@ B<bolo2rrd> -u nobody -g nogroup --pidfile /var/run/my.pid
 
 #INTRO
 
-B<bolo2rrd> is a subscriber that listens to SAMPLE data broadcast by B<bolo>
-and stores it in round-robin database files.
+B<bolo2rrd> is a subscriber that listens to SAMPLE, RATE and COUNTER data
+broadcast by B<bolo> and stores it in round-robin database files.
 
 =head1 OPTIONS
 
@@ -27,12 +27,32 @@ Print version and copyright information.
 
 =item B<-e>, B<--endpoint> I<tcp://host:port>
 
-The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2999>.
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
 Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-S>, B<--submit> I<tcp://host:port>
+
+The bolo listener endpoint.  Metrics collected by B<bolo2rrd> will be
+submitted here, for storage and aggregation.  Defaults to
+I<tcp://127.0.0.1:2999>.  Supports DNS resolution for both IPv4 and IPv6
+endpoints.
+
+=item B<-P>, B<--prefix> I<PREFIX>
+
+A string that will be used to prefix all submitted metric names.
+Defaults to I<$fqdn:sys:bolo2rrd>, where I<$fqdn> is the fully-qualified
+domain name of the local host.
 
 =item B<-r>, B<--root> I</path/to/rrds>
 
 What directory to create RRD files in.  Defaults to I</var/lib/bolo/rrd>.
+
+=item B<-H>, B<--hash> I</path/to/map>
+
+Where to store the checksum / metric name map.  See B<INTERNALS> for details
+on how B<bolo2rrd> uses hashing algorithms, and why the map file is
+important.  Defaults to I<$root/map>, where I<$root> is the value of the
+B<--root> option.
 
 =item B<-F>, B<--foreground>
 
@@ -57,7 +77,156 @@ root:root, which is probably not what you want.
 
 Enable verbose mode, printing debugging information to standard error.
 
+=item B<-C>, B<--rrdcached> I<ADDRESS>
+
+The address of the RRD caching daemon to divert updates to.  rrdcached can,
+in some instances, greatly diminish the amount of iowait seen on busy hosts,
+by coalescing updates and making more efficient use of block transfers to
+and from disk.
+
+This is equivalent to setting the RRDCACHED_ADDRESS environment variable.
+
+=item B<-c>, B<--creators> I<NUMBER>
+
+How many creator threads to spin up.  Each thread performs the I/O-intensive
+task of creating new round-robin database files.
+
+See B<INTERNALS> for more details.
+
+=item B<-U>, B<--updaters> I<NUMBER>
+
+How many updater threads to spin up.  Each thread performs the I/O-intensive
+task of updating existing round-robin databases with new metric data.
+
+See B<INTERNALS> for more details.
+
 =back
+
+=head1 COLLECTED METRICS
+
+The following metrics are tracked and submitted back to bolo:
+
+=over
+
+=item B<create.time.s>
+
+How long it takes each RRD file creation operation to complete, aggregated
+across all creator threads.  The median value of all collected samples will
+be submitted up to the bolo core as a SAMPLE metric.
+
+=item B<create.ops>
+
+How many RRD file creation operations were performed successfully across all
+creator threads, as a COUNTER.
+
+=item B<create.errors>
+
+How many RRD file creation operations failed, across all creator threads, as
+a COUNTER.
+
+=item B<create.misdirects>
+
+How many RRD file creation operations were requested against RRD files that already
+(at the time of execution) exist.  This is a COUNTER.
+
+=item B<update.time.s>
+
+How long it takes each RRD update operation to complete, aggregated across
+all updater threads.  The median value of all collected samples will be
+submitted up to the bolo core as a SAMPLE metric.
+
+=item B<update.ops>
+
+How many RRD update operations were performed successfully, across all
+updater threads, as a COUNTER.
+
+=item B<update.errors>
+
+How many RRD update operations failed, across all updater threads, as a
+COUNTER.
+
+=item B<update.misdirects>
+
+How many RRD update operations were requested against RRD files that did not
+(at the time of execution) exist.  This is a COUNTER.
+
+=item B<dispatch.time.s>
+
+How long it took the main thread to determine which worker pool (i.e.,
+creators or updaters) to submit an inbound metric PDU to.  This includes the
+time taken to generate the SHA1 checksum of the metric name, and the trip to
+the filesystem cache to determine if the RRD file already exists.  The
+median value of all collected samples will be submitted to the bolo core as
+a SAMPLE metric.
+
+=back
+
+=head1 INTERNALS
+
+(Note: this section is a bit technical, and gets into the implementation of
+B<bolo2rrd>.)
+
+The B<bolo2rrd> subscriber uses the B<Threaded Subscriber Architecture> in
+order to scale.
+
+The primary thread is the I<dispatcher>, which subscribes to the bolo
+broadcast stream.  For every metric PDU (i.e. RATE, SAMPLE and COUNTER), the
+dispatcher generates a SHA1 checksum, in hexadecimal notation, of the metric
+name.  This is used to build a two-level directory hierarchy using portable
+directory and file names, regardless of what special characters (i.e. '/')
+are found in the original metric names.
+
+As an example, the metric name 'host.example.com:df:/var/lib:bytes.used'
+produces the SHA1 checksum '6bc6978746ea8a6620cf8ff06347ef83d0756dea'.  From
+this, the dispatcher generates the RRD file name for this metric as follows:
+
+    6bc6978746ea8a6620cf8ff06347ef83d0756dea
+
+         |
+
+    6b   c6   978746ea8a6620cf8ff06347ef83d0756dea
+
+         |
+
+    6b   c6   6bc6978746ea8a6620cf8ff06347ef83d0756dea
+
+         |
+
+    6b / c6 / 6bc6978746ea8a6620cf8ff06347ef83d0756dea.rrd
+
+This path is taken relative to the B<--root> (I</var/lib/bolo/rrd>, by
+default).  The stem (the above, without the C<.rrd> suffix) is then written
+to the map file (see B<--hash>) for external use.
+
+Once the I<dispatcher> knows what file the metric belongs to, it makes a
+quick filesystem check to see if the RRD file already exists.  If so, it
+dispatches it to one of the updater threads.  Otherwise, it dispatches to
+a creator thread.
+
+The I<creator> threads handle the I/O-intensive task of provisioning new RRD
+files.  These exist in their own pool so that updates to existing RRDs
+(which still incur I/O overhead, but at smaller scale) don't block waiting
+for a large backlog of create operations.  This can happen when new
+monitoring is put into place globally, especially when using an agressively
+sheduled configuration management or deployment system.
+
+If a I<creator> thread is told to create a file, and that file already
+exists, the creation operation is considered to be a misdirect, not a
+failure.  As such, it will be tracked against the B<create.misdirects>
+metric, not B<create.errors>.  This can happen if the creator pool is unable
+to keep up with incoming queue demand, and starts doubling up on unhandled
+create requests.  All subsequent duplicate create requests will be
+considered 'misdirected'.
+
+The I<updater> threads exist to handle updates to pre-existing RRD files.
+These operations are often fast, but can block on I/O, so it is important to
+scale the updater pool to your expected workload.
+
+As with creators, an I<updater> thread that is told to update a non-existent
+RRD file will treat the update operation as a misdirect, and track it
+against B<update.misdirects>.  This can happen if an external process
+removes the RRD file after the dispatcher sees it, but before the updater
+gets around to fulfilling the update request.
 
 =head1 SEE ALSO
 
