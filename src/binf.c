@@ -1,5 +1,59 @@
 #include "bolo.h"
 
+#define RECORD_TYPE_MASK  0x000f
+#define RECORD_TYPE_STATE    0x1
+#define RECORD_TYPE_COUNTER  0x2
+#define RECORD_TYPE_SAMPLE   0x3
+#define RECORD_TYPE_EVENT    0x4
+#define RECORD_TYPE_RATE     0x5
+
+typedef struct PACKED {
+	uint32_t  magic;
+	uint16_t  version;
+	uint16_t  flags;
+	uint32_t  timestamp;
+	uint32_t  count;
+} binf_header_t;
+
+typedef struct PACKED {
+	uint16_t  len;
+	uint16_t  flags;
+} binf_record_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	 uint8_t  status;
+	 uint8_t  stale;
+} binf_state_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  value;
+} binf_counter_t;
+
+typedef struct PACKED {
+	uint32_t  last_seen;
+	uint64_t  n;
+	double    min;
+	double    max;
+	double    sum;
+	double    mean;
+	double    mean_;
+	double    var;
+	double    var_;
+} binf_sample_t;
+
+typedef struct PACKED {
+	uint32_t first_seen;
+	uint32_t last_seen;
+	uint64_t first;
+	uint64_t last;
+} binf_rate_t;
+
+typedef struct PACKED {
+	uint32_t  timestamp;
+} binf_event_t;
+
 #define binf_record_type(b) ((b)->flags & RECORD_TYPE_MASK)
 
 static uint64_t htonll(uint64_t x)
