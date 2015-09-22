@@ -63,7 +63,7 @@ its from setting the effective UID / GID (see B<-u> and B<-g>).
 =item B<-p>, B<--pidfile> I</path/to/pidfile>
 
 Specify where B<bolo2rrd> should write its PID to, for control by init
-scripts.  Defaults to B</var/run/bolo2rrd>.  Has no effect if B<-F> is
+scripts.  Defaults to B</var/run/bolo2rrd.pid>.  Has no effect if B<-F> is
 given.
 
 =item B<-u>, B<--user> I<USERNAME>
