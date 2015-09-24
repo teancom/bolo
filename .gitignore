@@ -37,6 +37,7 @@ bolo
 !redhat/init.d/bolo
 dbolo
 !redhat/init.d/dbolo
+bcache
 bolo2console
 bolo2log
 bolo2rrd

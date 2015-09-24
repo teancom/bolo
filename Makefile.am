@@ -33,12 +33,13 @@ EXTRA_DIST += util/savefile
 EXTRA_DIST += util/sender
 EXTRA_DIST += redhat
 
-sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo
+sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo bcache
 bolo_SOURCES            = $(CORE_SRC) src/daemon.c src/core.c
 bolo2log_SOURCES        = $(SUBS_SRC) src/sub_log.c
 bolo2console_SOURCES    = $(SUBS_SRC) src/sub_console.c
 bolo2meta_SOURCES       = $(SUBS_SRC) src/sub_meta.c
 dbolo_SOURCES           = $(CORE_SRC) src/agent.c
+bcache_SOURCES          = $(SUBS_SRC) src/bcache.c
 
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
@@ -103,6 +104,7 @@ t_faildb_SOURCES    = $(TEST_SRC) t/faildb.c
 t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
 
 dist_man_MANS  =
+dist_man_MANS += man/bcache.8
 dist_man_MANS += man/bolo.8
 dist_man_MANS += man/bolo2pg.8
 dist_man_MANS += man/bolo2meta.8
