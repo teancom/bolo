@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+
+log debug console
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 5
+
+type :default {
+  freshness 3
+  warning "it is stale"
+}
+state :default m/./
+
+window  @default 1
+counter @default m/./
+sample  @default m/./
+rate    @default m/./
+EOF
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+
+zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
+SUBSCRIBER_PID=$!
+
+sleep 1
+
+TS=$(date +%s)
+cat <<EOF | zpush --timeout 250 -c ${LISTENER}
+STATE|$TS|test-state|0|all good
+STATE|$TS|test-state|2|all BAD
+STATE|$TS|test-state|0|all good
+COUNTER|$TS|test-counter|2
+SAMPLE|$TS|test-sample|1|2|3
+RATE|$TS|test-rate|41
+EVENT|$TS|test-event|server rebooted
+EOF
+sleep 1
+cat <<EOF | zpush --timeout 250 -c ${LISTENER}
+COUNTER|$TS|test-counter|3
+SAMPLE|$TS|test-sample|4|5
+RATE|$TS|test-rate|1
+EOF
+sleep 1
+cat <<EOF | zpush --timeout 250 -c ${LISTENER}
+COUNTER|$TS|test-counter|3
+SAMPLE|$TS|test-sample|4|5
+RATE|$(( TS + 1 ))|test-rate|3
+EOF
+sleep 1
+sleep 15 # FIXME: there is a FIXME in src/core.c that makes this better...
+
+kill -TERM ${SUBSCRIBER_PID}
+kill -TERM ${BOLO_PID}
+
+cat > ${ROOT}/expect <<EOF
+TRANSITION|test-state|$TS|fresh|OK|all good
+STATE|test-state|$TS|fresh|OK|all good
+TRANSITION|test-state|$TS|fresh|CRITICAL|all BAD
+STATE|test-state|$TS|fresh|CRITICAL|all BAD
+TRANSITION|test-state|$TS|fresh|OK|all good
+STATE|test-state|$TS|fresh|OK|all good
+EVENT|$TS|test-event|server rebooted
+RATE|$TS|test-rate|1|inf
+TRANSITION|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
+COUNTER|$TS|test-counter|8
+SAMPLE|$TS|test-sample|7|1.000000e+00|5.000000e+00|2.400000e+01|3.428571e+00|1.959184e+00
+EOF
+file_is ${ROOT}/out/broadcast ${ROOT}/expect "broadcast events received in order"
+
+exit 0
+# vim:ft=sh

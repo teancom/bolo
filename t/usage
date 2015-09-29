@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+./send_bolo -V 2>&1 | grep -iq copyright || bail "send_bolo -V did not contain Copyright notice"
+./send_bolo -h 2>&1 | grep -iq send_bolo || bail "send_bolo -h did not identify as 'send_bolo'"
+./send_bolo -? 2>&1 | grep -iq usage:    || bail "send_bolo -? did not show Usage example"
+./send_bolo -h 2>&1 | grep -iq options:  || bail "send_bolo -h did not show Options section"
+./send_bolo -7 2>&1 | grep -iq invalid   || bail "send_bolo -7 didn't complain about bad flag"
+
+./bolospy 2>&1 | grep -iq usage: || bail "bolospy (no args) did not show Usage example"
+./bolospy $ROOT/missing $ROOT/missing 2>&1 | grep -iq 'no such file' || bail "bolospy didn't complain about missing file"
+touch $ROOT/present
+echo "CORRUPT" > $ROOT/corrupt
+./bolospy $ROOT/present $ROOT/corrupt 2>&1 | grep -iq 'corrupt savefile' \
+	|| bail "bolospay didn't complain about corrupt savefile"
+
+./bolo -V 2>&1 | grep -iq copyright || bail "bolo -V did not contain Copyright notice"
+./bolo -h 2>&1 | grep -iq bolo      || bail "bolo -h did not identify as 'bolo'"
+./bolo -? 2>&1 | grep -iq usage:    || bail "bolo -? did not show Usage example"
+./bolo -h 2>&1 | grep -iq options:  || bail "bolo -h did not show Options section"
+./bolo -7 2>&1 | grep -iq invalid   || bail "bolo -7 didn't complain about bad flag"
+
+./bolo -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
+	|| bail "bolo did not bail when --config was unreadable (ENOENT)"

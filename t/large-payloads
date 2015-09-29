@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+string_is() {
+	got=$1
+	expect=$2
+	msg=${3:-strings should match}
+
+	if [[ "${got}" != "${expect}" ]]; then
+		echo >&2 "${msg}: FAILED"
+		echo >&2 "  expected: '${expect}'"
+		echo >&2 "       got: '${got}'"
+		echo >&2
+		echo FAIL
+		exit 1
+	fi
+
+	echo "ok ${msg}"
+}
+
+payload() {
+	local s="${2:-payload}.$(head -c ${1:-32} /dev/zero | tr '\0' 'A')"
+	echo ${s:0:${1:-32}}
+}
+
+declare -a TEST_CLEANUP_TERMS
+kill_on_exit() {
+	TEST_CLEANUP_TERMS[$1]=$1
+}
+
+SUCCESS=0
+test_exit_cleanup() {
+	echo >&2 "killing processes: ${TEST_CLEANUP_TERMS[*]}"
+	kill -TERM ${TEST_CLEANUP_TERMS[*]}
+
+	if [[ $SUCCESS == 0 ]]; then
+		tail -n1000 ${ROOT}/log/*
+	fi
+
+	echo >&2 "removing tempdir ${ROOT}"
+	rm -rf ${ROOT:?nothing to remove}
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap test_exit_cleanup EXIT TERM INT
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+
+log debug console
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 5
+
+type :default {
+  freshness 60
+  warning "it is stale"
+}
+state :default m/./
+
+window @minutely 60
+counter @minutely m/./
+rate    @minutely m/./
+sample  @minutely m/./
+EOF
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+kill_on_exit $!
+
+zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
+kill_on_exit $!
+
+TS=$(date +%s)
+ZTK_OPTS="--timeout 200"
+
+sleep 1
+grep -v "#" <<EOF | zpush ${ZTK_OPTS} -c ${LISTENER}
+STATE|$TS|cpu|1|$(payload 12)
+STATE|$TS|mem|2|$(payload 5293)
+EVENT|$TS|login|$(payload 12)
+EVENT|$TS|logout|$(payload 6678)
+COUNTER|$TS|$(payload 12 c1small)|42
+COUNTER|$TS|$(payload 4097 c2large)|42
+SAMPLE|$TS|$(payload 16 s1small)|42
+SAMPLE|$TS|$(payload 5100 s2large)|42
+RATE|$TS|$(payload 16 r1small)|42
+RATE|$TS|$(payload 5100 r2large)|42
+EOF
+
+sleep 1
+string_is "$(echo 'STATE|cpu' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "STATE|cpu|$TS|fresh|WARNING|$(payload 12)" \
+          "small STATE payload is accepted, stored and returned"
+
+string_is "$(echo 'STATE|mem' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "STATE|mem|$TS|fresh|CRITICAL|$(payload 5293)" \
+          "large STATE payload is accepted, stored and returned"
+
+string_is "$(echo 'SAVESTATE' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "OK" \
+          "SAVESTATE via controller"
+
+./bolospy ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
+    sed -e 's/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/{{timestamp}}/g' > ${ROOT}/got
+cat <<EOF > ${ROOT}/expect
+counter :: $(payload 12 c1small) = 42
+  window 60
+  last seen {{timestamp}}
+
+counter :: $(payload 4097 c2large) = 42
+  window 60
+  last seen {{timestamp}}
+
+state :: cpu
+  [1] WARNING - $(payload 12)
+  last seen {{timestamp}} / expires {{timestamp}}
+  freshness 60
+
+state :: mem
+  [2] CRITICAL - $(payload 5293)
+  last seen {{timestamp}} / expires {{timestamp}}
+  freshness 60
+
+rate :: $(payload 16 r1small) ( 42 : 42 )
+  window 60
+  first seen {{timestamp}} / last seen {{timestamp}}
+
+rate :: $(payload 5100 r2large) ( 42 : 42 )
+  window 60
+  first seen {{timestamp}} / last seen {{timestamp}}
+
+sample :: $(payload 16 s1small)
+  n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 mean=4.200000e+01 var=0.000000e+00
+  window 60
+  last seen {{timestamp}}
+
+sample :: $(payload 5100 s2large)
+  n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 mean=4.200000e+01 var=0.000000e+00
+  window 60
+  last seen {{timestamp}}
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "state saved properly"
+
+SUCCESS=1
+exit 0
+# vim:ft=sh

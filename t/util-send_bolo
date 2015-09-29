@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+ENDPOINT="ipc://${ROOT}/socket"
+zpull --bind ${ENDPOINT} > ${ROOT}/pull &
+ZPULL_PID=$!
+
+SENDER="./send_bolo -e ${ENDPOINT}"
+
+${SENDER} 2>&1 </dev/null -7 | grep -iq invalid \
+	|| bail "unrecognized option did not trigger expected error message"
+${SENDER} 2>&1 -t nobueno | grep -iq "invalid type 'nobueno'" \
+	|| bail "bad type for -t didn't trigger expected error message"
+
+${SENDER} 2>&1 -t state OK | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t state' did not trigger USAGE message"
+${SENDER} 2>&1 -t counter | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t counter' did not trigger USAGE message"
+${SENDER} 2>&1 -t sample x | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t sample' did not trigger USAGE message"
+${SENDER} 2>&1 -t rate x | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t rate' did not trigger USAGE message"
+${SENDER} 2>&1 -t event | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t event' did not trigger USAGE message"
+${SENDER} 2>&1 -t key | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t key' did not trigger USAGE message"
+
+${SENDER} 2>&1 -t stream garbage | grep -iq usage: \
+	|| bail "incorrect invocation for \`-t stream' did not trigger USAGE message"
+
+NOW=$(date +%s)
+${SENDER} -t state state-name ok unquoted message
+${SENDER} -t state state-name ok "quoted message"
+for s in 0 ok OK okay OKAY \
+         1 warn WARN warning WARNING \
+         2 crit CRIT critical CRITICAL \
+         3 unknown WHATEVER; do
+  ${SENDER} -t state 'status-checker' ${s} "status of {${s}} test"
+done
+
+${SENDER} -t counter simple
+${SENDER} -t counter explicit 4
+
+${SENDER} -t sample single 7
+${SENDER} -t sample multi  7 8 9
+
+${SENDER} -t event  login  unquoted message string
+${SENDER} -t event  login  "quoted message string"
+
+${SENDER} -t key host01.ip=10.12.13.14
+${SENDER} -t key k1=v1 k2=v2 k3=v3 YOLO
+
+${SENDER} -t rate persec 1234
+
+cat <<EOF | ${SENDER} -t stream
+STATE 12345 streamed.1 OK everything is fine
+COUNTER 12345 streamed.2
+COUNTER 12345 streamed.3 45
+SAMPLE 12345 streamed.4 7
+SAMPLE 12345 streamed.5 7 8 9
+RATE 12345 streamed.6 4044
+EVENT 12345 reboot server rebooted
+KEY host02.ip=10.12.13.15
+KEY k4=v4 k5=v5 BOLO
+EOF
+
+kill -TERM ${ZPULL_PID}
+
+cat > ${ROOT}/expect <<EOF
+STATE|$NOW|state-name|0|unquoted message
+STATE|$NOW|state-name|0|quoted message
+STATE|$NOW|status-checker|0|status of {0} test
+STATE|$NOW|status-checker|0|status of {ok} test
+STATE|$NOW|status-checker|0|status of {OK} test
+STATE|$NOW|status-checker|0|status of {okay} test
+STATE|$NOW|status-checker|0|status of {OKAY} test
+STATE|$NOW|status-checker|1|status of {1} test
+STATE|$NOW|status-checker|1|status of {warn} test
+STATE|$NOW|status-checker|1|status of {WARN} test
+STATE|$NOW|status-checker|1|status of {warning} test
+STATE|$NOW|status-checker|1|status of {WARNING} test
+STATE|$NOW|status-checker|2|status of {2} test
+STATE|$NOW|status-checker|2|status of {crit} test
+STATE|$NOW|status-checker|2|status of {CRIT} test
+STATE|$NOW|status-checker|2|status of {critical} test
+STATE|$NOW|status-checker|2|status of {CRITICAL} test
+STATE|$NOW|status-checker|3|status of {3} test
+STATE|$NOW|status-checker|3|status of {unknown} test
+STATE|$NOW|status-checker|3|status of {WHATEVER} test
+COUNTER|$NOW|simple|1
+COUNTER|$NOW|explicit|4
+SAMPLE|$NOW|single|7
+SAMPLE|$NOW|multi|7|8|9
+EVENT|$NOW|login|unquoted message string
+EVENT|$NOW|login|quoted message string
+SET.KEYS|host01.ip|10.12.13.14
+SET.KEYS|k1|v1|k2|v2|k3|v3|YOLO|1
+RATE|$NOW|persec|1234
+STATE|12345|streamed.1|0|everything is fine
+COUNTER|12345|streamed.2|1
+COUNTER|12345|streamed.3|45
+SAMPLE|12345|streamed.4|7
+SAMPLE|12345|streamed.5|7|8|9
+RATE|12345|streamed.6|4044
+EVENT|12345|reboot|server rebooted
+SET.KEYS|host02.ip|10.12.13.15
+SET.KEYS|k4|v4|k5|v5|BOLO|1
+EOF
+
+file_is ${ROOT}/pull ${ROOT}/expect \
+        "send_bolo formatted all sent PDUs properly"
+
+exit 0

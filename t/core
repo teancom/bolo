@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+string_is() {
+	got=$1
+	expect=$2
+	msg=${3:-strings should match}
+
+	if [[ "${got}" != "${expect}" ]]; then
+		echo >&2 "${msg}: FAILED"
+		echo >&2 "  expected: '${expect}'"
+		echo >&2 "       got: '${got}'"
+		echo >&2
+		echo FAIL
+		exit 1
+	fi
+
+	echo "ok ${msg}"
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+
+log debug console
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 5
+
+type :default {
+  freshness 60
+  warning "it is stale"
+}
+use :default
+
+state test.state.0
+state test.state.1
+
+window @minutely   60
+window @hourly   3600
+
+counter @minutely counter1
+sample  @hourly   res.df:/
+rate    @minutely rate1
+EOF
+
+echo -e >${ROOT}/var/keysdb \
+	"# comments\n"                     \
+	"key1 = 1\n"                       \
+	"host01.ip = 1.2.3.4\n"            \
+	"host01.netmask = 255.255.255.0\n"
+
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+
+zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
+SUBSCRIBER_PID=$!
+
+TS=$(date +%s)
+ZTK_OPTS="--timeout 200"
+sleep 1
+cat <<EOF | zpush ${ZTK_OPTS} -c ${LISTENER}
+@INVALID!|foo|bar
+STATE|$TS|test.state.3|0|NEW
+STATE|$TS|test.state.0|1|
+STATE|$TS|test.state.0|0|all good
+STATE|$TS|test.state.1|2|critically-ness
+EVENT|$TS|malformed.event
+EVENT|$TS|my.sample.event|this is the extra data
+EOF
+
+string_is "$(echo 'STATE|test.state.1' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "STATE|test.state.1|$TS|fresh|CRITICAL|critically-ness" \
+          "retrieval of test.state.1 via controller"
+
+string_is "$(echo 'STATE|fail.enoent//0' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "ERROR|State Not Found" \
+          "retrieving a non-existent state should error"
+
+cat <<EOF | zpush ${ZTK_OPTS} -c ${LISTENER}
+COUNTER|$TS|XYZZY.counter|1
+COUNTER|$TS||101
+COUNTER|$TS|counter1|1
+COUNTER|$TS|counter1|4
+SAMPLE|$TS|XYZZY.sample|101
+SAMPLE|$TS||101
+SAMPLE|$TS|res.df:/|42
+RATE|$TS|XYZZY.rate|101
+RATE|$TS||101
+RATE|$TS|rate1|1000
+RATE|$TS|rate1|1347
+EOF
+
+string_is "$(echo 'SAVESTATE' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "OK" \
+          "SAVESTATE via controller"
+
+./bolospy ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
+    sed -e 's/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/{{timestamp}}/g' > ${ROOT}/got
+cat <<EOF > ${ROOT}/expect
+counter :: counter1 = 5
+  window 60
+  last seen {{timestamp}}
+
+rate :: rate1 ( 1000 : 1347 )
+  window 60
+  first seen {{timestamp}} / last seen {{timestamp}}
+
+sample :: res.df:/
+  n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 mean=4.200000e+01 var=0.000000e+00
+  window 3600
+  last seen {{timestamp}}
+
+state :: test.state.0
+  [0] OK - all good
+  last seen {{timestamp}} / expires {{timestamp}}
+  freshness 60
+
+state :: test.state.1
+  [2] CRITICAL - critically-ness
+  last seen {{timestamp}} / expires {{timestamp}}
+  freshness 60
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "state saved properly"
+
+string_is "$(echo 'GET.KEYS|host01.ip' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|host01.ip|1.2.3.4" \
+          "retrieve key host01.ip"
+
+string_is "$(echo 'GET.KEYS|host01.netmask|host01.ip' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|host01.netmask|255.255.255.0|host01.ip|1.2.3.4" \
+          "retrieve keys host01.netmask and host01.ip"
+
+string_is "$(echo 'GET.KEYS|host01.netmask|host01.ip|host02.netmask|host02.ip' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|host01.netmask|255.255.255.0|host01.ip|1.2.3.4" \
+          "retrieve keys that existed"
+
+string_is "$(echo 'SEARCH.KEYS|host01' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "KEYS|host01.netmask|host01.ip" \
+          "retrieve keys matching search pattern"
+
+string_is "$(echo 'SEARCH.KEYS^(host|service)0[1357].(ip|address)' | zdealer ${ZTK_OPTS} --input-delimiter '^' -c ${CONTROLLER})" \
+          "KEYS|host01.ip" \
+          "retrieve keys matching a more advanced search pattern"
+
+echo 'SET.KEYS|key-the-first|value1|key-the-second|value2' | zpush ${ZTK_OPTS} -c ${LISTENER}
+string_is "$(echo 'GET.KEYS|key-the-first|key-the-second' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|key-the-first|value1|key-the-second|value2" \
+          "SET.KEYS sets keys..."
+
+echo 'SET.KEYS|key-the-second|OVERRIDE' | zpush ${ZTK_OPTS} -c ${LISTENER}
+string_is "$(echo 'GET.KEYS|key-the-first|key-the-second' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|key-the-first|value1|key-the-second|OVERRIDE" \
+          "SET.KEYS leaves unspecified keys as-is"
+
+string_is "$(echo 'DEL.KEYS|key-the-second' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "OK" \
+          "delete key-the-second"
+
+string_is "$(echo 'GET.KEYS|key-the-first|key-the-second' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
+          "VALUES|key-the-first|value1" \
+          "request for delete key is ignored"
+
+kill -TERM ${BOLO_PID}
+kill -TERM ${SUBSCRIBER_PID}
+
+#echo "------------------------------------------"
+#cat ${ROOT}/log/bolo
+#echo "------------------------------------------"
+
+exit 0

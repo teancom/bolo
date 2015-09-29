@@ -291,7 +291,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		rate_t    *rate;
 	} payload;
 	ssize_t n, want;
-	char buf[4096], *p;
+	char *buf, *p;
 
 	n = read(fd, &record, sizeof(record));
 	if (n != sizeof(record))
@@ -319,13 +319,12 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.state->stale     = body.state.stale;
 
 		want = record.len - sizeof(record) - sizeof(body.state);
-		if (want > 4095) {
-			free(payload.state);
-			return 1;
-		}
+		buf = vmalloc(want);
+
 		n = read(fd, buf, want);
 		if (n != want) {
 			free(payload.state);
+			free(buf);
 			return 1;
 		}
 		buf[n] = '\0';
@@ -336,6 +335,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		}
 		payload.state->name    = strdup(buf);
 		payload.state->summary = strdup(p);
+		free(buf);
 
 		*r = payload.state;
 		return 0;
@@ -355,17 +355,17 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.counter->value     = ntohll(body.counter.value);
 
 		want = record.len - sizeof(record) - sizeof(body.counter);
-		if (want > 4095) {
-			free(payload.counter);
-			return 1;
-		}
+		buf = vmalloc(want);
+
 		n = read(fd, buf, want);
 		if (n != want) {
 			free(payload.counter);
+			free(buf);
 			return 1;
 		}
 		buf[n] = '\0';
 		payload.counter->name = strdup(buf);
+		free(buf);
 
 		*r = payload.counter;
 		return 0;
@@ -390,17 +390,17 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.sample->var_      = ntohl(body.sample.var_);
 
 		want = record.len - sizeof(record) - sizeof(body.sample);
-		if (want > 4095) {
-			free(payload.sample);
-			return 1;
-		}
+		buf = vmalloc(want);
+
 		n = read(fd, buf, want);
 		if (n != want) {
 			free(payload.sample);
+			free(buf);
 			return 1;
 		}
 		buf[n] = '\0';
 		payload.sample->name = strdup(buf);
+		free(buf);
 
 		*r = payload.sample;
 		return 0;
@@ -418,23 +418,24 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 
 		payload.event->timestamp = ntohl(body.event.timestamp);
 		want = record.len - sizeof(record) - sizeof(body.event);
-		if (want > 4095) {
-			free(payload.event);
-			return 1;
-		}
+		buf = vmalloc(want);
+
 		n = read(fd, buf, want);
 		if (n != want) {
 			free(payload.event);
+			free(buf);
 			return 1;
 		}
 		buf[n] = '\0';
 		for (p = buf; *p++; );
 		if (p - buf + 1 == want) {
 			free(payload.event);
+			free(buf);
 			return 1;
 		}
 		payload.event->name  = strdup(buf);
 		payload.event->extra = strdup(p);
+		free(buf);
 
 		*r = payload.event;
 		return 0;
@@ -456,22 +457,23 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.rate->last       = ntohll(body.rate.last);
 
 		want = record.len - sizeof(record) - sizeof(body.rate);
-		if (want > 4095) {
-			free(payload.rate);
-			return 1;
-		}
+		buf = vmalloc(want);
+
 		n = read(fd, buf, want);
 		if (n != want) {
 			free(payload.rate);
+			free(buf);
 			return 1;
 		}
 		buf[n] = '\0';
 		for (p = buf; *p++; );
 		if (p - buf + 1 == want) {
 			free(payload.rate);
+			free(buf);
 			return 1;
 		}
 		payload.rate->name = strdup(buf);
+		free(buf);
 
 		*r = payload.rate;
 		return 0;

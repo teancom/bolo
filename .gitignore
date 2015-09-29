@@ -52,19 +52,6 @@ send_bolo
 stat_bolo
 bolospy
 
-t/tmp
-t/config
-t/core
-t/05-nsca
-t/fresh
-t/rollover
-t/data
-t/match
-t/events
-t/send
-t/faildb
-t/vx-pdu
-
 .deps
 config.log
 config.status

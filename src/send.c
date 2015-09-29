@@ -112,6 +112,9 @@ pdu_t *parse_rate_pdu(int argc, char **argv, const char *ts)
 
 pdu_t *parse_setkeys_pdu(int argc, char **argv)
 {
+	if (argc < 1)
+		return NULL;
+
 	pdu_t *pdu = pdu_make("SET.KEYS", 0);
 	int i;
 	char *k, *v;

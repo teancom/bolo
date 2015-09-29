@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+
+BOLO="./bolo -Fc ${ROOT}/bolo.conf"
+cat > ${ROOT}/bolo.conf <<EOF
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+
+log debug console
+
+savefile ${ROOT}/savedb
+EOF
+
+echo FAILURE > ${ROOT}/savedb
+$BOLO > ${ROOT}/out 2>&1 &
+BOLO_PID=$! ; sleep 0.1 ; kill -TERM $BOLO_PID
+grep -iq "does not seem to be a bolo savefile" ${ROOT}/out \
+  || bail "failed to log error about corrupt savedb"
+
+# version mismatch
+echo -e "BOLO\0\x2a\0\0T\x92" \
+        "e\xe0\0\0\0\x02" \
+        "\0%T\x92=[\x02\0test.state.1\0critically-ness\0" \
+        "\0%T\x92=[\x01\0test.state.0\0its problematic\0" \
+        "\0\0" > ${ROOT}/savedb
+$BOLO > ${ROOT}/out 2>&1 &
+BOLO_PID=$! ; sleep 0.1 ; kill -TERM $BOLO_PID
+grep -iq "${ROOT}/savedb is a v42 savefile; this version of bolo only supports v" ${ROOT}/out \
+  || bail "failed to log error about version mismatch"
+
+# short record header
+echo -e "BOLO\0\x01\0\0T\x92" \
+        "e\xe0\0\0\0\x02" \
+        "\0%T\x92=[" > ${ROOT}/savedb
+$BOLO > ${ROOT}/out 2>&1 &
+BOLO_PID=$! ; sleep 0.1 ; kill -TERM $BOLO_PID
+grep -iq "${ROOT}/savedb: failed to read all of record #1" ${ROOT}/out \
+  || bail "failed to log error about short record header"
+
+# short record payload
+echo -e "BOLO\0\x01\0\0T\x92" \
+        "e\xe0\0\0\0\x02" \
+        "\0%T\x92=[\x02\0test.stat" > ${ROOT}/savedb
+$BOLO > ${ROOT}/out 2>&1 &
+BOLO_PID=$! ; sleep 0.1 ; kill -TERM $BOLO_PID
+grep -iq "${ROOT}/savedb: failed to read all of record #1" ${ROOT}/out \
+  || bail "failed to log error about short record header"

@@ -65,43 +65,8 @@ stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
-CTAP_TESTS  =
-CTAP_TESTS += t/config
-CTAP_TESTS += t/core
-CTAP_TESTS += t/fresh
-CTAP_TESTS += t/rollover
-CTAP_TESTS += t/data
-CTAP_TESTS += t/match
-CTAP_TESTS += t/events
-CTAP_TESTS += t/send
-CTAP_TESTS += t/faildb
-
-CTAP_TESTS += t/vx-pdu
-
-SHELL_TESTS  =
-SHELL_TESTS += t/memcheck/units.t
-
-TEST_SRC  = $(CORE_SRC)
-TEST_SRC += t/test.h
-TEST_SRC += src/core.c
-
-TEST_EXTRAS  =
-TEST_EXTRAS += t/memcheck/verify
-TEST_EXTRAS += $(SHELL_TESTS)
-EXTRA_DIST  += $(TEST_EXTRAS)
-
-TESTS = $(CTAP_TESTS) $(SHELL_TESTS)
-check_PROGRAMS = $(CTAP_TESTS)
-t_config_SOURCES    = $(TEST_SRC) t/config.c
-t_core_SOURCES      = $(TEST_SRC) t/core.c
-t_fresh_SOURCES     = $(TEST_SRC) t/fresh.c
-t_rollover_SOURCES  = $(TEST_SRC) t/rollover.c
-t_data_SOURCES      = $(TEST_SRC) t/data.c
-t_match_SOURCES     = $(TEST_SRC) t/match.c
-t_events_SOURCES    = $(TEST_SRC) t/events.c
-t_send_SOURCES      = $(TEST_SRC) t/send.c
-t_faildb_SOURCES    = $(TEST_SRC) t/faildb.c
-t_vx_pdu_SOURCES    = $(TEST_SRC) t/vx-pdu.c
+check_SCRIPTS = t/usage t/util-send_bolo t/core t/broadcast t/large-payloads t/events
+TESTS = $(check_SCRIPTS)
 
 dist_man_MANS  =
 dist_man_MANS += man/bcache.8
