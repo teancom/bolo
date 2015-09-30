@@ -128,6 +128,8 @@ SET.KEYS|host02.ip|10.12.13.15
 SET.KEYS|k4|v4|k5|v5|BOLO|1
 EOF
 
+sed -i'' -e "s/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]*/<ts>/" \
+    ${ROOT}/pull ${ROOT}/expect
 file_is ${ROOT}/pull ${ROOT}/expect \
         "send_bolo formatted all sent PDUs properly"
 
