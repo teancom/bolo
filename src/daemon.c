@@ -19,6 +19,7 @@
 
 #include "bolo.h"
 #include <getopt.h>
+#include <signal.h>
 
 static struct {
 	char *config_file;
@@ -134,6 +135,15 @@ int main(int argc, char **argv)
 		}
 	}
 	logger(LOG_INFO, "log level is %s", svr->config.log_level);
+
+	sigset_t blocked;
+	sigfillset(&blocked);
+	rc = pthread_sigmask(SIG_BLOCK, &blocked, NULL);
+	if (rc != 0) {
+		fprintf(stderr, "Failed to block signals in main threads\nAborting...\n");
+		deconfigure(svr);
+		return 2;
+	}
 
 	rc = core_kernel_thread(zmq, svr);
 	if (rc != 0) {
