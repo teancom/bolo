@@ -79,7 +79,7 @@ SAMPLE|$TS|test-sample|4|5
 RATE|$(( TS + 1 ))|test-rate|3
 EOF
 sleep 1
-sleep 15 # FIXME: there is a FIXME in src/core.c that makes this better...
+sleep 15 # FIXME: there is a FIXME in src/core.c that makes this better... (see GH#13)
 
 kill -TERM ${SUBSCRIBER_PID}
 kill -TERM ${BOLO_PID}

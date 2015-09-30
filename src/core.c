@@ -361,7 +361,7 @@ static void * _scheduler_thread(void *_) /* {{{ */
 		}
 
 		pdu_t *pdu = pdu_recv(scheduler->control);
-		/* FIXME: any message from supervisor.control == exit! */
+		/* FIXME: any message from supervisor.control == exit! (see GH#12) */
 		pdu_free(pdu);
 		break;
 	}
@@ -466,7 +466,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			kernel->tick.last = now;
 
 			char *name;
-			int32_t ts = now - 15; /* FIXME: make configurable */
+			int32_t ts = now - 15; /* FIXME: make configurable (see GH#13) */
 
 			counter_t *counter;
 			for_each_key_value(&kernel->server->db.counters, name, counter) {

@@ -83,7 +83,7 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	inserter_t *inserter = (inserter_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! */
+	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
 	if (socket == inserter->control)
 		return VIGOR_REACTOR_HALT;
 
@@ -262,7 +262,7 @@ static int _reconciler_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	reconciler_t *reconciler = (reconciler_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! */
+	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
 	if (socket == reconciler->control)
 		return VIGOR_REACTOR_HALT;
 
@@ -395,7 +395,7 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! */
+	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
 	if (socket == dispatcher->control)
 		return VIGOR_REACTOR_HALT;
 
