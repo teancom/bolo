@@ -185,21 +185,6 @@ pdu_t *stream_pdu(const char *line)
 	return pdu;
 }
 
-int submit_pdu(void *zmq, const char *endpoint, pdu_t *pdu)
-{
-	void *z = zmq_socket(zmq, ZMQ_PUSH);
-	if (!z)
-		return -1;
-
-	int rc;
-	rc = vx_vzmq_connect(z, endpoint);
-	if (rc == 0) {
-		rc = pdu_send(pdu, z);
-		vzmq_shutdown(z, 0);
-	}
-	return rc;
-}
-
 pdu_t *state_pdu(const char *name, int status, const char *msg)
 {
 	pdu_t *pdu = pdu_make("STATE", 0);
@@ -286,58 +271,4 @@ pdu_t *event_pdu(const char *name, const char *extra)
 	pdu_extendf(pdu, "%s", name);
 	pdu_extendf(pdu, "%s", extra ? extra : "");
 	return pdu;
-}
-
-int submit_state(void *zmq, const char *endpoint, const char *name, int status, const char *msg)
-{
-	pdu_t *pdu = state_pdu(name, status, msg);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_counter(void *zmq, const char *endpoint, const char *name, unsigned int value)
-{
-	pdu_t *pdu = counter_pdu(name, value);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_sample(void *zmq, const char *endpoint, const char *name, int n, ...)
-{
-	va_list ap;
-	va_start(ap, n);
-	pdu_t *pdu = _vsample_pdu(name, n, ap);
-	va_end(ap);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_rate(void *zmq, const char *endpoint, const char *name, unsigned long value)
-{
-	pdu_t *pdu = rate_pdu(name, value);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_setkeys(void *zmq, const char *endpoint, int n, ...)
-{
-	va_list ap;
-	va_start(ap, n);
-	pdu_t *pdu = _vsetkeys_pdu(n, ap);
-	va_end(ap);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
-}
-
-int submit_event(void *zmq, const char *endpoint, const char *name, const char *extra)
-{
-	pdu_t *pdu = event_pdu(name, extra);
-	int rc = submit_pdu(zmq, endpoint, pdu);
-	pdu_free(pdu);
-	return rc;
 }
