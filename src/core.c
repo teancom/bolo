@@ -361,9 +361,13 @@ static void * _scheduler_thread(void *_) /* {{{ */
 		}
 
 		pdu_t *pdu = pdu_recv(scheduler->control);
-		/* FIXME: any message from supervisor.control == exit! (see GH#12) */
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0) {
+			pdu_free(pdu);
+			break;
+		}
+		logger(LOG_ERR, "scheduler thread received unrecognized [%s] PDU from control socket; ignoring",
+				pdu_type(pdu));
 		pdu_free(pdu);
-		break;
 	}
 
 	logger(LOG_DEBUG, "scheduler: shutting down");

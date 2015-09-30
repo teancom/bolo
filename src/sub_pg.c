@@ -83,9 +83,14 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	inserter_t *inserter = (inserter_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
-	if (socket == inserter->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == inserter->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+
+		logger(LOG_ERR, "inserter thread received unrecognized [%s] PDU from control socket; ignoring",
+			pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == inserter->queue) {
 		if (strcmp(pdu_type(pdu), "STATE") == 0 && pdu_size(pdu) == 6) {
@@ -262,9 +267,14 @@ static int _reconciler_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	reconciler_t *reconciler = (reconciler_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
-	if (socket == reconciler->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == reconciler->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+
+		logger(LOG_ERR, "reconciler thread received unrecognized [%s] PDU from control socket; ignoring",
+			pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == reconciler->tock) {
 		logger(LOG_INFO, "reconciling staged data");
@@ -395,9 +405,14 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
-	if (socket == dispatcher->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == dispatcher->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+
+		logger(LOG_ERR, "dispatcher thread received unrecognized [%s] PDU from control socket; ignoring",
+			pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == dispatcher->subscriber) {
 		stopwatch_t watch;

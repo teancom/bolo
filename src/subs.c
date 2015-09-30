@@ -124,9 +124,14 @@ static int _monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	monitor_t *monitor = (monitor_t*)_;
 
-	/* FIXME: any message from supervisor.control == exit! (see GH#12) */
-	if (socket == monitor->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == monitor->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+
+		logger(LOG_ERR, "monitor thread received unrecognized [%s] PDU from control socket; ignoring",
+			pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == monitor->tock) {
 		logger(LOG_DEBUG, "submitting collected metrics");
@@ -343,9 +348,13 @@ static void * _scheduler_thread(void *_) /* {{{ */
 		}
 
 		pdu_t *pdu = pdu_recv(scheduler->control);
-		/* FIXME: any message from supervisor.control == exit! (see GH#12) */
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0) {
+			pdu_free(pdu);
+			break;
+		}
+		logger(LOG_ERR, "scheduler thread received unrecognized [%s] PDU from control socket; ignoring",
+				pdu_type(pdu));
 		pdu_free(pdu);
-		break;
 	}
 
 	logger(LOG_DEBUG, "scheduler: shutting down");
