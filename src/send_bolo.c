@@ -229,6 +229,9 @@ int main(int argc, char **argv)
 		}
 	}
 
+	zmq_close(z);
+	zmq_ctx_destroy(zmq);
+
 	if (DEBUG) fprintf(stderr, "+>> completed successfully.\n");
 	return rc;
 }
