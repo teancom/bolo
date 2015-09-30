@@ -25,6 +25,7 @@ trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
 ENDPOINT="ipc://${ROOT}/socket"
 zpull --bind ${ENDPOINT} > ${ROOT}/pull &
 ZPULL_PID=$!
+sleep 1
 
 SENDER="./send_bolo -e ${ENDPOINT}"
 
