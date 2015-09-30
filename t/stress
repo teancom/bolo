@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+N=1
+while true; do
+  echo -n "."
+  ./t/${1:?USAGE:$0 <test>}
+  if [[ $? != 0 ]]; then
+    echo "FAILED on run #${N}"
+    exit 1
+  fi
+  N=$(( N + 1 ))
+done
