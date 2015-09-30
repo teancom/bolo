@@ -61,16 +61,19 @@
 #define DEFAULT_RUNAS_GROUP  "bolo"
 #define DEFAULT_PIDFILE      "/var/run/bolo.pid"
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
+#define DEFAULT_KEYSFILE     "/var/lib/bolo/keys.db"
 
 #define KERNEL_ENDPOINT "inproc://kernel"
 
 typedef struct {
+	char     *name;
 	uint16_t  freshness;
 	uint8_t   status;
 	char     *summary;
 } type_t;
 
 typedef struct {
+	char     *name;
 	int32_t  time;
 
 	list_t   anon;

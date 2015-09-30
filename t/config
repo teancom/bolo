@@ -1,0 +1,216 @@
+#!/usr/bin/env bash
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+###############################################################
+
+echo "" >${ROOT}/bolo.conf
+./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+cat > ${ROOT}/expect <<EOF
+# bolo configuration
+# (from ${ROOT}/bolo.conf)
+
+listener    tcp://*:2999
+controller  tcp://127.0.0.1:2998
+broadcast   tcp://*:2997
+
+user        bolo
+group       bolo
+pidfile     /var/run/bolo.pid
+
+savefile    /var/lib/bolo/save.db
+keysfile    /var/lib/bolo/keys.db
+max.events  0
+
+log error daemon
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "Default configuration"
+
+###############################################################
+
+echo "max.events 1h" > ${ROOT}/bolo.conf
+./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+cat > ${ROOT}/expect <<EOF
+# bolo configuration
+# (from ${ROOT}/bolo.conf)
+
+listener    tcp://*:2999
+controller  tcp://127.0.0.1:2998
+broadcast   tcp://*:2997
+
+user        bolo
+group       bolo
+pidfile     /var/run/bolo.pid
+
+savefile    /var/lib/bolo/save.db
+keysfile    /var/lib/bolo/keys.db
+max.events  60m
+
+log error daemon
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "Time-based event retention"
+
+###############################################################
+
+cat <<EOF >${ROOT}/bolo.conf
+listener   tcp://bolo.fqdn:10991
+controller tcp://bolo.fqdn:10881
+broadcast  tcp://*:10771
+
+log debug console
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+user  monitor
+group monitoring
+
+max.events 5
+
+type :default {
+  freshness 60
+  warning "it is stale"
+}
+type :bad {
+  critical "bad stuff"
+}
+use :default
+
+pidfile /var/run/pidfile
+
+state test.state.0
+state test.state.1
+
+window @minutely   60
+window @hourly   3600
+
+counter @minutely counter1
+sample  @hourly   res.df:/
+rate    @minutely rate1
+EOF
+
+./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+cat > ${ROOT}/expect <<EOF
+# bolo configuration
+# (from ${ROOT}/bolo.conf)
+
+listener    tcp://bolo.fqdn:10991
+controller  tcp://bolo.fqdn:10881
+broadcast   tcp://*:10771
+
+user        monitor
+group       monitoring
+pidfile     /var/run/pidfile
+
+savefile    ${ROOT}/var/savedb
+keysfile    ${ROOT}/var/keysdb
+max.events  5
+
+log debug console
+
+type :bad {
+    freshness 300
+    critical  "bad stuff"
+}
+
+type :default {
+    freshness 60
+    warning   "it is stale"
+}
+
+state :default test.state.0
+state :default test.state.1
+
+window @minutely 60
+window @hourly 3600
+
+counter @minutely counter1
+
+sample @hourly res.df:/
+
+rate @minutely rate1
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "Dumped explicit configuration"
+
+###############################################################
+
+echo "max.events 1h" > ${ROOT}/bolo.conf
+./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+cat > ${ROOT}/expect <<EOF
+# bolo configuration
+# (from ${ROOT}/bolo.conf)
+
+listener    tcp://*:2999
+controller  tcp://127.0.0.1:2998
+broadcast   tcp://*:2997
+
+user        bolo
+group       bolo
+pidfile     /var/run/bolo.pid
+
+savefile    /var/lib/bolo/save.db
+keysfile    /var/lib/bolo/keys.db
+max.events  60m
+
+log error daemon
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "Time-based event retention"
+
+###############################################################
+
+cat <<EOF > ${ROOT}/bolo.conf
+rate 60 cpu
+sample 60 disk
+counter 60 io
+EOF
+
+./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+cat > ${ROOT}/expect <<EOF
+# bolo configuration
+# (from ${ROOT}/bolo.conf)
+
+listener    tcp://*:2999
+controller  tcp://127.0.0.1:2998
+broadcast   tcp://*:2997
+
+user        bolo
+group       bolo
+pidfile     /var/run/bolo.pid
+
+savefile    /var/lib/bolo/save.db
+keysfile    /var/lib/bolo/keys.db
+max.events  0
+
+log error daemon
+
+counter 60 io
+
+sample 60 disk
+
+rate 60 cpu
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "Anonymous metric windows"
+
+exit 0

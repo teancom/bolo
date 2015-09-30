@@ -366,6 +366,7 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_WINDOW:
 			NEXT; if (p.token != T_WINDOWNAME) { ERROR("Expected a window name for `window WINDOWNAME SECONDS` construct"); }
 			win = calloc(1, sizeof(window_t));
+			win->name = strdup(p.value);
 			hash_set(&s->db.windows, p.value, win);
 			NEXT; if (p.token != T_NUMBER) { ERROR("Expected numeric value for `window` directive"); }
 			win->time = atoi(p.value);
@@ -374,6 +375,7 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_TYPE:
 			NEXT; if (p.token != T_TYPENAME) { ERROR("Expected a type name for `type TYPENAME { ... }` construct"); }
 			type = calloc(1, sizeof(type_t));
+			type->name      = strdup(p.value);
 			type->freshness = 300;
 			type->status    = WARNING;
 			hash_set(&s->db.types, p.value, type);
@@ -683,6 +685,7 @@ int deconfigure(server_t *s)
 
 	type_t *type;
 	for_each_key_value(&s->db.types, name, type) {
+		free(type->name);
 		free(type->summary);
 		free(type);
 	}
@@ -693,6 +696,7 @@ int deconfigure(server_t *s)
 		free(window);
 	}
 	for_each_key_value(&s->db.windows, name, window) {
+		free(window->name);
 		free(window);
 	}
 	hash_done(&s->db.windows, 0);

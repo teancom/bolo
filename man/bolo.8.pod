@@ -35,6 +35,12 @@ disables that behavior.  As a side effect, all logging will be forced to go
 to standard output, regardless of what syslog facility is specified in the
 configuration file.
 
+=item B<-D>, B<--dump-config>
+
+After reading the configuration, format it and print to standard output,
+then exit.  This can be used to verify configuration changes before
+restarting B<bolo>.
+
 =back
 
 =head1 FILES
