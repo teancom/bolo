@@ -417,10 +417,6 @@ int subscriber_supervisor(void *zmq) /* {{{ */
 	sigaddset(&signals, SIGTERM);
 	sigaddset(&signals, SIGINT);
 
-	rc = pthread_sigmask(SIG_UNBLOCK, &signals, NULL);
-	if (rc != 0)
-		return rc;
-
 	for (;;) {
 		rc = sigwait(&signals, &sig);
 		if (rc != 0) {
