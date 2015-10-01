@@ -65,7 +65,7 @@ stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
-check_SCRIPTS = t/usage t/config t/util-send_bolo t/core t/broadcast t/large-payloads t/events t/rrd
+check_SCRIPTS = t/usage t/config t/util-send_bolo t/core t/broadcast t/large-payloads t/events t/rrd t/meta
 TESTS = $(check_SCRIPTS)
 
 dist_man_MANS  =
