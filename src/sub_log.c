@@ -92,7 +92,7 @@ static void s_log(pdu_t *p)
 	free(summary);
 }
 
-void sighup_handler(int sig, siginfo_t *info, void *u)
+void sighup_handler(int sig)
 {
 	OPTIONS.reopen = 1;
 }
@@ -247,10 +247,7 @@ int main(int argc, char **argv)
 	}
 	logger(LOG_NOTICE, "starting up");
 
-	struct sigaction sigact;
-	memset(&sigact, 0, sizeof(struct sigaction));
-	sigact.sa_sigaction = sighup_handler;
-	if (sigaction(SIGHUP, &sigact, NULL) != 0) {
+	if (signal(SIGHUP, sighup_handler) == SIG_ERR) {
 		logger(LOG_ERR, "Failed to install SIGHUP signal handler: %s", strerror(errno));
 		exit(1);
 	}

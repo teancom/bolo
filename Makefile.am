@@ -66,7 +66,7 @@ bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
 check_SCRIPTS = t/usage t/config t/util-send_bolo t/core t/broadcast t/large-payloads t/events \
-                t/rrd-subscriber t/meta-subscriber
+                t/rrd-subscriber t/meta-subscriber t/log-subscriber
 TESTS = $(check_SCRIPTS)
 
 dist_man_MANS  =

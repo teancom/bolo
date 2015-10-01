@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+fake_broadcaster() {
+	local endpoint="${1}"
+	(while true; do
+		local ts=$(date +%s)
+		echo "STATE|sys.cpu|${ts}|fresh|0|all good"
+		echo "TRANSITION|sys.cpu|${ts}|fresh|0|all good"
+		echo "STATE|sys.mem|${ts}|fresh|0|all good"
+		echo "STATE|sys.df|${ts}|fresh|0|all good"
+
+		echo "SAMPLE|${ts}|sys.cpu|4|10|200|900|100|20"
+		sleep 1
+
+		local ts=$(date +%s)
+		echo "STATE|sys.cpu|${ts}|fresh|1|warning"
+		echo "TRANSITION|sys.cpu|${ts}|fresh|1|warning"
+		sleep 1
+	done) | zpub --bind ${endpoint} --timeout 200
+}
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+fake_broadcaster "${BROADCAST}" >${ROOT}/broadcast.out 2>&1 &
+BROADCAST_PID=$!
+
+zpull --bind ${LISTENER} >${ROOT}/submitted.out 2>&1 &
+PULL_PID=$!
+
+BOLO2LOG="./bolo2log -F -e ${BROADCAST}"
+$BOLO2LOG -L ${ROOT}/log.1          >${ROOT}/out.1 2>&1 & LOG1_PID=$!
+$BOLO2LOG -L ${ROOT}/log.2 -A -m .  >${ROOT}/out.2 2>&1 & LOG2_PID=$!
+$BOLO2LOG -L ${ROOT}/log.3 -A -m df >${ROOT}/out.3 2>&1 & LOG3_PID=$!
+
+sleep 1
+kill -HUP ${LOG1_PID}
+sleep 2
+kill -TERM ${LOG1_PID} ${LOG2_PID} ${LOG3_PID}
+kill -TERM ${BROADCAST_PID} ${PULL_PID}
+
+########################################################################
+
+grep -q '\[.*\] TRANSITION: fresh sys.cpu 1 warning' ${ROOT}/log.1 \
+	|| bail "TRANSITION for sys.cpu to WARNING state not found in log.1 output"
+
+grep -q '\[.*\] TRANSITION: fresh sys.cpu 0 all good' ${ROOT}/log.1 \
+	|| bail "TRANSITION for sys.cpu to OK state not found in log.1 output"
+
+grep -q 'STATE:' ${ROOT}/log.1 \
+	&& bail "STATE messages being logged when --all not specified!"
+grep -q 'SAMPLE:' ${ROOT}/log.1 \
+	&& bail "SAMPLE messages being logged (metrics should be ignored)"
+
+########################################################################
+
+grep -q '\[.*\] TRANSITION: fresh sys.cpu 1 warning' ${ROOT}/log.2 \
+	|| bail "TRANSITION for sys.cpu to WARNING state not found in log.2 output"
+grep -q '\[.*\] STATE: fresh sys.cpu 1 warning' ${ROOT}/log.2 \
+	|| bail "STATE for sys.cpu in WARNING state not found in log.2 output"
+
+grep -q '\[.*\] TRANSITION: fresh sys.cpu 0 all good' ${ROOT}/log.2 \
+	|| bail "TRANSITION for sys.cpu to OK state not found in log.2 output"
+grep -q '\[.*\] STATE: fresh sys.cpu 0 all good' ${ROOT}/log.2 \
+	|| bail "STATE for sys.cpu in OK state not found in log.2 output"
+
+grep -q '\[.*\] STATE: fresh sys.mem 0 all good' ${ROOT}/log.2 \
+	|| bail "STATE for sys.mem in OK state not found in log.2 output"
+
+grep -q '\[.*\] STATE: fresh sys.df 0 all good' ${ROOT}/log.2 \
+	|| bail "STATE for sys.df in OK state not found in log.2 output"
+
+grep -q 'SAMPLE:' ${ROOT}/log.2 \
+	&& bail "SAMPLE messages being logged (metrics should be ignored)"
+
+########################################################################
+
+grep -q 'sys.cpu' ${ROOT}/log.3 \
+	&& bail "sys.cpu states slipped past the --match regex in log.3 output"
+grep -q 'sys.mem' ${ROOT}/log.3 \
+	&& bail "sys.mem states slipped past the --match regex in log.3 output"
+
+grep -q '\[.*\] STATE: fresh sys.df 0 all good' ${ROOT}/log.3 \
+	|| bail "STATE for sys.df in OK state not found in log.3 output"
+
+grep -q 'SAMPLE:' ${ROOT}/log.3 \
+	&& bail "SAMPLE messages being logged (metrics should be ignored)"
+
+exit 0
