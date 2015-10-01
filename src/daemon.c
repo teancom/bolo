@@ -102,6 +102,7 @@ int main(int argc, char **argv)
 	svr->config.pidfile      = strdup(DEFAULT_PIDFILE);
 	svr->config.savefile     = strdup(DEFAULT_SAVEFILE);
 	svr->config.keysfile     = strdup(DEFAULT_KEYSFILE);
+	svr->config.grace_period = DEFAULT_GRACE_PERIOD;
 
 	svr->interval.tick       = 1000;
 	svr->interval.freshness  = 2;
@@ -150,7 +151,9 @@ int main(int argc, char **argv)
 		           : svr->config.events_max / 60),
 		       (svr->config.events_keep == EVENTS_KEEP_NUMBER ? "" : "m"));
 
-		printf("log %s %s\n\n",
+		printf("grace.period %u\n"
+		       "log %s %s\n\n",
+		       svr->config.grace_period,
 		       svr->config.log_level,
 		       svr->config.log_facility);
 

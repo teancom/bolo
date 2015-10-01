@@ -41,6 +41,7 @@
 #define T_KEYWORD_KEYSFILE   0x12
 #define T_KEYWORD_MAXEVENTS  0x13
 #define T_KEYWORD_RATE       0x14
+#define T_KEYWORD_GRACE_PERIOD 0x15
 
 #define T_OPEN_BRACE         0x80
 #define T_CLOSE_BRACE        0x81
@@ -193,6 +194,7 @@ getline:
 			KEYWORD("rate",       RATE);
 			KEYWORD("use",        USE);
 			KEYWORD("max.events", MAXEVENTS);
+			KEYWORD("grace.period", GRACE_PERIOD);
 
 			if (!p->token) {
 				memcpy(p->value, p->buffer, b-p->buffer);
@@ -324,6 +326,11 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
 
 		case T_KEYWORD_DUMPFILES: /* noop */ break;
+
+		case T_KEYWORD_GRACE_PERIOD:
+			NEXT;
+			s->config.grace_period = atoi(p.value);
+			break;
 
 		case T_KEYWORD_MAXEVENTS:
 			NEXT;

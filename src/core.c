@@ -470,7 +470,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			kernel->tick.last = now;
 
 			char *name;
-			int32_t ts = now - 15; /* FIXME: make configurable (see GH#13) */
+			int32_t ts = now - kernel->server->config.grace_period;
 
 			counter_t *counter;
 			for_each_key_value(&kernel->server->db.counters, name, counter) {

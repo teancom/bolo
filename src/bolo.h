@@ -62,6 +62,7 @@
 #define DEFAULT_PIDFILE      "/var/run/bolo.pid"
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
 #define DEFAULT_KEYSFILE     "/var/lib/bolo/keys.db"
+#define DEFAULT_GRACE_PERIOD 15
 
 #define KERNEL_ENDPOINT "inproc://kernel"
 
@@ -201,6 +202,8 @@ typedef struct {
 
 		int       events_max;
 		int       events_keep;
+
+		int       grace_period;
 	} config;
 
 	struct {

@@ -29,6 +29,7 @@ listener   ${LISTENER}
 controller ${CONTROLLER}
 broadcast  ${BROADCAST}
 
+grace.period 1
 log debug console
 
 savefile   ${ROOT}/var/savedb
@@ -79,7 +80,6 @@ SAMPLE|$TS|test-sample|4|5
 RATE|$(( TS + 1 ))|test-rate|3
 EOF
 sleep 1
-sleep 15 # FIXME: there is a FIXME in src/core.c that makes this better... (see GH#13)
 
 kill -TERM ${SUBSCRIBER_PID}
 kill -TERM ${BOLO_PID}
@@ -93,14 +93,10 @@ TRANSITION|test-state|$TS|fresh|OK|all good
 STATE|test-state|$TS|fresh|OK|all good
 EVENT|$TS|test-event|server rebooted
 RATE|$TS|test-rate|1|inf
-TRANSITION|test-state|$TS|stale|WARNING|it is stale
-STATE|test-state|$TS|stale|WARNING|it is stale
-STATE|test-state|$TS|stale|WARNING|it is stale
-STATE|test-state|$TS|stale|WARNING|it is stale
-STATE|test-state|$TS|stale|WARNING|it is stale
-STATE|test-state|$TS|stale|WARNING|it is stale
 COUNTER|$TS|test-counter|8
 SAMPLE|$TS|test-sample|7|1.000000e+00|5.000000e+00|2.400000e+01|3.428571e+00|1.959184e+00
+TRANSITION|test-state|$TS|stale|WARNING|it is stale
+STATE|test-state|$TS|stale|WARNING|it is stale
 EOF
 file_is ${ROOT}/out/broadcast ${ROOT}/expect "broadcast events received in order"
 

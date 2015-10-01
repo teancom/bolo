@@ -72,6 +72,11 @@ metric data from B<bolo>, that information is written to disk, using this
 pattern to generate randomized temporary files.  The first `%s' will be
 replaced with a random value.  Subsequent `%s' tokens are ignored.
 
+=item B<grace.period> 15
+
+Governs how long B<bolo> will wait, after a metric window closes, before
+broadcasting the final values out.  This allows for delays in the network.
+
 =back
 
 =head2 Type Definitions

@@ -36,6 +36,7 @@ savefile    /var/lib/bolo/save.db
 keysfile    /var/lib/bolo/keys.db
 max.events  0
 
+grace.period 15
 log error daemon
 
 EOF
@@ -62,6 +63,7 @@ savefile    /var/lib/bolo/save.db
 keysfile    /var/lib/bolo/keys.db
 max.events  60m
 
+grace.period 15
 log error daemon
 
 EOF
@@ -75,6 +77,7 @@ listener   tcp://bolo.fqdn:10991
 controller tcp://bolo.fqdn:10881
 broadcast  tcp://*:10771
 
+grace.period 5
 log debug console
 
 savefile   ${ROOT}/var/savedb
@@ -124,6 +127,7 @@ savefile    ${ROOT}/var/savedb
 keysfile    ${ROOT}/var/keysdb
 max.events  5
 
+grace.period 5
 log debug console
 
 type :bad {
@@ -171,6 +175,7 @@ savefile    /var/lib/bolo/save.db
 keysfile    /var/lib/bolo/keys.db
 max.events  60m
 
+grace.period 15
 log error daemon
 
 EOF
@@ -202,6 +207,7 @@ savefile    /var/lib/bolo/save.db
 keysfile    /var/lib/bolo/keys.db
 max.events  0
 
+grace.period 15
 log error daemon
 
 counter 60 io
