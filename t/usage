@@ -30,3 +30,11 @@ echo "CORRUPT" > $ROOT/corrupt
 
 ./bolo -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
 	|| bail "bolo did not bail when --config was unreadable (ENOENT)"
+
+if [[ -x ./bolo2rrd ]]; then
+	./bolo2rrd -V 2>&1 | grep -iq copyright || bail "bolo2rrd -V did not contain Copyright notice"
+	./bolo2rrd -h 2>&1 | grep -iq bolo2rrd  || bail "bolo2rrd -h did not identify as 'bolo2rrd'"
+	./bolo2rrd -? 2>&1 | grep -iq usage:    || bail "bolo2rrd -? did not show Usage example"
+	./bolo2rrd -h 2>&1 | grep -iq options:  || bail "bolo2rrd -h did not show Options section"
+	./bolo2rrd -7 2>&1 | grep -iq invalid   || bail "bolo2rrd -7 didn't complain about bad flag"
+fi

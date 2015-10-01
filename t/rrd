@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+[[ -x bolo2rrd ]]                || exit 77 # SKIP
+[[ -n "$(command -v rrdtool)" ]] || exit 77 # SKIP
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+fake_broadcaster() {
+	local endpoint="${1}"
+	(while true; do
+		echo "COUNTER|$(date +%s)|a.random.counter|42"
+		echo "SAMPLE|$(date +%s)|a.random.sample|4|10|200|900|100|20"
+		echo "RATE|$(date +%s)|a.random.rate|1|67"
+		sleep 1
+	done) | zpub --bind ${endpoint} --timeout 200
+}
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+fake_broadcaster "${BROADCAST}" >${ROOT}/broadcast.out 2>&1 &
+BROADCAST_PID=$!
+
+zpull --bind ${LISTENER} >${ROOT}/submitted.out 2>&1 &
+PULL_PID=$!
+
+mkdir ${ROOT}/rrd
+./bolo2rrd -Fvvvvvvvv -P x -U1 -c1 --root ${ROOT}/rrd -e ${BROADCAST} -S ${LISTENER} >${ROOT}/bolo2rrd.out 2>&1 &
+BOLO2RRD_PID=$!
+
+sleep 90
+kill -TERM ${BROADCAST_PID} ${PULL_PID} ${BOLO2RRD_PID}
+
+[[ -f ${ROOT}/rrd/map ]] \
+	|| bail "bolo2rrd didn't create the RRD map file"
+
+# 66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0 a.random.sample
+grep -q '66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0' ${ROOT}/rrd/map \
+	|| bail "bolo2rrd didn't list the a.random.sample in the RRD map file"
+RRDFILE=${ROOT}/rrd/66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0.rrd
+[[ -f ${RRDFILE} ]] \
+	|| bail "bolo2rrd didn't create the RRD for a.random.sample"
+rrdtool fetch ${RRDFILE} AVERAGE | grep ':' | grep -v 'nan' \
+	| grep -q '4.0000000000e+00 1.0000000000e+01 2.0000000000e+02 9.0000000000e+02 1.0000000000e+02 2.0000000000e+01' \
+	|| bail "bolo2rrd failed to populate a.random.sample RRD file"
+
+# 66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd a.random.rate
+grep -q '66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd' ${ROOT}/rrd/map \
+	|| bail "bolo2rrd didn't list the a.random.rate in the RRD map file"
+RRDFILE=${ROOT}/rrd/66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd.rrd
+[[ -f ${RRDFILE} ]] \
+	|| bail "bolo2rrd didn't create the RRD for a.random.rate"
+rrdtool fetch ${RRDFILE} AVERAGE | grep ':' | grep -v 'nan' \
+	| grep -q '6.7000000000e+01' \
+	|| bail "bolo2rrd failed to populate a.random.rate RRD file"
+
+# 7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca a.random.counter
+grep -q '7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca' ${ROOT}/rrd/map \
+	|| bail "bolo2rrd didn't list the a.random.counter in the RRD map file"
+RRDFILE=${ROOT}/rrd/7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca.rrd
+[[ -f ${RRDFILE} ]] \
+	|| bail "bolo2rrd didn't create the RRD for a.random.counter"
+rrdtool fetch ${RRDFILE} AVERAGE | grep ':' | grep -v 'nan' \
+	| grep -q '4.2000000000e+01' \
+	|| bail "bolo2rrd failed to populate a.random.counter RRD file"
+
+
+for t in create update; do
+	grep -q "^SAMPLE|.*|x:${t}.time.s|" ${ROOT}/submitted.out \
+		|| bail "bolo2rrd didn't submit the '${t}.time.s' SAMPLE metric"
+	grep -q "^COUNTER|.*|x:${t}.ops|" ${ROOT}/submitted.out \
+		|| bail "bolo2rrd didn't submit the '${t}.ops' COUNTER metric"
+	grep -q "^COUNTER|.*|x:${t}.misdirects|" ${ROOT}/submitted.out \
+		|| bail "bolo2rrd didn't submit the '${t}.misdirects' COUNTER metric"
+	grep -q "^COUNTER|.*|x:${t}.errors|" ${ROOT}/submitted.out \
+		|| bail "bolo2rrd didn't submit the '${t}.errors' COUNTER metric"
+done
+
+exit 0

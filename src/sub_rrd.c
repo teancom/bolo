@@ -224,8 +224,20 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	dispatcher_t *dispatcher = (dispatcher_t*)_;
 
-	if (socket == dispatcher->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == dispatcher->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0) {
+			logger(LOG_DEBUG, "flushing RRD map to disk");
+			int rc = rrdmap_write(dispatcher->map);
+			if (rc != 0)
+				logger(LOG_WARNING, "failed to write RRD map to disk");
+
+			return VIGOR_REACTOR_HALT;
+		}
+
+		logger(LOG_ERR, "dispatcher thread received unrecognized [%s] PDU from control socket; ignoring",
+			pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == dispatcher->tock) {
 		logger(LOG_DEBUG, "flushing RRD map to disk");
@@ -419,8 +431,13 @@ static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	creator_t *creator = (creator_t*)_;
 
-	if (socket == creator->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == creator->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+		logger(LOG_ERR, "creator[%i] thread received unrecognized [%s] PDU from control socket; ignoring",
+			creator->id, pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == creator->queue) {
 
@@ -611,8 +628,13 @@ static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 	updater_t *updater = (updater_t*)_;
 
-	if (socket == updater->control)
-		return VIGOR_REACTOR_HALT;
+	if (socket == updater->control) {
+		if (strcmp(pdu_type(pdu), "TERMINATE") == 0)
+			return VIGOR_REACTOR_HALT;
+		logger(LOG_ERR, "updater[%i] thread received unrecognized [%s] PDU from control socket; ignoring",
+			updater->id, pdu_type(pdu));
+		return VIGOR_REACTOR_CONTINUE;
+	}
 
 	if (socket == updater->queue) {
 
