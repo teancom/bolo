@@ -9,11 +9,16 @@ bail() {
 ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
 trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
 
-./send_bolo -V 2>&1 | grep -iq copyright || bail "send_bolo -V did not contain Copyright notice"
-./send_bolo -h 2>&1 | grep -iq send_bolo || bail "send_bolo -h did not identify as 'send_bolo'"
-./send_bolo -? 2>&1 | grep -iq usage:    || bail "send_bolo -? did not show Usage example"
-./send_bolo -h 2>&1 | grep -iq options:  || bail "send_bolo -h did not show Options section"
-./send_bolo -7 2>&1 | grep -iq invalid   || bail "send_bolo -7 didn't complain about bad flag"
+for bin in send_bolo bolo bcache \
+           bolo2rrd bolo2meta bolo2log; do
+	if [[ -x ./${bin} ]]; then
+		./${bin} -V 2>&1 | grep -iq copyright || bail "${bin} -V did not contain Copyright notice"
+		./${bin} -h 2>&1 | grep -iq ${bin}    || bail "${bin} -h did not identify as '${bin}'"
+		./${bin} -? 2>&1 | grep -iq usage:    || bail "${bin} -? did not show Usage example"
+		./${bin} -h 2>&1 | grep -iq options:  || bail "${bin} -h did not show Options section"
+		./${bin} -7 2>&1 | grep -iq invalid   || bail "${bin} -7 didn't complain about bad flag"
+	fi
+done
 
 ./bolospy 2>&1 | grep -iq usage: || bail "bolospy (no args) did not show Usage example"
 ./bolospy $ROOT/missing $ROOT/missing 2>&1 | grep -iq 'no such file' || bail "bolospy didn't complain about missing file"
@@ -22,21 +27,7 @@ echo "CORRUPT" > $ROOT/corrupt
 ./bolospy $ROOT/present $ROOT/corrupt 2>&1 | grep -iq 'corrupt savefile' \
 	|| bail "bolospay didn't complain about corrupt savefile"
 
-./bolo -V 2>&1 | grep -iq copyright || bail "bolo -V did not contain Copyright notice"
-./bolo -h 2>&1 | grep -iq bolo      || bail "bolo -h did not identify as 'bolo'"
-./bolo -? 2>&1 | grep -iq usage:    || bail "bolo -? did not show Usage example"
-./bolo -h 2>&1 | grep -iq options:  || bail "bolo -h did not show Options section"
-./bolo -7 2>&1 | grep -iq invalid   || bail "bolo -7 didn't complain about bad flag"
-
 ./bolo -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
 	|| bail "bolo did not bail when --config was unreadable (ENOENT)"
 
-for sub in bolo2rrd bolo2meta bolo2log; do
-	if [[ -x ./${sub} ]]; then
-		./${sub} -V 2>&1 | grep -iq copyright || bail "${sub} -V did not contain Copyright notice"
-		./${sub} -h 2>&1 | grep -iq ${sub}    || bail "${sub} -h did not identify as '${sub}'"
-		./${sub} -? 2>&1 | grep -iq usage:    || bail "${sub} -? did not show Usage example"
-		./${sub} -h 2>&1 | grep -iq options:  || bail "${sub} -h did not show Options section"
-		./${sub} -7 2>&1 | grep -iq invalid   || bail "${sub} -7 didn't complain about bad flag"
-	fi
-done
+exit 0

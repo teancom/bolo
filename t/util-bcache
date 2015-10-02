@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+
+ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
+trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+
+bail() {
+  echo >&2 $*
+  echo FAIL
+  exit 1
+}
+
+file_is() {
+	got_f=$1
+	expect_f=$2
+	msg=${3:-files should match}
+
+	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
+		echo >&2 "${msg}: FAILED"
+		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
+		echo FAIL
+		exit 1
+	fi
+}
+
+fake_broadcaster() {
+	local endpoint="${1}"
+	(sleep 1;
+	 while true; do
+		local ts=$(date +%s)
+		echo "STATE|sys.cpu|${ts}|fresh|0|all good"
+		echo "TRANSITION|sys.cpu|${ts}|fresh|0|all good"
+		echo "COUNTER|${ts}|a.random.counter|42"
+		echo "SAMPLE|${ts}|a.random.sample|4|10|200|900|100|20"
+		echo "RATE|${ts}|a.random.rate|1|67"
+		echo "EVENT|${ts}|reboot|server rebooted"
+
+		sleep 900 # basically, indefinitely
+	done) | zpub --bind ${endpoint} --timeout 200
+}
+
+BCACHE_BROADCAST="ipc://${ROOT}/bcache.relay.sock"
+BCACHE_CONTROLLER="ipc://${ROOT}/bcache.control.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+./bcache -Fvvvvvv -e ${BROADCAST} -B ${BCACHE_BROADCAST} -l ${BCACHE_CONTROLLER} > ${ROOT}/bcache.out 2>&1 &
+BCACHE_PID=$!
+
+zsub --connect ${BCACHE_BROADCAST} >${ROOT}/early.out 2>&1 &
+EARLY_SUB_PID=$!
+
+fake_broadcaster "${BROADCAST}" >${ROOT}/broadcast.out 2>&1 &
+BROADCAST_PID=$!
+sleep 2
+kill -TERM ${EARLY_SUB_PID}
+
+zsub --connect ${BCACHE_BROADCAST} > ${ROOT}/late.out 2>&1 &
+LATE_SUB_PID=$!
+sleep 1
+
+echo "REPEAT" | zpush --timeout 100 --connect ${BCACHE_CONTROLLER}
+sleep 1
+kill -TERM ${LATE_SUB_PID}
+kill -TERM ${BROADCAST_PID} ${BCACHE_PID}
+
+########################################################################
+
+grep -q "STATE|sys.cpu|.*|fresh|0|all good" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the sys.cpu STATE"
+grep -q "$(grep "STATE|sys.cpu" ${ROOT}/early.out)" ${ROOT}/late.out \
+	|| bail "late subscribe did not get rebroadcast of sys.cpu STATE"
+
+grep -q "COUNTER|.*|a.random.counter|42" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the a.random.counter COUNTER"
+grep -q "$(grep "a.random.counter" ${ROOT}/early.out)" ${ROOT}/late.out \
+	|| bail "late subscribe did not get rebroadcast of a.random.counter COUNTER"
+
+grep -q "SAMPLE|.*|a.random.sample|4|10|200|900|100|20" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the a.random.sample SAMPLE"
+grep -q "$(grep "a.random.sample" ${ROOT}/early.out)" ${ROOT}/late.out \
+	|| bail "late subscribe did not get rebroadcast of a.random.sample SAMPLE"
+
+grep -q "RATE|.*|a.random.rate|1|67" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the a.random.rate RATE"
+grep -q "$(grep "a.random.rate" ${ROOT}/early.out)" ${ROOT}/late.out \
+	|| bail "late subscribe did not get rebroadcast of a.random.rate RATE"
+
+grep -q "TRANSITION|sys.cpu" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the sys.cpu STATE TRANSITION"
+grep -q "TRANSITION" ${ROOT}/late.out \
+	&& bail "bcache should NOT rebroadcast ephemeral TRANSITION PDUs"
+
+grep -q "EVENT|.*|reboot" ${ROOT}/early.out \
+	|| bail "early subscriber did not receive the reboot EVENT"
+grep -q "EVENT" ${ROOT}/late.out \
+	&& bail "bcache should NOT rebroadcast ephemeral EVENT PDUs"
+
+exit 0
