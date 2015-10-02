@@ -286,7 +286,7 @@ int configure(const char *path, server_t *s)
 	p.io = fopen(path, "r");
 	if (!p.io) return -1;
 
-#define NEXT if (!lex(&p)) { logger(LOG_CRIT, "%s:%i: unexpected end of configuration\n", p.file, p.line); goto bail; }
+#define NEXT if (!lex(&p)) { logger(LOG_CRIT, "%s:%i: unexpected end of configuration", p.file, p.line); goto bail; }
 #define ERROR(s) logger(LOG_CRIT, "%s:%i: syntax error: %s", p.file, p.line, s); goto bail
 #define SERVER_STRING(x) NEXT; if (p.token != T_STRING) { ERROR("Expected string value"); } \
 	free(x); x = strdup(p.value)

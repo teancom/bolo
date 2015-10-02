@@ -163,26 +163,26 @@ int main(int argc, char **argv)
 	}
 	OPTIONS.re_extra = pcre_study(OPTIONS.re, 0, &re_err);
 
-	logger(LOG_DEBUG, "allocating 0MQ context\n");
+	logger(LOG_DEBUG, "allocating 0MQ context");
 	void *zmq = zmq_ctx_new();
 	if (!zmq) {
-		logger(LOG_ERR, "failed to initialize 0MQ context\n");
+		logger(LOG_ERR, "failed to initialize 0MQ context");
 		return 3;
 	}
-	logger(LOG_DEBUG, "allocating 0MQ SUB socket to talk to %s\n", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "allocating 0MQ SUB socket to talk to %s", OPTIONS.endpoint);
 	void *z = zmq_socket(zmq, ZMQ_SUB);
 	if (!z) {
-		logger(LOG_ERR, "failed to create a SUB socket\n");
+		logger(LOG_ERR, "failed to create a SUB socket");
 		return 3;
 	}
-	logger(LOG_DEBUG, "setting subscriber filter\n");
+	logger(LOG_DEBUG, "setting subscriber filter");
 	if (zmq_setsockopt(z, ZMQ_SUBSCRIBE, "", 0) != 0) {
-		logger(LOG_ERR, "failed to set subscriber filter\n");
+		logger(LOG_ERR, "failed to set subscriber filter");
 		return 3;
 	}
-	logger(LOG_DEBUG, "connecting to %s\n", OPTIONS.endpoint);
+	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
 	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
-		logger(LOG_ERR, "failed to connect to %s\n", OPTIONS.endpoint);
+		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
 		return 3;
 	}
 

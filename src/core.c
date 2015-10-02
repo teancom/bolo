@@ -1039,7 +1039,7 @@ int core_supervisor(void *zmq) /* {{{ */
 			break;
 		}
 
-		logger(LOG_ERR, "ignoring unexpected signal %i\n", sig);
+		logger(LOG_ERR, "ignoring unexpected signal %i", sig);
 	}
 
 	zmq_close(command);

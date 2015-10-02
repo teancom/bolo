@@ -158,21 +158,21 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 		n = write(fd, &body.state, want = sizeof(body.state));
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
 		s = payload.state->name;
 		n = write(fd, s, want = strlen(s) + 1);
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
 		s = payload.state->summary;
 		n = write(fd, s, want = strlen(s) + 1);
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
@@ -224,21 +224,21 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 		n = write(fd, &body.event, want = sizeof(body.event));
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
 		s = payload.event->name;
 		n = write(fd, s, want = strlen(s) + 1);
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
 		s = payload.event->extra;
 		n = write(fd, s, want = strlen(s) + 1);
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
@@ -252,14 +252,14 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 
 		n = write(fd, &body.rate, want = sizeof(body.rate));
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 
 		s = payload.rate->name;
 		n = write(fd, s, want = strlen(s) + 1);
 		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i\n", want, n);
+		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
 		if (n != want)
 			return so_far;
 

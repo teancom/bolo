@@ -164,11 +164,11 @@ void* nsca_gateway(void *u)
 		return NULL;
 	}
 	if (bind(sockfd, (struct sockaddr*)&addr, sizeof(addr)) != 0) {
-		logger(LOG_CRIT, "NSCA gateway failed to bind socket to port %u\n", svr->config.nsca_port);
+		logger(LOG_CRIT, "NSCA gateway failed to bind socket to port %u", svr->config.nsca_port);
 		return NULL;
 	}
 	if (listen(sockfd, 64) != 0) {
-		logger(LOG_CRIT, "NSCA gateway failed to listen on port %u\n", svr->config.nsca_port);
+		logger(LOG_CRIT, "NSCA gateway failed to listen on port %u", svr->config.nsca_port);
 		return NULL;
 	}
 
