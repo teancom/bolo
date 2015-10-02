@@ -31,7 +31,7 @@ echo "CORRUPT" > $ROOT/corrupt
 ./bolo -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
 	|| bail "bolo did not bail when --config was unreadable (ENOENT)"
 
-for sub in bolo2rrd bolo2meta; do
+for sub in bolo2rrd bolo2meta bolo2log; do
 	if [[ -x ./${sub} ]]; then
 		./${sub} -V 2>&1 | grep -iq copyright || bail "${sub} -V did not contain Copyright notice"
 		./${sub} -h 2>&1 | grep -iq ${sub}    || bail "${sub} -h did not identify as '${sub}'"
