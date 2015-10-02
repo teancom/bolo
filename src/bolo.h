@@ -19,7 +19,7 @@
 
 #ifndef BOLO_H
 #define BOLO_H
-#include "../config.h"
+#include "config.h"
 #define BOLO_VERSION PACKAGE_VERSION
 
 #include <stdint.h>
