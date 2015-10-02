@@ -73,9 +73,13 @@ TESTS = $(check_SCRIPTS)
 dist_man_MANS  =
 dist_man_MANS += man/bcache.8
 dist_man_MANS += man/bolo.8
+if build_pg_subscriber
 dist_man_MANS += man/bolo2pg.8
+endif
 dist_man_MANS += man/bolo2meta.8
+if build_rrd_subscriber
 dist_man_MANS += man/bolo2rrd.8
+endif
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/dbolo.1
 dist_man_MANS += man/dbolo.conf.5
