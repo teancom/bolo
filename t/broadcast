@@ -1,20 +1,6 @@
 #!/usr/bin/env bash
-
-file_is() {
-	got_f=$1
-	expect_f=$2
-	msg=${3:-files should match}
-
-	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
-		echo >&2 "${msg}: FAILED"
-		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
-		echo FAIL
-		exit 1
-	fi
-}
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 for dir in etc var out log; do
 	mkdir -p ${ROOT}/${dir}
@@ -51,9 +37,13 @@ EOF
 
 ./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
 
 zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
 SUBSCRIBER_PID=$!
+clean_pid ${SUBSCRIBER_PID}
+diag_file ${ROOT}/out/broadcast
 
 sleep 1
 

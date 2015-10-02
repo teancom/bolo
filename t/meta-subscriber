@@ -1,49 +1,43 @@
 #!/usr/bin/env bash
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
-
-bail() {
-  echo >&2 $*
-  echo FAIL
-  exit 1
-}
-
-fake_broadcaster() {
-	local endpoint="${1}"
-	(while true; do
-		local ts=$(date +%s)
-		echo "COUNTER|${ts}|a.random.counter|42"
-		echo "SAMPLE|${ts}|a.random.sample|4|10|200|900|100|20"
-		echo "RATE|${ts}|a.random.rate|1|67"
-		echo "STATE|${ts}|a.random.state|fresh|0|all good"
-		echo "TRANSITION|${ts}|a.random.state|fresh|0|all good"
-		echo "EVENT|${ts}|a.random.event|extra data"
-
-		echo "COUNTER|${ts}|bogon"
-		echo "SAMPLE|${ts}|bogon"
-		echo "RATE|${ts}|bogon"
-		echo "STATE|${ts}|bogon"
-		echo "TRANSITION|${ts}|bogon"
-		echo "EVENT|${ts}|bogon"
-
-		echo "BOGON|${ts}|bogon"
-
-		sleep 1
-	done) | zpub --bind ${endpoint} --timeout 200
-}
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 LISTENER="ipc://${ROOT}/bolo.listener.sock"
 BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
 
-fake_broadcaster "${BROADCAST}" >${ROOT}/broadcast.out 2>&1 &
+while true; do
+	ts=$(date +%s)
+	echo "COUNTER|${ts}|a.random.counter|42"
+	echo "SAMPLE|${ts}|a.random.sample|4|10|200|900|100|20"
+	echo "RATE|${ts}|a.random.rate|1|67"
+	echo "STATE|${ts}|a.random.state|fresh|0|all good"
+	echo "TRANSITION|${ts}|a.random.state|fresh|0|all good"
+	echo "EVENT|${ts}|a.random.event|extra data"
+
+	echo "COUNTER|${ts}|bogon"
+	echo "SAMPLE|${ts}|bogon"
+	echo "RATE|${ts}|bogon"
+	echo "STATE|${ts}|bogon"
+	echo "TRANSITION|${ts}|bogon"
+	echo "EVENT|${ts}|bogon"
+
+	echo "BOGON|${ts}|bogon"
+
+	sleep 1
+done | zpub --bind ${BROADCAST} --timeout 200 >${ROOT}/broadcast.out 2>&1 &
 BROADCAST_PID=$!
+clean_pid ${BROADCAST_PID}
+diag_file ${ROOT}/broadcast.out
 
 zpull --bind ${LISTENER} >${ROOT}/submitted.out 2>&1 &
 PULL_PID=$!
+clean_pid ${PULL_PID}
+diag_file ${ROOT}/submitted.out
 
 ./bolo2meta -Fvvvvvvvvvvv -P x -e ${BROADCAST} -S ${LISTENER} >${ROOT}/bolo2meta.out 2>&1 &
 BOLO2META_PID=$!
+clean_pid ${BOLO2META_PID}
+diag_file ${ROOT}/bolo2meta.out
 
 sleep 6
 kill -TERM ${BROADCAST_PID} ${PULL_PID} ${BOLO2META_PID}
@@ -58,11 +52,3 @@ grep -q "^COUNTER|.*|x:bogon.unknown|" ${ROOT}/submitted.out \
 	|| bail "bolo2rrd didn't submit the 'bogon.unknown' COUNTER metric"
 
 exit 0
-echo "-[broadcast]----------------------------"
-cat ${ROOT}/broadcast.out
-echo "-[submitted]----------------------------"
-cat ${ROOT}/submitted.out
-echo "-[bolo2meta]----------------------------"
-cat ${ROOT}/bolo2meta.out
-echo "----------------------------------------"
-

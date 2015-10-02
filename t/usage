@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-
-bail() {
-  echo >&2 $*
-  echo FAIL
-  exit 1
-}
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 for bin in send_bolo bolo bcache \
            bolo2rrd bolo2meta bolo2log; do

@@ -1,38 +1,33 @@
 #!/usr/bin/env bash
-[[ -x bolo2rrd ]]                || exit 77 # SKIP
-[[ -n "$(command -v rrdtool)" ]] || exit 77 # SKIP
+source t/lib ; trap "cleanup" EXIT TERM INT
+[[ -x bolo2rrd ]]                || skip
+[[ -n "$(command -v rrdtool)" ]] || skip
 
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
-
-bail() {
-  echo >&2 $*
-  echo FAIL
-  exit 1
-}
-
-fake_broadcaster() {
-	local endpoint="${1}"
-	(while true; do
-		echo "COUNTER|$(date +%s)|a.random.counter|42"
-		echo "SAMPLE|$(date +%s)|a.random.sample|4|10|200|900|100|20"
-		echo "RATE|$(date +%s)|a.random.rate|1|67"
-		sleep 1
-	done) | zpub --bind ${endpoint} --timeout 200
-}
+tmpfs
 
 LISTENER="ipc://${ROOT}/bolo.listener.sock"
 BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
 
-fake_broadcaster "${BROADCAST}" >${ROOT}/broadcast.out 2>&1 &
+while true; do
+	echo "COUNTER|$(date +%s)|a.random.counter|42"
+	echo "SAMPLE|$(date +%s)|a.random.sample|4|10|200|900|100|20"
+	echo "RATE|$(date +%s)|a.random.rate|1|67"
+	sleep 1
+done | zpub --bind ${BROADCAST} --timeout 200 >${ROOT}/broadcast.out 2>&1 &
 BROADCAST_PID=$!
+clean_pid ${BROADCAST_PID}
+diag_file ${ROOT}/broadcast.out
 
 zpull --bind ${LISTENER} >${ROOT}/submitted.out 2>&1 &
 PULL_PID=$!
+clean_pid ${PULL_PID}
+diag_file ${ROOT}/submitted.out
 
 mkdir ${ROOT}/rrd
 ./bolo2rrd -Fvvvvvvvv -P x -U1 -c1 --root ${ROOT}/rrd -e ${BROADCAST} -S ${LISTENER} >${ROOT}/bolo2rrd.out 2>&1 &
 BOLO2RRD_PID=$!
+clean_pid ${BOLO2RRD_PID}
+diag_file ${ROOT}/bolo2rrd.out
 
 sleep 90
 kill -TERM ${BROADCAST_PID} ${PULL_PID} ${BOLO2RRD_PID}

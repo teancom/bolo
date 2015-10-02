@@ -1,37 +1,6 @@
 #!/usr/bin/env bash
-
-file_is() {
-	got_f=$1
-	expect_f=$2
-	msg=${3:-files should match}
-
-	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
-		echo >&2 "${msg}: FAILED"
-		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
-		echo FAIL
-		exit 1
-	fi
-}
-
-string_is() {
-	got=$1
-	expect=$2
-	msg=${3:-strings should match}
-
-	if [[ "${got}" != "${expect}" ]]; then
-		echo >&2 "${msg}: FAILED"
-		echo >&2 "  expected: '${expect}'"
-		echo >&2 "       got: '${got}'"
-		echo >&2
-		echo FAIL
-		exit 1
-	fi
-
-	echo "ok ${msg}"
-}
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 for dir in etc var out log; do
 	mkdir -p ${ROOT}/${dir}
@@ -79,9 +48,13 @@ echo -e >${ROOT}/var/keysdb \
 
 ./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
 
 zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
 SUBSCRIBER_PID=$!
+clean_pid ${SUBSCRIBER_PID}
+diag_file ${ROOT}/out/broadcast
 
 TS=$(date +%s)
 ZTK_OPTS="--timeout 200"

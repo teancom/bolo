@@ -1,60 +1,11 @@
 #!/usr/bin/env bash
-
-file_is() {
-	got_f=$1
-	expect_f=$2
-	msg=${3:-files should match}
-
-	if ! diff -q ${got_f} ${expect_f} &>/dev/null; then
-		echo >&2 "${msg}: FAILED"
-		diff -u ${got_f} ${expect_f} | sed >&2 -e 's/^/      /'
-		echo FAIL
-		exit 1
-	fi
-}
-
-string_is() {
-	got=$1
-	expect=$2
-	msg=${3:-strings should match}
-
-	if [[ "${got}" != "${expect}" ]]; then
-		echo >&2 "${msg}: FAILED"
-		echo >&2 "  expected: '${expect}'"
-		echo >&2 "       got: '${got}'"
-		echo >&2
-		echo FAIL
-		exit 1
-	fi
-
-	echo "ok ${msg}"
-}
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 payload() {
 	local s="${2:-payload}.$(head -c ${1:-32} /dev/zero | tr '\0' 'A')"
 	echo ${s:0:${1:-32}}
 }
-
-declare -a TEST_CLEANUP_TERMS
-kill_on_exit() {
-	TEST_CLEANUP_TERMS[$1]=$1
-}
-
-SUCCESS=0
-test_exit_cleanup() {
-	echo >&2 "killing processes: ${TEST_CLEANUP_TERMS[*]}"
-	kill -TERM ${TEST_CLEANUP_TERMS[*]}
-
-	if [[ $SUCCESS == 0 ]]; then
-		tail -n1000 ${ROOT}/log/*
-	fi
-
-	echo >&2 "removing tempdir ${ROOT}"
-	rm -rf ${ROOT:?nothing to remove}
-}
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap test_exit_cleanup EXIT TERM INT
 
 for dir in etc var out log; do
 	mkdir -p ${ROOT}/${dir}
@@ -89,10 +40,12 @@ sample  @minutely m/./
 EOF
 
 ./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
-kill_on_exit $!
+clean_pid $!
+diag_file ${ROOT}/log/bolo
 
 zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
-kill_on_exit $!
+clean_pid $!
+diag_file ${ROOT}/out/broadcast
 
 TS=$(date +%s)
 ZTK_OPTS="--timeout 200"
@@ -167,6 +120,5 @@ EOF
 file_is ${ROOT}/got ${ROOT}/expect \
         "state saved properly"
 
-SUCCESS=1
 exit 0
 # vim:ft=sh

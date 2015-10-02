@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-
-bail() {
-  echo >&2 $*
-  echo FAIL
-  exit 1
-}
-
-ROOT=$(mktemp -d --tmpdir bolo.test.XXXXXXXX)
-trap "rm -rf ${ROOT:?nothing to remove}" EXIT TERM INT
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
 
 LISTENER="ipc://${ROOT}/bolo.listener.sock"
 CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
@@ -27,6 +20,8 @@ EOF
 
 echo FAILURE > ${ROOT}/savedb
 $BOLO > ${ROOT}/out 2>&1 &
+diag_file ${ROOT}/out
+
 BOLO_PID=$! ; sleep 0.1 ; kill -TERM $BOLO_PID
 grep -iq "does not seem to be a bolo savefile" ${ROOT}/out \
   || bail "failed to log error about corrupt savedb"
