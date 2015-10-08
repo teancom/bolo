@@ -41,6 +41,7 @@ bcache
 bolo2console
 bolo2log
 bolo2rrd
+bolo2redis
 !redhat/init.d/bolo2rrd
 bolo2pg
 !redhat/init.d/bolo2pg

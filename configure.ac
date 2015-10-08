@@ -32,6 +32,7 @@ AX_TEST_COVERAGE
 AC_PROG_CC
 
 BOLO_WITH([postgres], [the PostgreSQL libraries (libpq) and header files])
+BOLO_WITH([hiredis],  [the HiRedis libraries (libhiredis) and header files])
 
 AC_HAVE_LIBRARY(pthread,,  AC_MSG_ERROR(Missing pthread library))
 AC_HAVE_LIBRARY(vigor,,    AC_MSG_ERROR(Missing libvigor - see http://github.com/filefrog/libvigor))
@@ -66,6 +67,11 @@ BOLO_SUBSCRIBER([sqlite], [auto], [stores sample and state data in a SQLite3 dat
 	[#include <sqlite3.h>
 	 int main() { return 0; }
 	], [-lsqlite3])
+
+BOLO_SUBSCRIBER([redis], [auto], [stores KEY data in a redis database],
+	[#include <hiredis/hiredis.h>
+	 int main() { return 0; }
+	], [-lhiredis])
 
 x=0
 AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])

@@ -1,0 +1,74 @@
+=head1 NAME
+
+bolo2redis - Bolo Redis Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2redis> -e tcp://host:port -H redis.my.domain -P 6379
+
+B<bolo2redis> -F
+
+B<bolo2redis> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2redis> is a subscriber that lists for KEY data and forwards it onto
+a Redis key-value store.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-H>, B<--host> I<redis.fq.dn>
+
+The hostname or IP address of the Redis server to submit key/value data to.
+Defaults to I<127.0.0.1>.
+
+=item B<-P>, B<--port> I<6379>
+
+The TCP port that Redis is listening on.  Defaults to I<6379>, the standard
+Redis port.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2redis> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2redis> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2redis.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2redis> will run as
+root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

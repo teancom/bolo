@@ -59,6 +59,12 @@ bolo2sqlite_SOURCES    = $(SUBS_SRC) src/sub_sqlite.c
 bolo2sqlite_LDADD      = -lsqlite3
 endif
 
+if build_redis_subscriber
+sbin_PROGRAMS         += bolo2redis
+bolo2redis_SOURCES     = $(SUBS_SRC) src/sub_redis.c
+bolo2redis_LDADD       = -lhiredis
+endif
+
 bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
@@ -79,6 +85,9 @@ endif
 dist_man_MANS += man/bolo2meta.8
 if build_rrd_subscriber
 dist_man_MANS += man/bolo2rrd.8
+endif
+if build_redis_subscriber
+dist_man_MANS += man/bolo2redis.8
 endif
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/dbolo.1
