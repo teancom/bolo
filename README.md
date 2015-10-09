@@ -52,7 +52,7 @@ which requires a configuration file, usually **/etc/bolo.conf**.
     counter m/./
     rate    m/./
 
-This is a **catch-all** configuration, that excepts all submitted
+This is a **catch-all** configuration, that expects all submitted
 metrics to be collected at at least a 1-minute resolution, and
 aggregate at the per-minute mark.  Check **bolo.conf(5)** for
 details and more advanced usage.
