@@ -158,7 +158,7 @@ static void broadcast_rate(kernel_t *kernel, rate_t *rate) /* {{{ */
 	double value = rate_calc(rate, rate->window->time);
 
 	logger(LOG_INFO, "broadcasting [RATE] data for %s: "
-		"ts=%i, first=%lu, last=%lu, per/%li=%e",
+		"ts=%i, first=%lu, last=%lu, per/%i=%e",
 		rate->name, ts, rate->first, rate->last, rate->window->time, value);
 
 	pdu_t *p = pdu_make("RATE", 0);
