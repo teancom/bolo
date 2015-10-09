@@ -319,7 +319,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.state->stale     = body.state.stale;
 
 		want = record.len - sizeof(record) - sizeof(body.state);
-		buf = vmalloc(want);
+		buf = vmalloc(want+1);
 
 		n = read(fd, buf, want);
 		if (n != want) {
@@ -355,7 +355,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.counter->value     = ntohll(body.counter.value);
 
 		want = record.len - sizeof(record) - sizeof(body.counter);
-		buf = vmalloc(want);
+		buf = vmalloc(want+1);
 
 		n = read(fd, buf, want);
 		if (n != want) {
@@ -390,7 +390,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.sample->var_      = ntohl(body.sample.var_);
 
 		want = record.len - sizeof(record) - sizeof(body.sample);
-		buf = vmalloc(want);
+		buf = vmalloc(want+1);
 
 		n = read(fd, buf, want);
 		if (n != want) {
@@ -418,7 +418,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 
 		payload.event->timestamp = ntohl(body.event.timestamp);
 		want = record.len - sizeof(record) - sizeof(body.event);
-		buf = vmalloc(want);
+		buf = vmalloc(want+1);
 
 		n = read(fd, buf, want);
 		if (n != want) {
@@ -457,7 +457,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		payload.rate->last       = ntohll(body.rate.last);
 
 		want = record.len - sizeof(record) - sizeof(body.rate);
-		buf = vmalloc(want);
+		buf = vmalloc(want+1);
 
 		n = read(fd, buf, want);
 		if (n != want) {
