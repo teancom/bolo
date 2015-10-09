@@ -107,6 +107,7 @@ int main(int argc, char **argv)
 	svr->interval.tick       = 1000;
 	svr->interval.freshness  = 2;
 	svr->interval.savestate  = 15;
+	svr->interval.sweep      = DEFAULT_SWEEP;
 
 	if (OPTIONS.foreground) {
 		log_open("bolo", "stderr");

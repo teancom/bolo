@@ -17,6 +17,8 @@ broadcast  ${BROADCAST}
 
 log debug console
 
+sweep      60
+
 savefile   ${ROOT}/var/savedb
 keysfile   ${ROOT}/var/keysdb
 
@@ -163,8 +165,8 @@ string_is "$(echo 'GET.KEYS|key-the-first|key-the-second' | zdealer ${ZTK_OPTS} 
           "VALUES|key-the-first|value1" \
           "request for delete key is ignored"
 
-kill -TERM ${BOLO_PID}
 kill -TERM ${SUBSCRIBER_PID}
+kill -TERM ${BOLO_PID}
 
 #echo "------------------------------------------"
 #cat ${ROOT}/log/bolo

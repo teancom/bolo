@@ -158,3 +158,24 @@ string_is() {
   fi
   tdiag "ok ${msg}"
 }
+
+###############################################################################
+#
+# string_like - assert that two strings are similar via regex
+# USAGE: string_like ${actual} ${expected} \
+#                  "message to print on failure"
+#
+string_like() {
+  got=$1
+  expect=$2
+  msg=${3:-strings should match}
+
+  if [[ ! "${got}" =~ ${expect} ]]; then
+    echo >&2 "${msg}: FAILED"
+    echo >&2 "  expected: '${expect}'"
+    echo >&2 "       got: '${got}'"
+    echo >&2
+    fail
+  fi
+  tdiag "ok ${msg}"
+}

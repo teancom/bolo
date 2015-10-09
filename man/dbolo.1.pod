@@ -76,6 +76,25 @@ root:root, which is probably not what you want.
 Keep in mind that all commands executed by dbolo will be run by this user
 and group.
 
+=item B<-b>, B<--beacon> I<tcp://host:port>
+
+To enable beaconing (heartbeats) specify the 0mq Beacon endpoint of the
+Core server.
+
+If no endpoint is specified, beaconing is disabled, by default.
+
+=item B<-r>, B<--reconnects> I<INTERGER>
+
+The maximum allowable reconnects when heartbeating is enabled, otherwise
+normal opertion is suspended and the agent waits until a beacon is
+recieved, or is manually restarted.
+
+Defaults to 4.
+
+=item B<-t>, B<--timeout> I<MILLISECONDS>
+
+
+
 =back
 
 =head1 COMMANDS FILE

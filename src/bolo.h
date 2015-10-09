@@ -63,6 +63,7 @@
 #define DEFAULT_SAVEFILE     "/var/lib/bolo/save.db"
 #define DEFAULT_KEYSFILE     "/var/lib/bolo/keys.db"
 #define DEFAULT_GRACE_PERIOD 15
+#define DEFAULT_SWEEP        60
 
 #define KERNEL_ENDPOINT "inproc://kernel"
 
@@ -189,6 +190,7 @@ typedef struct {
 		char     *listener;
 		char     *controller;
 		char     *broadcast;
+		char     *beacon;
 		uint16_t  nsca_port;
 
 		char     *log_level;
@@ -200,6 +202,7 @@ typedef struct {
 		char     *savefile;
 		char     *keysfile;
 
+		int       interval;
 		int       events_max;
 		int       events_keep;
 
@@ -209,6 +212,7 @@ typedef struct {
 	struct {
 		uint16_t tick; /* ms */
 		uint16_t freshness;
+		uint16_t sweep;
 		uint16_t savestate;
 	} interval;
 } server_t;

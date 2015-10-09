@@ -41,6 +41,20 @@ Subscribers will need to connect to this endpoint to do their
 jobs.  As with B<listener> and B<controller>, specific interfaces
 can be bound, but must be specified by IP address.
 
+=item B<beacon> tcp://*:2996
+
+What address and port to bind on, and broadcast heartbeat beacons.
+If beacon is not specified beaconing is disabled and will not
+send messages. As with B<listener> and B<controller>, specific
+interfaces can be bound, but must be specified by IP address.
+
+=item B<sweep> seconds
+
+The time between sending BEACON messages to subscribed agents, in
+seconds.
+
+Defaults to 60 seconds
+
 =item B<log> info daemon
 
 Controls how B<bolo> logs, where it sends log messages, and what

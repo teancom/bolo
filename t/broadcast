@@ -18,6 +18,8 @@ broadcast  ${BROADCAST}
 grace.period 1
 log debug console
 
+sweep       60
+
 savefile   ${ROOT}/var/savedb
 keysfile   ${ROOT}/var/keysdb
 
