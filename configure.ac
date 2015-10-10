@@ -18,7 +18,7 @@
 #
 
 AC_PREREQ(2.63)
-AC_INIT([Bolo], [0.2.13], [bugs@niftylogic.com])
+AC_INIT([Bolo], [0.2.13], [bolo@niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])
@@ -72,6 +72,11 @@ BOLO_SUBSCRIBER([redis], [auto], [stores KEY data in a redis database],
 	[#include <hiredis/hiredis.h>
 	 int main() { return 0; }
 	], [-lhiredis])
+
+BOLO_SUBSCRIBER([influxdb], [auto], [stores sample and state data in InfluxDB],
+	[#include <stdlib.h>
+	 int main() { return 0; }
+	], [])
 
 x=0
 AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])
