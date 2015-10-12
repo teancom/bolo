@@ -204,8 +204,6 @@ int main(int argc, char **argv)
 					free(k);
 					free(v);
 				}
-			} else {
-				logger(LOG_WARNING, "Unhandled [%s] PDU of %i frames dropped", pdu_type(p), pdu_size(p));
 			}
 
 			pdu_free(p);
