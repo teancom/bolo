@@ -1,5 +1,5 @@
 Name:           bolo
-Version:        0.2.13
+Version:        0.2.14
 Release:        2%{?dist}
 Summary:        Monitoring System Server
 
@@ -184,6 +184,9 @@ fi
 #######################################################################
 
 %changelog
+* Thu Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.14-1
+- Upstream release - beacon support
+
 * Thu Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.13-1
 - Package bcache subscriber
 
