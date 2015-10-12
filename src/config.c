@@ -42,15 +42,17 @@
 #define T_KEYWORD_MAXEVENTS  0x13
 #define T_KEYWORD_RATE       0x14
 #define T_KEYWORD_GRACE_PERIOD 0x15
+#define T_KEYWORD_BEACON       0x16
+#define T_KEYWORD_SWEEP        0x17
 
-#define T_OPEN_BRACE         0x80
-#define T_CLOSE_BRACE        0x81
-#define T_STRING             0x82
-#define T_NUMBER             0x83
-#define T_TYPENAME           0x84
-#define T_WINDOWNAME         0x85
-#define T_MATCH              0x86
-#define T_TIME               0x87
+#define T_OPEN_BRACE           0x80
+#define T_CLOSE_BRACE          0x81
+#define T_STRING               0x82
+#define T_NUMBER               0x83
+#define T_TYPENAME             0x84
+#define T_WINDOWNAME           0x85
+#define T_MATCH                0x86
+#define T_TIME                 0x87
 
 typedef struct {
 	FILE       *io;
@@ -184,6 +186,8 @@ getline:
 			KEYWORD("log",        LOG);
 			KEYWORD("savefile",   SAVEFILE);
 			KEYWORD("keysfile",   KEYSFILE);
+			KEYWORD("beacon",     BEACON);
+			KEYWORD("sweep",      SWEEP);
 			KEYWORD("dumpfiles",  DUMPFILES);
 			KEYWORD("type",       TYPE);
 			KEYWORD("window",     WINDOW);
@@ -324,6 +328,7 @@ int configure(const char *path, server_t *s)
 		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
 		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
 		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
+		case T_KEYWORD_BEACON:     SERVER_STRING(s->config.beacon);      break;
 
 		case T_KEYWORD_DUMPFILES: /* noop */ break;
 
@@ -338,6 +343,12 @@ int configure(const char *path, server_t *s)
 			else if (p.token == T_TIME)    s->config.events_keep = EVENTS_KEEP_TIME;
 			else { ERROR("Expected number or time spec max.events"); }
 			s->config.events_max = atoi(p.value);
+			break;
+
+		case T_KEYWORD_SWEEP:
+			NEXT;
+			if (p.token != T_NUMBER) { ERROR("Expected numeric sweep value"); }
+			s->interval.sweep = atoi(p.value);
 			break;
 
 		case T_KEYWORD_NSCAPORT:
@@ -746,6 +757,7 @@ int deconfigure(server_t *s)
 	free(s->config.runas_group);  s->config.runas_group  = NULL;
 	free(s->config.savefile);     s->config.savefile     = NULL;
 	free(s->config.keysfile);     s->config.keysfile     = NULL;
+	free(s->config.beacon);       s->config.beacon       = NULL;
 	free(s->config.log_level);    s->config.log_level    = NULL;
 	free(s->config.log_facility); s->config.log_facility = NULL;
 

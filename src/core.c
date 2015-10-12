@@ -29,6 +29,7 @@ typedef struct {
 	void *listener;   /* PULL:   bound to external interface for metric / state submission */
 	void *broadcast;  /* PUB:    bound to external interface for broadcasting updates */
 	void *management; /* ROUTER: bound to external interface for management purposes */
+	void *beacon;     /* PUB:    bound to external interface for beacon hearbeats */
 
 	reactor_t *reactor;
 	server_t  *server;
@@ -36,7 +37,7 @@ typedef struct {
 	struct {
 		int32_t last;     /* s */
 		int16_t interval; /* s */
-	} freshness, savestate, tick;
+	} freshness, savestate, tick, sweep;
 } kernel_t;
 
 typedef struct {
@@ -167,6 +168,17 @@ static void broadcast_rate(kernel_t *kernel, rate_t *rate) /* {{{ */
 	pdu_extendf(p, "%i", rate->window->time);
 	pdu_extendf(p, "%e", value);
 	pdu_send_and_free(p, kernel->broadcast);
+}
+/* }}} */
+
+static void beacon_sweep(kernel_t *kernel, uint16_t interval) /* {{{ */
+{
+	logger(LOG_DEBUG, "sending beacon sweep");
+
+	pdu_t *p = pdu_make("BEACON", 0);
+	pdu_extendf(p, "%lu", time_ms());
+	pdu_extendf(p, "%lu", interval * 1000);
+	pdu_send_and_free(p, kernel->beacon);
 }
 /* }}} */
 
@@ -438,6 +450,7 @@ static void * _kernel_thread(void *_) /* {{{ */
 	if (kernel->listener)   zmq_close(kernel->listener);
 	if (kernel->broadcast)  zmq_close(kernel->broadcast);
 	if (kernel->management) zmq_close(kernel->management);
+	if (kernel->beacon)     zmq_close(kernel->beacon);
 
 	reactor_free(kernel->reactor);
 	deconfigure(kernel->server);
@@ -494,6 +507,12 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				broadcast_rate(kernel, rate);
 				rate_reset(rate);
 			}
+		}
+
+		if (kernel->beacon && kernel->sweep.last + kernel->sweep.interval < now) {
+			kernel->sweep.last = now;
+
+			beacon_sweep(kernel, kernel->sweep.interval);
 		}
 
 		if (kernel->freshness.last + kernel->freshness.interval < now) {
@@ -905,6 +924,9 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 	kernel_t *kernel = vmalloc(sizeof(kernel_t));
 	kernel->server = server;
 
+	/* set the sweep struct interval */
+	kernel->sweep.interval = server->interval.sweep;
+
 	if (kernel->server->config.savefile) {
 		if (binf_read(&kernel->server->db, kernel->server->config.savefile) != 0) {
 			logger(LOG_WARNING, "kernel failed to read state from %s: %s",
@@ -953,6 +975,19 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 			return rc;
 	} else {
 		logger(LOG_DEBUG, "kernel: no broadcast bind specified; skipping");
+	}
+
+	if (server->config.beacon) {
+		logger(LOG_DEBUG, "kernel: binding kernel.beacon PUB socket to %s",
+			server->config.beacon);
+		kernel->beacon = zmq_socket(zmq, ZMQ_PUB);
+		if (!kernel->beacon)
+			return -1;
+		rc = zmq_bind(kernel->beacon, server->config.beacon);
+		if (rc != 0)
+			return rc;
+	} else {
+		logger(LOG_DEBUG, "kernel: no beacon bind specified; skipping");
 	}
 
 	if (server->config.controller) {

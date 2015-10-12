@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+BEACON="ipc://${ROOT}/bolo.beacon.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+beacon     ${BEACON}
+
+grace.period 1
+log debug console
+
+sweep       1
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 5
+
+type :default {
+  freshness 3
+  warning "it is stale"
+}
+state :default m/./
+
+window  @default 1
+counter @default m/./
+sample  @default m/./
+rate    @default m/./
+EOF
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
+
+zsub -c ${BEACON} > ${ROOT}/out/beacon &
+BEACON_PID=$!
+clean_pid ${BEACON_PID}
+diag_file ${ROOT}/out/beacon
+
+sleep 2
+
+kill -TERM ${BEACON_PID}
+kill -TERM ${BOLO_PID}
+
+string_like "$(cat ${ROOT}/out/beacon)" \
+            ^BEACON\|[0-9]{13}\|1000$ \
+            "ensure beacon messages are sent"
+
+exit 0
+# vim:ft=sh

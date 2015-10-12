@@ -69,10 +69,11 @@ bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
+
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
-                t/util-send_bolo t/util-bcache \
+                t/beacon t/util-send_bolo t/util-bcache \
                 t/rrd-subscriber t/meta-subscriber t/log-subscriber
 TESTS = $(check_SCRIPTS)
 
