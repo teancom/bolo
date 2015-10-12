@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	OPTIONS.verbose    = 0;
 	OPTIONS.endpoint   = strdup("tcp://127.0.0.1:2997");
 	OPTIONS.daemonize  = 1;
-	OPTIONS.pidfile    = strdup("/var/run/bolo2log.pid");
+	OPTIONS.pidfile    = strdup("/var/run/bolo2redis.pid");
 	OPTIONS.user       = strdup("root");
 	OPTIONS.group      = strdup("root");
 	OPTIONS.redis_host = strdup("127.0.0.1");
@@ -67,10 +67,10 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2log v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2log [-h?FVv] [-e tcp://host:port]\n"
-			       "                [-H redis.host.or.ip] [-P port]\n"
-			       "                [-u user] [-g group] [-p /path/to/pidfile]\n\n");
+			printf("bolo2redis v%s\n", BOLO_VERSION);
+			printf("Usage: bolo2redis [-h?FVv] [-e tcp://host:port]\n"
+			       "                  [-H redis.host.or.ip] [-P port]\n"
+			       "                  [-u user] [-g group] [-p /path/to/pidfile]\n\n");
 			printf("Options:\n");
 			printf("  -?, -h               show this help screen\n");
 			printf("  -F, --foreground     don't daemonize, stay in the foreground\n");
