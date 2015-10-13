@@ -5,7 +5,7 @@ Summary:        Monitoring System Server
 
 Group:          Applications/System
 License:        GPLv3+
-URL:            https://github.com/filefrog/ctap
+URL:            http://bolo.niftylogic.com/
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
