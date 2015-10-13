@@ -334,7 +334,29 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			printf("%s v%s\n", argv[0], BOLO_VERSION);
+			printf("Usage: %s [-h?FVv] [-e tcp://host:port]\n"
+			       "          [ ]\n"
+			       "          [-u user] [-g group] [-p /path/to/pidfile]\n\n",
+			         argv[0]);
+
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -F, --foreground     don't daemonize, stay in the foreground\n");
+			printf("  -q, --quiet          \n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -e, --endpoint       bolo listener endpoint to connect to\n");
+			printf("  -c, --commands       file path containing the commands to run\n");
+			printf("  -s, --splay          randomization factor for scheduling commands\n");
+
+			printf("  -b, --beacon         the beacon endpoint to subscribe to\n");
+			printf("  -r, --reconnects     the maximum number of beacon beacons \n");
+			printf("  -t, --timeout        the maximum wait time between beacons\n");
+
+			printf("  -u, --user           user to run as (if daemonized)\n");
+			printf("  -g, --group          group to run as (if daemonized)\n");
+			printf("  -p, --pidfile        where to store the pidfile (if daemonized)\n");
+			exit(0);
 
 		case 'v':
 			OPTIONS.verbose++;
