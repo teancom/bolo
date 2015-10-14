@@ -336,7 +336,8 @@ int main(int argc, char **argv)
 		case '?':
 			printf("%s v%s\n", argv[0], BOLO_VERSION);
 			printf("Usage: %s [-h?FVv] [-e tcp://host:port]\n"
-			       "          [ ]\n"
+			       "          [-s splay] [-c /path/to/commands]\n"
+			       "          [-b tcp://host:port] [-r reconnects] [-t timeout]\n"
 			       "          [-u user] [-g group] [-p /path/to/pidfile]\n\n",
 			         argv[0]);
 
