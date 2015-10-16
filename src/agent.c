@@ -181,6 +181,7 @@ static void beacon_timer(bsocket_t *s, socket_t *ps) /* {{{ */
 				do {
 					beacon_close(s);
 					rc = beacon_connect(s);
+					tries--;
 				} while (rc > 0 && tries);
 			} else {
 				/* preform some sort of backoff */
