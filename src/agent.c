@@ -200,7 +200,7 @@ static void beacon_ping(bsocket_t *s) /* {{{ */
 
 	zmq_getsockopt(s->zocket, ZMQ_EVENTS, &zmq_events, &zmq_events_size);
 	while (zmq_events & ZMQ_POLLIN) {
-		logger(LOG_DEBUG, "beacon from %s", OPTIONS.beacon);
+		logger(LOG_DEBUG, "recieved beacon from %s", OPTIONS.beacon, now);
 		pdu_t *pdu = pdu_recv(s->zocket);
 		if(strcmp(pdu_type(pdu), "BEACON") == 0) {
 			char *st;
