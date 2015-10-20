@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+BEACON="ipc://${ROOT}/bolo.beacon.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+beacon     ${BEACON}
+
+grace.period 1
+log debug console
+
+sweep      1
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 5
+
+type :default {
+  freshness 60
+  warning "it is stale"
+}
+use :default
+
+state test.state.0
+state test.state.1
+
+window @minutely   60
+window @hourly   3600
+
+counter @minutely counter1
+sample  @hourly   res.df:/
+rate    @minutely rate1
+EOF
+
+touch ${ROOT}/etc/agent.conf
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
+
+zsub -c ${BEACON} > ${ROOT}/out/beacon &
+BEACON_PID=$!
+clean_pid ${BEACON_PID}
+diag_file ${ROOT}/out/beacon
+
+./dbolo -vvvvFc ${ROOT}/etc/agent.conf \
+    --endpoint ${LISTENER} \
+    --beacon ${BEACON}  > ${ROOT}/log/agent 2>&1 &
+AGENT_PID=$!
+clean_pid ${AGENT_PID}
+diag_file ${ROOT}/log/agent
+
+sleep 2
+
+kill -TERM ${BEACON_PID}
+kill -TERM ${BOLO_PID}
+kill -TERM ${AGENT_PID}
+
+string_like "$(cat ${ROOT}/out/beacon)" \
+            ^BEACON\|[0-9]{13}\|1000$ \
+            "ensure beacon messages are sent"
+
+cat <<EOF > ${ROOT}/expect
+dbolo[${AGENT_PID}] starting up
+dbolo[${AGENT_PID}] allocating 0MQ context
+dbolo[${AGENT_PID}] initializing beacon(${BEACON}) hb_t
+dbolo[${AGENT_PID}] recieved beacon from ${BEACON}
+EOF
+file_is     ${ROOT}/log/agent ${ROOT}/expect \
+            "ensure the agent recieves beacon message"
+
+exit 0
+# vim:ft=sh
