@@ -82,5 +82,42 @@ EOF
 file_is     ${ROOT}/log/agent ${ROOT}/expect \
             "ensure the agent recieves beacon message"
 
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
+
+./dbolo -vvvvFc ${ROOT}/etc/agent.conf \
+    --endpoint ${LISTENER} \
+    --beacon ${BEACON}  > ${ROOT}/log/agent 2>&1 &
+AGENT_PID=$!
+clean_pid ${AGENT_PID}
+diag_file ${ROOT}/log/agent
+
+sleep 2
+
+# restart bolo
+kill -TERM ${BOLO_PID}
+sleep 1
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
+
+sleep 3
+
+kill -TERM ${BOLO_PID}
+kill -TERM ${AGENT_PID}
+
+cat <<EOF > ${ROOT}/expect
+dbolo[${AGENT_PID}] starting up
+dbolo[${AGENT_PID}] allocating 0MQ context
+dbolo[${AGENT_PID}] initializing beacon(${BEACON}) hb_t
+dbolo[${AGENT_PID}] recieved beacon from ${BEACON}
+dbolo[${AGENT_PID}] recieved beacon from ${BEACON}
+EOF
+file_is     ${ROOT}/log/agent ${ROOT}/expect \
+            "ensure the agent recieves beacon message after core restart"
+
 exit 0
 # vim:ft=sh
