@@ -221,6 +221,7 @@ static void beacon_ping(bsocket_t *s) /* {{{ */
 		} else {
 			logger(LOG_ERR, "unsupported pdu type (%s) recieved from beacon (%s)", pdu_type(pdu), OPTIONS.beacon);
 		}
+		pdu_free(pdu);
 		zmq_getsockopt(s->zocket, ZMQ_EVENTS, &zmq_events, &zmq_events_size);
 	}
 } /* }}} */
