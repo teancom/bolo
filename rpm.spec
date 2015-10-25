@@ -1,11 +1,11 @@
 Name:           bolo
-Version:        0.2.12
+Version:        0.2.15
 Release:        2%{?dist}
 Summary:        Monitoring System Server
 
 Group:          Applications/System
 License:        GPLv3+
-URL:            https://github.com/filefrog/ctap
+URL:            http://bolo.niftylogic.com/
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
@@ -18,6 +18,7 @@ BuildRequires:  zeromq-devel
 BuildRequires:  rrdtool-devel
 BuildRequires:  libvigor-devel
 BuildRequires:  postgresql-devel
+BuildRequires:  hiredis-devel
 
 %description
 bolo is a lightweight and scalable monitoring system that can
@@ -30,7 +31,7 @@ This package provides the server implementation.
 
 
 %build
-%configure --with-rrd-subscriber --with-pg-subscriber --without-sqlite-subscriber
+%configure --with-rrd-subscriber --with-redis-subscriber --with-pg-subscriber --without-sqlite-subscriber
 make %{?_smp_mflags}
 
 
@@ -46,6 +47,7 @@ install -m 0644 -D examples/schema/pg.sql   $RPM_BUILD_ROOT%{_datadir}/bolo/sche
 install -m 0755 -D redhat/init.d/dbolo      $RPM_BUILD_ROOT%{_initrddir}/dbolo
 install -m 0755 -D redhat/init.d/bolo       $RPM_BUILD_ROOT%{_initrddir}/bolo
 install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initrddir}/bolo2rrd
+install -m 0755 -D redhat/init.d/bolo2redis $RPM_BUILD_ROOT%{_initrddir}/bolo2redis
 install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initrddir}/bolo2pg
 install -m 0755 -D redhat/init.d/bolo2meta  $RPM_BUILD_ROOT%{_initrddir}/bolo2meta
 
@@ -138,6 +140,7 @@ This package provides subscriber components for bolo.
 
 %post subscribers
 /sbin/chkconfig --add bolo2rrd
+/sbin/chkconfig --add bolo2redis
 /sbin/chkconfig --add bolo2pg
 /sbin/chkconfig --add bolo2meta
 
@@ -146,6 +149,9 @@ This package provides subscriber components for bolo.
 if [ $1 == 0 ]; then # erase!
 	/sbin/service stop bolo2rrd
 	/sbin/chkconfig --del bolo2rrd
+
+	/sbin/service stop bolo2redis
+	/sbin/chkconfig --del bolo2redis
 
 	/sbin/service stop bolo2pg
 	/sbin/chkconfig --del bolo2pg
@@ -165,16 +171,21 @@ fi
 
 %files subscribers
 %defattr(-,root,root,-)
+%{_sbindir}/bcache
 %{_sbindir}/bolo2console
 %{_sbindir}/bolo2log
 %{_sbindir}/bolo2pg
 %{_sbindir}/bolo2meta
+%{_sbindir}/bolo2redis
 %{_sbindir}/bolo2rrd
 %{_initrddir}/bolo2pg
 %{_initrddir}/bolo2meta
+%{_initrddir}/bolo2redis
 %{_initrddir}/bolo2rrd
+%{_mandir}/man8/bcache.8.gz
 %{_mandir}/man8/bolo2pg.8.gz
 %{_mandir}/man8/bolo2meta.8.gz
+%{_mandir}/man8/bolo2redis.8.gz
 %{_mandir}/man8/bolo2rrd.8.gz
 %doc %{_datadir}/bolo
 
@@ -182,6 +193,15 @@ fi
 #######################################################################
 
 %changelog
+* Mon Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.15-1
+- package bolo2redis subscriber
+
+* Thu Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.14-1
+- Upstream release - beacon support
+
+* Thu Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.13-1
+- Package bcache subscriber
+
 * Thu Aug  6 2015 James Hunt <james@niftylogic.com> 0.2.12-2
 - Package bolo2meta subscriber
 

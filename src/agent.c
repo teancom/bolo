@@ -63,8 +63,13 @@ typedef struct {
 
 	int       lifetime;
 	int       reconnects;
+
+	int       epfd;
+	int       bfd;
+
 	uint64_t  expires;
 	hb_t     *hb;
+	struct    epoll_event *ev;
 } bsocket_t;
 
 typedef struct {
@@ -111,17 +116,55 @@ static int s_reconnect(socket_t *s)
 
 /* BEACON Functions {{{ */
 
-static bsocket_t* beacon_socket(void *zmq, const char *endpoint, int lifetime) /* {{{ */
+static bsocket_t* beacon_socket(void *zmq, const char *endpoint, int lifetime, int epfd, struct epoll_event *ev) /* {{{ */
 {
 	bsocket_t *s   = vmalloc(sizeof(bsocket_t));
 	s->zmq         = zmq;
-	s->zocket      = NULL;
 	s->endpoint    = strdup(endpoint);
 	s->lifetime    = lifetime;
 	s->expires     = time_ms();
 	s->reconnects  = 0;
-	s->hb          = NULL;
+	s->hb          = vmalloc(sizeof(hb_t));
+	s->epfd        = epfd;
+	s->ev          = ev;
 	return s;
+} /* }}} */
+
+static int beacon_connect(bsocket_t *s) /* {{{ */
+{
+	s->zocket = zmq_socket(s->zmq, ZMQ_SUB);
+	if (zmq_connect(s->zocket, s->endpoint) != 0) {
+		logger(LOG_ERR, "unable to connect to beacon endpoint (%s): %s", OPTIONS.beacon, strerror(errno));
+		return 1;
+	}
+	if (zmq_setsockopt(s->zocket, ZMQ_SUBSCRIBE, NULL, 0)) {
+		logger(LOG_ERR, "unable to set null beacon(%s) filter", OPTIONS.beacon);
+		return 1;
+	}
+	int beacon_fd;
+	size_t fd_len = sizeof(beacon_fd);
+		if (zmq_getsockopt(s->zocket, ZMQ_FD, &beacon_fd, &fd_len) != 0) {
+		logger(LOG_ERR, "unable to get beacon fd: %s", strerror(errno));
+		return 1;
+	}
+	s->bfd = beacon_fd;
+	s->ev->data.fd = beacon_fd;
+	s->ev->events  = EPOLLIN | EPOLLET;
+	if (epoll_ctl(s->epfd, EPOLL_CTL_ADD, beacon_fd, s->ev) != 0) {
+		logger(LOG_ERR, "epoll_ctl beacon_fd failed: %s", strerror(errno));
+		return 2;
+	}
+	return 0;
+} /* }}} */
+
+static void beacon_close(bsocket_t *s) /* {{{ */
+{
+	if (s->zocket)
+		zmq_close(s->zocket);
+	s->ev->data.fd = s->bfd;
+	s->ev->events  = EPOLLIN | EPOLLET;
+	if (epoll_ctl(s->epfd, EPOLL_CTL_DEL, s->bfd, s->ev) != 0)
+		logger(LOG_ERR, "epoll_ctl beacon_fd failed: %s", strerror(errno));
 } /* }}} */
 
 static void beacon_timer(bsocket_t *s, socket_t *ps) /* {{{ */
@@ -133,12 +176,13 @@ static void beacon_timer(bsocket_t *s, socket_t *ps) /* {{{ */
 			if ( s->reconnects < OPTIONS.reconnects) {
 				s->reconnects += 2;
 				s_reconnect(ps);
-				if (s->zocket)
-					zmq_close(s->zocket);
-				if((s->zocket = zmq_socket(s->zmq, ZMQ_SUB)) != 0)
-					logger(LOG_ERR, "failed to rebuild beacon (%s) socket: %s", OPTIONS.beacon, strerror(errno));
-				if (zmq_connect(s->zocket, s->endpoint) != 0)
-					logger(LOG_ERR, "failed to reconnect beacon (%s): %s", OPTIONS.beacon, strerror(errno));
+				int rc = 0;
+				int tries = 3;
+				do {
+					beacon_close(s);
+					rc = beacon_connect(s);
+					tries--;
+				} while (rc > 0 && tries);
 			} else {
 				/* preform some sort of backoff */
 				sleep(15 *60);
@@ -150,27 +194,35 @@ static void beacon_timer(bsocket_t *s, socket_t *ps) /* {{{ */
 
 static void beacon_ping(bsocket_t *s) /* {{{ */
 {
-	logger(LOG_DEBUG, "beacon from %s", OPTIONS.beacon);
-	pdu_t *pdu = pdu_recv(s->zocket);
-	uint64_t now = time_ms();
-	if(strcmp(pdu_type(pdu), "BEACON") == 0) {
-		char *st;
-		st = pdu_string(pdu, 1); uint64_t       ts = strtoul(st, NULL, 10); free(st);
-		st = pdu_string(pdu, 2); uint32_t interval = strtol (st, NULL, 10); free(st);
-		/* latency modeled as:
-		 *   Now + Travel Time (Difference) / Now
-		 *   Now + ( Now - Sendtime ) / Now
-		 *   2 - (Sendtime / Now)
-		 */
-		float latency   = 2 - ts / now ;
-		s->hb->interval = interval;
-		s->hb->backoff  = latency;
-		s->expires      = latency * (interval + time_ms());
-		if (s->reconnects > 0)
-			s->reconnects--;
-		hb_ping(s->hb);
-	} else {
-		logger(LOG_ERR, "unsupported pdu type (%s) recieved from beacon (%s)", pdu_type(pdu), OPTIONS.beacon);
+	unsigned int zmq_events;
+	size_t       zmq_events_size = sizeof(zmq_events);
+	uint64_t     now             = time_ms();
+
+	zmq_getsockopt(s->zocket, ZMQ_EVENTS, &zmq_events, &zmq_events_size);
+	while (zmq_events & ZMQ_POLLIN) {
+		logger(LOG_DEBUG, "recieved beacon from %s", OPTIONS.beacon, now);
+		pdu_t *pdu = pdu_recv(s->zocket);
+		if(strcmp(pdu_type(pdu), "BEACON") == 0) {
+			char *st;
+			st = pdu_string(pdu, 1); uint64_t       ts = strtoul(st, NULL, 10); free(st);
+			st = pdu_string(pdu, 2); uint32_t interval = strtol (st, NULL, 10); free(st);
+			/* latency modeled as:
+			 *   Now + Travel Time (Difference) / Now
+			 *   Now + ( Now - Sendtime ) / Now
+			 *   2 - (Sendtime / Now)
+			 */
+			float latency   = 2 - ts / now ;
+			s->hb->interval = interval;
+			s->hb->backoff  = latency;
+			s->expires      = latency * (interval + time_ms());
+			if (s->reconnects > 0)
+				s->reconnects--;
+			hb_ping(s->hb);
+		} else {
+			logger(LOG_ERR, "unsupported pdu type (%s) recieved from beacon (%s)", pdu_type(pdu), OPTIONS.beacon);
+		}
+		pdu_free(pdu);
+		zmq_getsockopt(s->zocket, ZMQ_EVENTS, &zmq_events, &zmq_events_size);
 	}
 } /* }}} */
 
@@ -334,7 +386,30 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			break;
+			printf("%s v%s\n", argv[0], BOLO_VERSION);
+			printf("Usage: %s [-h?FVv] [-e tcp://host:port]\n"
+			       "          [-s splay] [-c /path/to/commands]\n"
+			       "          [-b tcp://host:port] [-r reconnects] [-t timeout]\n"
+			       "          [-u user] [-g group] [-p /path/to/pidfile]\n\n",
+			         argv[0]);
+
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -F, --foreground     don't daemonize, stay in the foreground\n");
+			printf("  -q, --quiet          \n");
+			printf("  -v, --verbose        turn on debugging, to standard error\n");
+			printf("  -e, --endpoint       bolo listener endpoint to connect to\n");
+			printf("  -c, --commands       file path containing the commands to run\n");
+			printf("  -s, --splay          randomization factor for scheduling commands\n");
+
+			printf("  -b, --beacon         the beacon endpoint to subscribe to\n");
+			printf("  -r, --reconnects     the maximum number of beacon beacons \n");
+			printf("  -t, --timeout        the maximum wait time between beacons\n");
+
+			printf("  -u, --user           user to run as (if daemonized)\n");
+			printf("  -g, --group          group to run as (if daemonized)\n");
+			printf("  -p, --pidfile        where to store the pidfile (if daemonized)\n");
+			exit(0);
 
 		case 'v':
 			OPTIONS.verbose++;
@@ -427,6 +502,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	socket_t *sock = s_socket(zmq, OPTIONS.endpoint, AGENT_SOCKET_LIFETIME_MS);
+	s_reconnect(sock);
 
 	LIST(COMMANDS);
 	if (s_parse(&COMMANDS, OPTIONS.commands) != 0)
@@ -441,38 +517,17 @@ int main(int argc, char **argv)
 	struct epoll_event ev, events[BOLO_EPOLL_MAXFD];
 	memset(&ev, 0, sizeof(ev));
 
-	/* Beacon Socket {{{ */
-	int beacon_fd;
 	bsocket_t *bsock = vmalloc(sizeof(bsocket_t));
 	if (OPTIONS.beacon) {
-		bsock = beacon_socket(zmq, OPTIONS.beacon, 60000);
-		bsock->zocket      = zmq_socket(bsock->zmq, ZMQ_SUB);
-		size_t fd_len = sizeof(beacon_fd);
-		if (hb_init(bsock->hb, OPTIONS.timeout / 5, 5, 1.1, OPTIONS.timeout)) {
-			logger(LOG_INFO, "initializing beacon(%s)", OPTIONS.beacon);
-			return 2;
-		}
-		if (zmq_getsockopt(bsock->zocket, ZMQ_FD, &beacon_fd, &fd_len) != 0) {
-			logger(LOG_ERR, "unable to get beacon fd: %s", strerror(errno));
-			return 2;
-		}
-		if (zmq_connect(bsock->zocket, OPTIONS.beacon) != 0) {
-			logger(LOG_ERR, "unable to connect to beacon endpoint (%s): %s", OPTIONS.beacon, strerror(errno));
-			return 2;
-		}
-		ev.data.fd = beacon_fd;
-		ev.events  = EPOLLIN | EPOLLET;
-		if (epoll_ctl(epfd, EPOLL_CTL_ADD, beacon_fd, &ev) != 0) {
-			logger(LOG_ERR, "epoll_ctl beacon_fd failed: %s", strerror(errno));
-			exit(2);
-		}
+		bsock = beacon_socket(zmq, OPTIONS.beacon, 60000, epfd, &ev);
+		if (hb_init(bsock->hb, OPTIONS.timeout / 5, 5, 1.1, OPTIONS.timeout))
+			logger(LOG_INFO, "initializing beacon(%s) hb_t", OPTIONS.beacon);
+		beacon_connect(bsock);
 	} else
 		logger(LOG_INFO, "disabling beaconing, no beacon endpoint given");
-	/* }}} */
 
 	for (;;) {
 		int i, n;
-		n = epoll_wait(epfd, events, BOLO_EPOLL_MAXFD, AGENT_TICK_MS);
 
 		uint64_t now = time_ms();
 		now = now - now % 1000;
@@ -483,12 +538,10 @@ int main(int argc, char **argv)
 
 		if (OPTIONS.beacon)
 			beacon_timer(bsock, sock);
-		else
-			s_reconnect(sock);
 
 		for (i = 0; i < n; i++) {
 			if (events[i].events & EPOLLIN) {
-				if (OPTIONS.beacon && events[i].data.fd == beacon_fd) {
+				if (OPTIONS.beacon && events[i].data.fd == bsock->bfd) {
 					beacon_ping(bsock);
 					continue;
 				}
@@ -549,6 +602,7 @@ int main(int argc, char **argv)
 				logger(LOG_INFO, "child %i executing `%s`", cmd->pid, cmd->exec);
 			}
 		}
+		n = epoll_wait(epfd, events, BOLO_EPOLL_MAXFD, AGENT_TICK_MS);
 	}
 	return 0;
 }
