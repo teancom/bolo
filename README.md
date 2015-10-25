@@ -130,6 +130,27 @@ Writing subscribers isn't that difficult, and provides an
 interesting way of customizing the behavior of your monitoring
 system without needing to modify bolo itself.
 
+Notes On Production Environments
+--------------------------------
+
+If you're into [BOSH][bosh] for your infrastructure, we have a
+[bolo-boshrelease][boshrel] you can check out!
+
+If you are operating inside of a more traditional server-centric
+environment, running on either Debian / Ubuntu or CentOS, you can
+take advantage of pre-built packages for bolo and it's
+dependencies, hosted on [packagecloud][pkgcloud].
+
+For Debian/Ubuntu:
+
+    $ curl -s https://packagecloud.io/install/repositories/bolo/bolo/script.deb.sh | sudo bash
+    $ sudo apt-get install bolo dbolo bolo-collectors
+
+For CentOS:
+
+    $ curl -s https://packagecloud.io/install/repositories/bolo/bolo/script.rpm.sh | sudo bash
+    $ sudo yum install bolo dbolo bolo-collectors
+
 Next Steps
 ----------
 
@@ -145,4 +166,8 @@ images via cron and serve them up statically.
 
 [ctap]:       https://github.com/filefrog/ctap
 [libvigor]:   https://github.com/filefrog/libvigor
-[collectors]: https://github.com/filefrog/bolo-collectors
+[collectors]: https://github.com/bolo/bolo-collectors
+[boshrel]:    https://github.com/bolo/bolo-bosh-release
+
+[bosh]:       http://bosh.io
+[pkgcloud]:   http://packagecloud.io
