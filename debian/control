@@ -5,8 +5,7 @@ Maintainer: James Hunt <james@jameshunt.us>
 Homepage: https://github.com/filefrog/bolo
 Standards-Version: 3.9.3
 Build-Depends: debhelper (>= 8),
-               libctap,
-               libctap-dev,
+               ctap,
                libpcre3,
                libpcre3-dev,
                libpq-dev,
