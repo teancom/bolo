@@ -167,7 +167,7 @@ images via cron and serve them up statically.
 [ctap]:       https://github.com/filefrog/ctap
 [libvigor]:   https://github.com/filefrog/libvigor
 [collectors]: https://github.com/bolo/bolo-collectors
-[boshrel]:    https://github.com/bolo/bolo-bosh-release
+[boshrel]:    https://github.com/bolo/bolo-boshrelease
 
 [bosh]:       http://bosh.io
 [pkgcloud]:   http://packagecloud.io
