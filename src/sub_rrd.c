@@ -879,6 +879,8 @@ int main(int argc, char **argv) /* {{{ */
 
 		char *submit_to;
 		char *prefix;
+
+		char *cached;
 	} OPTIONS = {
 		.verbose   = 0,
 		.endpoint  = strdup("tcp://127.0.0.1:2997"),
@@ -892,6 +894,7 @@ int main(int argc, char **argv) /* {{{ */
 		.creators  = 2,
 		.updaters  = 8,
 		.prefix    = NULL, /* will be set later, if needed */
+		.cached    = NULL, /* set the environ if switch is envoked */
 	};
 
 	struct option long_opts[] = {
@@ -987,7 +990,7 @@ int main(int argc, char **argv) /* {{{ */
 			break;
 
 		case 'C':
-			setenv("RRDCACHED_ADDRESS", optarg, 1);
+			OPTIONS.cached = strdup(optarg);
 			break;
 
 		case 'U':
@@ -1045,6 +1048,8 @@ int main(int argc, char **argv) /* {{{ */
 	}
 	logger(LOG_NOTICE, "starting up");
 
+	if (OPTIONS.cached)
+		setenv("RRDCACHED_ADDRESS", OPTIONS.cached, 1);
 
 	void *zmq = zmq_ctx_new();
 	if (!zmq) {
