@@ -200,6 +200,7 @@ int main(int argc, char **argv)
 					if (reply->type == REDIS_REPLY_ERROR) {
 						logger(LOG_ERR, "received error from redis: %s", reply->str);
 					}
+					freeReplyObject(reply);
 
 					free(k);
 					free(v);
