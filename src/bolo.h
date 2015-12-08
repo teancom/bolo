@@ -64,6 +64,8 @@
 #define DEFAULT_KEYSFILE     "/var/lib/bolo/keys.db"
 #define DEFAULT_GRACE_PERIOD 15
 #define DEFAULT_SWEEP        60
+#define DEFAULT_SAVE_SIZE     4
+#define DEFAULT_SAVE_INTERVAL 15
 
 #define KERNEL_ENDPOINT "inproc://kernel"
 
@@ -202,6 +204,8 @@ typedef struct {
 		char     *savefile;
 		char     *keysfile;
 
+		int       save_size;
+
 		int       interval;
 		int       events_max;
 		int       events_keep;
@@ -219,8 +223,11 @@ typedef struct {
 
 #define probable(f) (rand() * 1.0 / RAND_MAX <= (f))
 
-int binf_write(db_t *db, const char *file);
-int binf_read(db_t *db, const char *file);
+/* write to the mmap memory space */
+int binf_write(db_t *db, const char *file, int db_size);
+int binf_read(db_t *db, const char *file, int db_size);
+/* force a flush to disk of the mmap save file */
+int binf_sync(const char *file, int db_size);
 
 int configure(const char *path, server_t *s);
 int deconfigure(server_t *s);

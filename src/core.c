@@ -549,7 +549,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			kernel->savestate.last = now;
 
 			broadcast_setkeys(kernel);
-			binf_write(&kernel->server->db, kernel->server->config.savefile);
+			binf_write(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size);
 			save_keys(&kernel->server->keys, kernel->server->config.keysfile);
 		}
 
@@ -726,7 +726,8 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		/* }}} */
 		/* [ SAVESTATE ] {{{ */
 		if (_pdu_is(pdu, "SAVESTATE", 1, 1)) {
-			binf_write(&kernel->server->db, kernel->server->config.savefile);
+			binf_write(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size);
+			binf_sync(kernel->server->config.savefile, kernel->server->config.save_size);
 			save_keys(&kernel->server->keys, kernel->server->config.keysfile);
 
 			pdu_send_and_free(pdu_reply(pdu, "OK", 0), socket);
@@ -953,7 +954,7 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 	kernel->sweep.interval = server->interval.sweep;
 
 	if (kernel->server->config.savefile) {
-		if (binf_read(&kernel->server->db, kernel->server->config.savefile) != 0) {
+		if (binf_read(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size) != 0) {
 			logger(LOG_WARNING, "kernel failed to read state from %s: %s",
 					kernel->server->config.savefile, strerror(errno));
 		}

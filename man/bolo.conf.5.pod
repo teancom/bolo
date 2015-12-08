@@ -72,6 +72,16 @@ B<bolo> will periodically save its state, counter, sample and event
 data to this file, to avoid data loss in the event of application
 or host outages.
 
+=item B<save.interval> 15
+
+The amount of time in seconds between which B<bolo> save it's state
+to disk.
+
+=item B<save.size> 4
+
+The amount of memory in megabytes to allocate to the memory mapped
+save file.
+
 =item B<keysfile> /var/lib/bolo/keys.db
 
 The keysfile is like the savefile, except that user-provided configuration
