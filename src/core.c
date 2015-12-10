@@ -952,7 +952,8 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 
 	/* set the sweep struct interval */
 	kernel->sweep.interval = server->interval.sweep;
-
+	/* set the savestate interval */
+	kernel->savestate.interval = server->interval.savestate;
 	if (kernel->server->config.savefile) {
 		if (binf_read(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size) != 0) {
 			logger(LOG_WARNING, "kernel failed to read state from %s: %s",
