@@ -1,4 +1,5 @@
 #include "bolo.h"
+#include <sys/mman.h>
 
 #define RECORD_TYPE_MASK  0x000f
 #define RECORD_TYPE_STATE    0x1
@@ -82,7 +83,7 @@ static uint64_t ntohll(uint64_t x)
 	return h.u64;
 }
 
-static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
+static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 {
 	binf_record_t record;
 	union {
@@ -100,7 +101,6 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		event_t   *event;
 		rate_t    *rate;
 	} payload;
-	size_t n, want, so_far = 0;
 	const char *s;
 
 	payload.unknown = _;
@@ -139,16 +139,15 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		return -1;
 	}
 
-	if (len)
-		*len = record.len;
+	#define _cpybin(addr,obj,idx,size) \
+		memcpy(addr + idx, obj, size); \
+		idx += size;
 
 	record.len   = htons(record.len);
 	record.flags = htons(type);
 
-	n = write(fd, &record, sizeof(record));
-	so_far += n;
-	if (n != sizeof(record))
-		return n;
+	memcpy(addr + *len, &record, sizeof(record));
+	*len += sizeof(record);
 
 	switch (type) {
 	case RECORD_TYPE_STATE:
@@ -156,25 +155,13 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		body.state.status    = payload.state->status;
 		body.state.stale     = payload.state->stale;
 
-		n = write(fd, &body.state, want = sizeof(body.state));
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, &body.state, *len, sizeof(body.state))
 
 		s = payload.state->name;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		s = payload.state->summary;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		break;
 
@@ -182,16 +169,10 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		body.counter.last_seen = htonl(payload.counter->last_seen);
 		body.counter.value     = htonll(payload.counter->value);
 
-		n = write(fd, &body.counter, want = sizeof(body.counter));
-		so_far += n;
-		if (n != want)
-			return so_far;
+		_cpybin(addr, &body.counter, *len, sizeof(body.counter))
 
 		s = payload.counter->name;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		break;
 
@@ -206,41 +187,23 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		body.sample.var       = htonl(payload.sample->var);
 		body.sample.var_      = htonl(payload.sample->var_);
 
-		n = write(fd, &body.sample, sizeof(body.sample));
-		so_far += n;
-		if (n != sizeof(body.sample))
-			return so_far;
+		_cpybin(addr, &body.sample, *len, sizeof(body.sample))
 
 		s = payload.sample->name;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		break;
 
 	case RECORD_TYPE_EVENT:
 		body.event.timestamp = htonl(payload.event->timestamp);
 
-		n = write(fd, &body.event, want = sizeof(body.event));
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, &body.event, *len, sizeof(body.event))
 
 		s = payload.event->name;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		s = payload.event->extra;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		break;
 
@@ -250,18 +213,10 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		body.rate.first      = htonll(payload.rate->first);
 		body.rate.last       = htonll(payload.rate->last);
 
-		n = write(fd, &body.rate, want = sizeof(body.rate));
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, &body.rate, *len, sizeof(body.rate))
 
 		s = payload.rate->name;
-		n = write(fd, s, want = strlen(s) + 1);
-		so_far += n;
-		if (n != want) logger(LOG_CRIT, "wanted %i / got %i", want, n);
-		if (n != want)
-			return so_far;
+		_cpybin(addr, s, *len, strlen(s) + 1)
 
 		break;
 
@@ -269,10 +224,11 @@ static int s_write_record(int fd, ssize_t *len, uint8_t type, void *_)
 		return -1;
 	}
 
+	#undef _cpybin
 	return 0;
 }
 
-static int s_read_record(int fd, uint8_t *type, void **r)
+static int s_read_record(void *addr, size_t *len, uint8_t *type, void **r)
 {
 	binf_record_t record;
 	union {
@@ -290,12 +246,11 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		event_t   *event;
 		rate_t    *rate;
 	} payload;
-	ssize_t n, want;
+	ssize_t want;
 	char *buf, *p;
 
-	n = read(fd, &record, sizeof(record));
-	if (n != sizeof(record))
-		return 1;
+	memcpy(&record, addr + *len, sizeof(record));
+	*len += sizeof(record);
 
 	record.len   = ntohs(record.len);
 	record.flags = ntohs(record.flags);
@@ -308,11 +263,8 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		if (!payload.state)
 			return 1;
 
-		n = read(fd, &body.state, want = sizeof(body.state));
-		if (n != want) {
-			free(payload.state);
-			return 1;
-		}
+		memcpy(&body.state, addr + *len, sizeof(body.state));
+		*len += sizeof(body.state);
 
 		payload.state->last_seen = ntohl(body.state.last_seen);
 		payload.state->status    = body.state.status;
@@ -321,13 +273,9 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		want = record.len - sizeof(record) - sizeof(body.state);
 		buf = vmalloc(want+1);
 
-		n = read(fd, buf, want);
-		if (n != want) {
-			free(payload.state);
-			free(buf);
-			return 1;
-		}
-		buf[n] = '\0';
+		memcpy(buf, addr + *len, want);
+		*len += want;
+		buf[want] = '\0';
 		for (p = buf; *p++; );
 		if (p - buf + 1 == want) {
 			free(payload.state);
@@ -345,11 +293,8 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		if (!payload.counter)
 			return 1;
 
-		n = read(fd, &body.counter, want = sizeof(body.counter));
-		if (n != want) {
-			free(payload.counter);
-			return 1;
-		}
+		memcpy(&body.counter, addr + *len,  sizeof(body.counter));
+		*len += sizeof(body.counter);
 
 		payload.counter->last_seen = ntohl(body.counter.last_seen);
 		payload.counter->value     = ntohll(body.counter.value);
@@ -357,13 +302,9 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		want = record.len - sizeof(record) - sizeof(body.counter);
 		buf = vmalloc(want+1);
 
-		n = read(fd, buf, want);
-		if (n != want) {
-			free(payload.counter);
-			free(buf);
-			return 1;
-		}
-		buf[n] = '\0';
+		memcpy(buf, addr + *len, want);
+		*len += want;
+		buf[want] = '\0';
 		payload.counter->name = strdup(buf);
 		free(buf);
 
@@ -373,11 +314,8 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 	case RECORD_TYPE_SAMPLE:
 		payload.sample = calloc(1, sizeof(sample_t));
 
-		n = read(fd, &body.sample, want = sizeof(body.sample));
-		if (n != want) {
-			free(payload.sample);
-			return 1;
-		}
+		memcpy(&body.sample, addr + *len, sizeof(body.sample));
+		*len += sizeof(body.sample);
 
 		payload.sample->last_seen = ntohl(body.sample.last_seen);
 		payload.sample->n         = ntohll(body.sample.n);
@@ -392,13 +330,9 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		want = record.len - sizeof(record) - sizeof(body.sample);
 		buf = vmalloc(want+1);
 
-		n = read(fd, buf, want);
-		if (n != want) {
-			free(payload.sample);
-			free(buf);
-			return 1;
-		}
-		buf[n] = '\0';
+		memcpy(buf, addr + *len, want);
+		*len += want;
+		buf[want] = '\0';
 		payload.sample->name = strdup(buf);
 		free(buf);
 
@@ -410,23 +344,16 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		if (!payload.event)
 			return 1;
 
-		n = read(fd, &body.event, want = sizeof(body.event));
-		if (n != want) {
-			free(payload.event);
-			return 1;
-		}
+		memcpy(&body.event, addr + *len, sizeof(body.event));
+		*len += sizeof(body.event);
 
 		payload.event->timestamp = ntohl(body.event.timestamp);
 		want = record.len - sizeof(record) - sizeof(body.event);
 		buf = vmalloc(want+1);
 
-		n = read(fd, buf, want);
-		if (n != want) {
-			free(payload.event);
-			free(buf);
-			return 1;
-		}
-		buf[n] = '\0';
+		memcpy(buf, addr + *len, want);
+		*len += want;
+		buf[want] = '\0';
 		for (p = buf; *p++; );
 		if (p - buf + 1 == want) {
 			free(payload.event);
@@ -445,11 +372,8 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		if (!payload.rate)
 			return 1;
 
-		n = read(fd, &body.rate, want = sizeof(body.rate));
-		if (n != want) {
-			free(payload.rate);
-			return 1;
-		}
+		memcpy(&body.rate, addr + *len, sizeof(body.rate));
+		*len += sizeof(body.rate);
 
 		payload.rate->first_seen = ntohl(body.rate.first_seen);
 		payload.rate->last_seen  = ntohl(body.rate.last_seen);
@@ -459,13 +383,9 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 		want = record.len - sizeof(record) - sizeof(body.rate);
 		buf = vmalloc(want+1);
 
-		n = read(fd, buf, want);
-		if (n != want) {
-			free(payload.rate);
-			free(buf);
-			return 1;
-		}
-		buf[n] = '\0';
+		memcpy(buf, addr + *len, want);
+		*len += want;
+		buf[want] = '\0';
 		for (p = buf; *p++; );
 		if (p - buf + 1 == want) {
 			free(payload.rate);
@@ -485,7 +405,7 @@ static int s_read_record(int fd, uint8_t *type, void **r)
 	return 1;
 }
 
-int binf_write(db_t *db, const char *file)
+int binf_write(db_t *db, const char *file, int db_size)
 {
 	binf_header_t header;
 
@@ -496,10 +416,11 @@ int binf_write(db_t *db, const char *file)
 	rate_t   *rate;
 
 	char *name;
-	int i, n;
-	ssize_t len;
+	void *addr;
+	int i;
+	size_t so_far = 0;
 
-	int fd = open(file, O_WRONLY|O_CREAT|O_TRUNC, 0640);
+	int fd = open(file, O_RDWR|O_CREAT|O_TRUNC, 0640);
 	if (fd < 0) {
 		logger(LOG_ERR, "kernel failed to open save file %s for writing: %s",
 				file, strerror(errno));
@@ -522,84 +443,61 @@ int binf_write(db_t *db, const char *file)
 	for_each_key_value(&db->rates,    name, rate)    header.count++;
 	header.count = htonl(header.count);
 
-	logger(LOG_INFO, "writing %i bytes for the binary file header", sizeof(header));
-	n = write(fd, &header, sizeof(header));
-	if (n != sizeof(header)) {
-		logger(LOG_ERR, "only wrote %i of %i bytes for the savefile header; %s is probably corrupt now",
-			n, sizeof(header), file);
+	if((lseek(fd, db_size * 1024 * 1024, SEEK_SET)) == -1) {
+		logger(LOG_ERR, "failed to seek to the end of the savedb: %s, error: %s", file, strerror(errno));
 		close(fd);
 		return -1;
 	}
+	if((ftruncate(fd, db_size * 1024 * 1024)) == -1) {
+		logger(LOG_ERR, "failed to write to save file %s end: %s", file, strerror(errno));
+		close(fd);
+		return -1;
+	}
+	addr = mmap(NULL, db_size * 1024 * 1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	if (addr == MAP_FAILED) {
+		logger(LOG_ERR, "failed to allocate mmap %s, for writing: %s", file, strerror(errno));
+		return -1;
+	}
+
+	logger(LOG_INFO, "writing %i bytes for the binary file header", sizeof(header));
+	memcpy(addr + so_far, &header, sizeof(header));
+	so_far += sizeof(header);
+
 	i = 1;
 	for_each_key_value(&db->states, name, state) {
-		n = s_write_record(fd, &len, RECORD_TYPE_STATE, state);
-		if (n != 0) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for state record #%i (%s); savefile %s is probably corrupt now",
-				n, len, i, name, file);
-			close(fd);
-			return -1;
-		}
-		logger(LOG_INFO, "wrote %i bytes for counter record #%i (%s)", len, i, name);
+		s_write_record(addr, &so_far, RECORD_TYPE_STATE, state);
+		logger(LOG_INFO, "wrote bytes for state record #%i (%s), index = %i", i, name, so_far);
 		i++;
 	}
 	for_each_key_value(&db->counters, name, counter) {
-		n = s_write_record(fd, &len, RECORD_TYPE_COUNTER, counter);
-		if (n != 0) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for counter record #%i (%s); savefile %s is probably corrupt now",
-				n, len, i, name, file);
-			close(fd);
-			return -1;
-		}
-		logger(LOG_INFO, "wrote %i bytes for counter record #%i (%s)", len, i, name);
+		s_write_record(addr, &so_far, RECORD_TYPE_COUNTER, counter);
+		logger(LOG_INFO, "wrote bytes for counter record #%i (%s), index = %i", i, name, so_far);
 		i++;
 	}
 	for_each_key_value(&db->samples, name, sample) {
-		n = s_write_record(fd, &len, RECORD_TYPE_SAMPLE, sample);
-		if (n != 0) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for samples record #%i (%s); savefile %s is probably corrupt now",
-				n, len, i, name, file);
-			close(fd);
-			return -1;
-		}
-		logger(LOG_INFO, "wrote %i bytes for samples record #%i (%s)", len, i, name);
+		s_write_record(addr, &so_far, RECORD_TYPE_SAMPLE, sample);
+		logger(LOG_INFO, "wrote bytes for sample record #%i (%s), index = %i", i, name, so_far);
 		i++;
 	}
 	event_t *ev;
 	for_each_object(ev, &db->events, l) {
-		n = s_write_record(fd, &len, RECORD_TYPE_EVENT, ev);
-		if (n != 0) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for event record #%i (%s); savefile %s is probably corrupt now",
-				n, len, i, ev->name, file);
-			close(fd);
-			return -1;
-		}
-		logger(LOG_INFO, "wrote %i bytes for event record #%i (%s)", len, i, ev->name);
+		s_write_record(addr, &so_far, RECORD_TYPE_EVENT, ev);
+		logger(LOG_INFO, "wrote bytes for event record #%i (%s), index = %i", i, name, so_far);
 		i++;
 	}
 	for_each_key_value(&db->rates, name, rate) {
-		n = s_write_record(fd, &len, RECORD_TYPE_RATE, rate);
-		if (n != 0) {
-			logger(LOG_ERR, "only wrote %i of %i bytes for rate record #%i (%s); savefile %s is probably corrupt now",
-				n, len, i, name, file);
-			close(fd);
-			return -1;
-		}
-		logger(LOG_INFO, "wrote %i bytes for rate record #%i (%s)", len, i, name);
+		s_write_record(addr, &so_far, RECORD_TYPE_RATE, rate);
+		logger(LOG_INFO, "wrote bytes for rate record #%i (%s), index = %i", i, name, so_far);
 		i++;
 	}
-	n = write(fd, "\0\0", 2);
-	if (n != 2) {
-		logger(LOG_ERR, "failed to write trailer bytes; savefile %s is probably corrupt now",
-			file);
-		close(fd);
-		return -1;
-	}
+	memcpy(addr + so_far, "\0\0", 2);
+
 	logger(LOG_INFO, "done writing savefile %s", file);
 	close(fd);
 	return 0;
 }
 
-int binf_read(db_t *db, const char *file)
+int binf_read(db_t *db, const char *file, int db_size)
 {
 	binf_header_t header;
 	union {
@@ -610,8 +508,10 @@ int binf_read(db_t *db, const char *file)
 		event_t   *event;
 		rate_t    *rate;
 	} payload, found;
-	unsigned int i, n;
+	unsigned int i;
 	uint8_t type;
+	void *addr;
+	size_t so_far = 0;
 
 	int fd = open(file, O_RDONLY);
 	if (fd < 0) {
@@ -619,18 +519,20 @@ int binf_read(db_t *db, const char *file)
 			file, strerror(errno));
 		return -1;
 	}
-
-	logger(LOG_NOTICE, "reading state db from savefile %s", file);
-	n = read(fd, &header, sizeof(header));
-	if (n < 4 || memcmp(&header.magic, "BOLO", 4) != 0) {
-		logger(LOG_ERR, "%s does not seem to be a bolo savefile", file);
-		close(fd);
+	addr = mmap(NULL,
+		    db_size * 1024 * 1024,
+		    PROT_READ, MAP_SHARED, fd, 0);
+	if (addr == MAP_FAILED) {
+		logger(LOG_ERR, "failed to allocate mmap %s, for reading: %s", file, strerror(errno));
 		return -1;
 	}
 
-	if (n != sizeof(header)) {
-		logger(LOG_ERR, "%s: invalid header size %i (expected %u)",
-			file, n, sizeof(header));
+	logger(LOG_NOTICE, "reading state db from savefile %s", file);
+	memcpy(&header, addr, sizeof(header));
+	so_far += sizeof(header);
+
+	if (memcmp(&header.magic, "BOLO", 4) != 0) {
+		logger(LOG_ERR, "%s does not seem to be a bolo savefile", file);
 		close(fd);
 		return -1;
 	}
@@ -653,7 +555,7 @@ int binf_read(db_t *db, const char *file)
 	for (i = 1; i <= header.count; i++) {
 		logger(LOG_INFO, "reading record #%i from savefile", i);
 
-		if (s_read_record(fd, &type, &payload.unknown) != 0) {
+		if (s_read_record(addr, &so_far, &type, &payload.unknown) != 0) {
 			logger(LOG_ERR, "%s: failed to read all of record #%i", file, i);
 			close(fd);
 			return -1;
@@ -738,14 +640,37 @@ int binf_read(db_t *db, const char *file)
 		}
 	}
 	char trailer[2] = { 1 };
-	n = read(fd, trailer, 2);
-	if (n != 2 || trailer[0] || trailer[1]) {
+	memcpy(trailer, addr + so_far, 2);
+	if (trailer[0] || trailer[1]) {
 		logger(LOG_ERR, "no savefile trailer found!");
 		close(fd);
 		return 1;
 	}
 
 	logger(LOG_INFO, "done reading savefile %s", file);
+	close(fd);
+	return 0;
+}
+
+int binf_sync(const char *file, int db_size)
+{
+	int fd = open(file, O_RDWR);
+	if (fd < 0) {
+		logger(LOG_ERR, "kernel failed to open %s for reading: %s",
+			file, strerror(errno));
+		return -1;
+	}
+
+	void *addr = mmap(NULL, db_size * 1024 * 1024, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+	if (addr == MAP_FAILED) {
+		logger(LOG_ERR, "failed to allocate mmap %s for syncing: %s", file, strerror(errno));
+		return -1;
+	}
+	if((msync(addr, db_size * 1024 * 1024, MS_ASYNC)) == -1) {
+		logger(LOG_ERR, "failed to sync mmap %s: %s", file, strerror(errno));
+		return -1;
+	}
+	logger(LOG_NOTICE, "successfully synced state %s to disk", file);
 	close(fd);
 	return 0;
 }
