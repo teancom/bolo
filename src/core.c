@@ -53,6 +53,7 @@ typedef struct {
 #define min(a,b) ((a) < (b) ? (a) : (b))
 
 static void broadcast_state(kernel_t*, state_t*);
+static void broadcast_setkeys(kernel_t*);
 static void broadcast_transition(kernel_t*, state_t*);
 static void broadcast_event(kernel_t*, event_t*);
 static void broadcast_counter(kernel_t *kernel, counter_t *counter);
@@ -88,6 +89,29 @@ static void broadcast_state(kernel_t *kernel, state_t *state) /* {{{ */
 	pdu_extendf(p, "%s",  statstr(state->status));
 	pdu_extendf(p, "%s",  state->summary);
 	pdu_send_and_free(p, kernel->broadcast);
+}
+/* }}} */
+static void broadcast_setkeys(kernel_t *kernel) /* {{{ */
+{
+	pdu_t *pdu = pdu_make("SET.KEYS", 0);
+	int n = 0;
+	char *key, *value;
+	for_each_key_value(&kernel->server->keys, key, value) {
+		if (!value) continue;
+		pdu_extendf(pdu, "%s", key);
+		pdu_extendf(pdu, "%s", value);
+		n++;
+		if (n == 30) {
+			logger(LOG_INFO, "broadcasting [SET.KEYS] data");
+			pdu_send_and_free(pdu, kernel->broadcast);
+			pdu = pdu_make("SET.KEYS", 0);
+			n = 0;
+		}
+	}
+	if (n > 0)
+		pdu_send_and_free(pdu, kernel->broadcast);
+	else
+		pdu_free(pdu);
 }
 /* }}} */
 static void broadcast_transition(kernel_t *kernel, state_t *state) /* {{{ */
@@ -524,7 +548,8 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		if (kernel->savestate.last + kernel->savestate.interval < now) {
 			kernel->savestate.last = now;
 
-			binf_write(&kernel->server->db, kernel->server->config.savefile);
+			broadcast_setkeys(kernel);
+			binf_write(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size);
 			save_keys(&kernel->server->keys, kernel->server->config.keysfile);
 		}
 
@@ -701,7 +726,8 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		/* }}} */
 		/* [ SAVESTATE ] {{{ */
 		if (_pdu_is(pdu, "SAVESTATE", 1, 1)) {
-			binf_write(&kernel->server->db, kernel->server->config.savefile);
+			binf_write(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size);
+			binf_sync(kernel->server->config.savefile, kernel->server->config.save_size);
 			save_keys(&kernel->server->keys, kernel->server->config.keysfile);
 
 			pdu_send_and_free(pdu_reply(pdu, "OK", 0), socket);
@@ -926,9 +952,10 @@ int core_kernel_thread(void *zmq, server_t *server) /* {{{ */
 
 	/* set the sweep struct interval */
 	kernel->sweep.interval = server->interval.sweep;
-
+	/* set the savestate interval */
+	kernel->savestate.interval = server->interval.savestate;
 	if (kernel->server->config.savefile) {
-		if (binf_read(&kernel->server->db, kernel->server->config.savefile) != 0) {
+		if (binf_read(&kernel->server->db, kernel->server->config.savefile, kernel->server->config.save_size) != 0) {
 			logger(LOG_WARNING, "kernel failed to read state from %s: %s",
 					kernel->server->config.savefile, strerror(errno));
 		}

@@ -23,9 +23,12 @@
 #include <signal.h>
 #include <getopt.h>
 #include <rrd.h>
+#include <rrd_client.h>
 #include <assert.h>
 
 /**************************/
+
+static char *CACHED = NULL;
 
 typedef struct {
 	char *parents[2];      /* absolute paths to the two parent directories */
@@ -511,8 +514,13 @@ static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 #endif
 
 				rrd_clear_error();
-				rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
-					args->num, (const char **)args->strings);
+				if (CACHED && ! rrdc_is_connected(CACHED)) {
+					rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
+						args->num, (const char **)args->strings);
+				} else {
+					rc = rrdc_create_r2(file, 60, time_s() - 365 * 86400,
+						0, NULL, NULL, args->num, (const char **)args->strings);
+				}
 				if (rc != 0)
 					logger(LOG_WARNING, "creator[%i] rrdcreate %s %s failed: %s",
 						creator->id, type, file, rrd_get_error());
@@ -547,14 +555,23 @@ static void * _creator_thread(void *_) /* {{{ */
 
 	creator_t *creator = (creator_t*)_;
 
+	int id = creator->id;
+
+	rrd_get_context();
+	if (CACHED && ! rrdc_is_connected(CACHED) && rrdc_connect(CACHED) != 0)
+		logger(LOG_WARNING, "creator[%i]: failed to connect to cache daemon (%s): %s",
+			id, CACHED, rrd_get_error());
+
 	reactor_go(creator->reactor);
 
-	int id = creator->id;
 	logger(LOG_DEBUG, "creator[%i]: shutting down", id);
 
 	zmq_close(creator->control);
 	zmq_close(creator->monitor);
 	zmq_close(creator->queue);
+
+	if (CACHED && rrdc_is_connected(CACHED))
+		rrdc_disconnect();
 
 	reactor_free(creator->reactor);
 
@@ -723,7 +740,11 @@ static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 						updater->id, type, file, argv[0]);
 #endif
 				rrd_clear_error();
-				rc = rrd_update_r(file, NULL, 1, (const char **)argv);
+				if (CACHED && ! rrdc_is_connected(CACHED)) {
+					rc = rrd_update_r(file, NULL, 1, (const char **)argv);
+				} else {
+					rc = rrdc_update(file, 1, (const char **)argv);
+				}
 				if (rc != 0)
 					logger(LOG_WARNING, "updater[%i] rrdupdate %s %s (%s) failed: %s",
 						updater->id, type, file, argv[0], rrd_get_error());
@@ -761,16 +782,23 @@ void * _updater_thread(void *_) /* {{{ */
 
 	updater_t *updater = (updater_t*)_;
 
+	int id = updater->id;
+
 	rrd_get_context();
+	if (CACHED && ! rrdc_is_connected(CACHED) && rrdc_connect(CACHED) != 0)
+		logger(LOG_WARNING, "updater[%i]: failed to connect to cache daemon (%s): %s",
+			id, CACHED, rrd_get_error());
 
 	reactor_go(updater->reactor);
 
-	int id = updater->id;
 	logger(LOG_DEBUG, "updater[%i]: shutting down", id);
 
 	zmq_close(updater->control);
 	zmq_close(updater->monitor);
 	zmq_close(updater->queue);
+
+	if (CACHED && rrdc_is_connected(CACHED))
+		rrdc_disconnect();
 
 	reactor_free(updater->reactor);
 	free(updater);
@@ -987,7 +1015,8 @@ int main(int argc, char **argv) /* {{{ */
 			break;
 
 		case 'C':
-			setenv("RRDCACHED_ADDRESS", optarg, 1);
+			free(CACHED);
+			CACHED = strdup(optarg);
 			break;
 
 		case 'U':

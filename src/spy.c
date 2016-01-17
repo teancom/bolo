@@ -40,12 +40,13 @@ int main(int argc, char **argv)
 	s.config.runas_group  = strdup(DEFAULT_RUNAS_GROUP);
 	s.config.pidfile      = strdup(DEFAULT_PIDFILE);
 	s.config.savefile     = strdup(DEFAULT_SAVEFILE);
+	s.config.save_size    = DEFAULT_SAVE_SIZE;
 
 	if (configure(argv[1], &s) != 0) {
 		perror(argv[1]);
 		return 2;
 	}
-	if (binf_read(&s.db, argv[2]) != 0) {
+	if (binf_read(&s.db, argv[2], s.config.save_size) != 0) {
 		fprintf(stderr, "%s: %s\n", argv[2],
 			errno == 0 ? "corrupt savefile" : strerror(errno));
 		return 2;

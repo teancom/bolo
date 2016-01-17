@@ -41,9 +41,11 @@
 #define T_KEYWORD_KEYSFILE   0x12
 #define T_KEYWORD_MAXEVENTS  0x13
 #define T_KEYWORD_RATE       0x14
-#define T_KEYWORD_GRACE_PERIOD 0x15
-#define T_KEYWORD_BEACON       0x16
-#define T_KEYWORD_SWEEP        0x17
+#define T_KEYWORD_GRACE_PERIOD  0x15
+#define T_KEYWORD_BEACON        0x16
+#define T_KEYWORD_SWEEP         0x17
+#define T_KEYWORD_SAVE_SIZE     0x18
+#define T_KEYWORD_SAVE_INTERVAL 0x19
 
 #define T_OPEN_BRACE           0x80
 #define T_CLOSE_BRACE          0x81
@@ -199,6 +201,8 @@ getline:
 			KEYWORD("use",        USE);
 			KEYWORD("max.events", MAXEVENTS);
 			KEYWORD("grace.period", GRACE_PERIOD);
+			KEYWORD("save.size",      SAVE_SIZE);
+			KEYWORD("save.interval",  SAVE_INTERVAL);
 
 			if (!p->token) {
 				memcpy(p->value, p->buffer, b-p->buffer);
@@ -320,15 +324,15 @@ int configure(const char *path, server_t *s)
 		if (!lex(&p)) break;
 
 		switch (p.token) {
-		case T_KEYWORD_LISTENER:   SERVER_STRING(s->config.listener);    break;
-		case T_KEYWORD_CONTROLLER: SERVER_STRING(s->config.controller);  break;
-		case T_KEYWORD_BROADCAST:  SERVER_STRING(s->config.broadcast);   break;
-		case T_KEYWORD_USER:       SERVER_STRING(s->config.runas_user);  break;
-		case T_KEYWORD_GROUP:      SERVER_STRING(s->config.runas_group); break;
-		case T_KEYWORD_PIDFILE:    SERVER_STRING(s->config.pidfile);     break;
-		case T_KEYWORD_SAVEFILE:   SERVER_STRING(s->config.savefile);    break;
-		case T_KEYWORD_KEYSFILE:   SERVER_STRING(s->config.keysfile);    break;
-		case T_KEYWORD_BEACON:     SERVER_STRING(s->config.beacon);      break;
+		case T_KEYWORD_LISTENER:    SERVER_STRING(s->config.listener);    break;
+		case T_KEYWORD_CONTROLLER:  SERVER_STRING(s->config.controller);  break;
+		case T_KEYWORD_BROADCAST:   SERVER_STRING(s->config.broadcast);   break;
+		case T_KEYWORD_USER:        SERVER_STRING(s->config.runas_user);  break;
+		case T_KEYWORD_GROUP:       SERVER_STRING(s->config.runas_group); break;
+		case T_KEYWORD_PIDFILE:     SERVER_STRING(s->config.pidfile);     break;
+		case T_KEYWORD_SAVEFILE:    SERVER_STRING(s->config.savefile);    break;
+		case T_KEYWORD_KEYSFILE:    SERVER_STRING(s->config.keysfile);    break;
+		case T_KEYWORD_BEACON:      SERVER_STRING(s->config.beacon);      break;
 
 		case T_KEYWORD_DUMPFILES: /* noop */ break;
 
@@ -349,6 +353,18 @@ int configure(const char *path, server_t *s)
 			NEXT;
 			if (p.token != T_NUMBER) { ERROR("Expected numeric sweep value"); }
 			s->interval.sweep = atoi(p.value);
+			break;
+
+		case T_KEYWORD_SAVE_SIZE:
+			NEXT;
+			if (p.token != T_NUMBER) { ERROR("Expected numeric save size value"); }
+			s->config.save_size = atoi(p.value);
+			break;
+
+		case T_KEYWORD_SAVE_INTERVAL:
+			NEXT;
+			if (p.token != T_NUMBER) { ERROR("Expected numeric save period value"); }
+			s->interval.savestate = atoi(p.value);
 			break;
 
 		case T_KEYWORD_NSCAPORT:
