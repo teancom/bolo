@@ -16,7 +16,7 @@ LD_LIBRARY_PATH="${BUILD_PREFIX}/lib"
 export LD_LIBRARY_PATH
 
 # dep: ctap
-git clone --depth 1 git://github.com/filefrog/ctap.git
+git clone --depth 1 git://github.com/jhunt/ctap.git
 ( cd ctap; ./bootstrap; ./configure "${CONFIG_OPTS[@]}"; make install)
 
 # dep: libsodium
@@ -28,11 +28,11 @@ git clone --depth 1 git://github.com/zeromq/libzmq.git
 ( cd libzmq; ./autogen.sh; ./configure "${CONFIG_OPTS[@]}" --with-libsodium=yes; make install)
 
 # dep: libvigor
-git clone --depth 1 git://github.com/filefrog/libvigor.git
+git clone --depth 1 git://github.com/jhunt/libvigor.git
 ( cd libvigor; ./bootstrap; ./configure "${CONFIG_OPTS[@]}"; make install)
 
 # dep: ztk
-git clone --depth 1 git://github.com/filefrog/ztk.git
+git clone --depth 1 git://github.com/jhunt/ztk.git
 ( cd ztk; ./bootstrap; ./configure "${CONFIG_OPTS[@]}"; make install)
 
 export PATH="$PATH:${BUILD_PREFIX}/bin"

@@ -143,6 +143,6 @@ images via cron and serve them up statically.
 
 
 
-[ctap]:       https://github.com/filefrog/ctap
-[libvigor]:   https://github.com/filefrog/libvigor
-[collectors]: https://github.com/filefrog/bolo-collectors
+[ctap]:       https://github.com/jhunt/ctap
+[libvigor]:   https://github.com/jhunt/libvigor
+[collectors]: https://github.com/jhunt/bolo-collectors
