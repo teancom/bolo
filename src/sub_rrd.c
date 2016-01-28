@@ -514,12 +514,12 @@ static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 #endif
 
 				rrd_clear_error();
-				if (CACHED && ! rrdc_is_connected(CACHED)) {
-					rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
-						args->num, (const char **)args->strings);
-				} else {
+				if (CACHED && rrdc_is_connected(CACHED)) {
 					rc = rrdc_create_r2(file, 60, time_s() - 365 * 86400,
 						0, NULL, NULL, args->num, (const char **)args->strings);
+				} else {
+					rc = rrd_create_r(file, 60, time_s() - 365 * 86400,
+						args->num, (const char **)args->strings);
 				}
 				if (rc != 0)
 					logger(LOG_WARNING, "creator[%i] rrdcreate %s %s failed: %s",
@@ -740,10 +740,10 @@ static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 						updater->id, type, file, argv[0]);
 #endif
 				rrd_clear_error();
-				if (CACHED && ! rrdc_is_connected(CACHED)) {
-					rc = rrd_update_r(file, NULL, 1, (const char **)argv);
-				} else {
+				if (CACHED && rrdc_is_connected(CACHED)) {
 					rc = rrdc_update(file, 1, (const char **)argv);
+				} else {
+					rc = rrd_update_r(file, NULL, 1, (const char **)argv);
 				}
 				if (rc != 0)
 					logger(LOG_WARNING, "updater[%i] rrdupdate %s %s (%s) failed: %s",
@@ -1072,6 +1072,8 @@ int main(int argc, char **argv) /* {{{ */
 		log_open("bolo2rrd", "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
+	if (CACHED)
+		logger(LOG_NOTICE, "using cache daemon at %s", CACHED);
 	logger(LOG_NOTICE, "starting up");
 
 
