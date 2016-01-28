@@ -65,6 +65,8 @@ autom4te.cache
 aclocal.m4
 build/*
 !build/*.m4
+rpm.spec
+!rpm.spec.in
 
 dev/
 

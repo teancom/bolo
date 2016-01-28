@@ -1,17 +1,18 @@
-Name:           bolo
-Version:        0.2.15
-Release:        2%{?dist}
+Name:           @PACKAGE@
+Version:        @VERSION@
+Release:        1%{?dist}
 Summary:        Monitoring System Server
 
 Group:          Applications/System
 License:        GPLv3+
-URL:            http://bolo.niftylogic.com/
+URL:            @PACKAGE_URL@
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  gcc
+BuildRequires:  libtool
 BuildRequires:  libctap-devel
 BuildRequires:  pcre-devel
 BuildRequires:  zeromq-devel
@@ -126,67 +127,169 @@ fi
 
 
 #######################################################################
+%package redis
 
-%package subscribers
-Summary:        Monitoring System Subscribers
+Summary:        Monitoring System Redis Subscriber
 Group:          Applications/System
 
-%description subscribers
+%description redis
 bolo is a lightweight and scalable monitoring system that can
 track samples, counters, states and configuration data.
 
-This package provides subscriber components for bolo.
+This package provides the redis subscriber component for bolo.
 
 
-%post subscribers
-/sbin/chkconfig --add bolo2rrd
+%post redis
 /sbin/chkconfig --add bolo2redis
-/sbin/chkconfig --add bolo2pg
-/sbin/chkconfig --add bolo2meta
 
 
-%preun subscribers
+%preun redis
+if [ $1 == 0 ]; then # erase!
+	/sbin/service stop bolo2redis
+	/sbin/chkconfig --del bolo2redis
+fi
+
+
+%postun redis
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart bolo2redis
+fi
+
+
+%files redis
+%defattr(-,root,root,-)
+%{_sbindir}/bolo2redis
+%{_initrddir}/bolo2redis
+%{_mandir}/man8/bolo2redis.8.gz
+
+
+#######################################################################
+%package rrd
+Summary:        Monitoring System RRD Subscriber
+Group:          Applications/System
+
+%description rrd
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides the RRD subscriber component for bolo.
+
+
+%post rrd
+/sbin/chkconfig --add bolo2rrd
+
+
+%preun rrd
 if [ $1 == 0 ]; then # erase!
 	/sbin/service stop bolo2rrd
 	/sbin/chkconfig --del bolo2rrd
+fi
 
-	/sbin/service stop bolo2redis
-	/sbin/chkconfig --del bolo2redis
 
+%postun rrd
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart bolo2rrd
+fi
+
+
+%files rrd
+%defattr(-,root,root,-)
+%{_sbindir}/bolo2rrd
+%{_initrddir}/bolo2rrd
+%{_mandir}/man8/bolo2rrd.8.gz
+
+
+#######################################################################
+%package pg
+Summary:        Monitoring System Postgres Subscriber
+Group:          Applications/System
+
+%description pg
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides the postgres subscriber component for bolo.
+
+
+%post pg
+/sbin/chkconfig --add bolo2pg
+
+
+%preun pg
+if [ $1 == 0 ]; then # erase!
 	/sbin/service stop bolo2pg
 	/sbin/chkconfig --del bolo2pg
+fi
 
+
+%postun pg
+if [ $1 == 0 ]; then # upgrade!
+	/sbin/service condrestart bolo2pg
+fi
+
+
+%files pg
+%defattr(-,root,root,-)
+%{_sbindir}/bolo2pg
+%{_initrddir}/bolo2pg
+%{_mandir}/man8/bolo2pg.8.gz
+%doc %{_datadir}/bolo
+
+
+#######################################################################
+%package meta
+Summary:        Monitoring System Meta Subscriber
+Group:          Applications/System
+
+%description meta
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides the meta subscriber component for bolo.
+
+
+%post meta
+/sbin/chkconfig --add bolo2meta
+
+
+%preun meta
+if [ $1 == 0 ]; then # erase!
 	/sbin/service stop bolo2meta
 	/sbin/chkconfig --del bolo2meta
 fi
 
 
-%postun subscribers
+%postun meta
 if [ $1 == 0 ]; then # upgrade!
-	/sbin/service condrestart bolo2rrd
-	/sbin/service condrestart bolo2pg
 	/sbin/service condrestart bolo2meta
 fi
 
 
-%files subscribers
+%files meta
+%defattr(-,root,root,-)
+%{_sbindir}/bolo2meta
+%{_initrddir}/bolo2meta
+%{_mandir}/man8/bolo2meta.8.gz
+
+
+#######################################################################
+%package utils
+Summary:        Monitoring System Utils
+Group:          Applications/System
+
+%description utils
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides utility components for bolo.
+
+
+%files utils
 %defattr(-,root,root,-)
 %{_sbindir}/bcache
 %{_sbindir}/bolo2console
 %{_sbindir}/bolo2log
-%{_sbindir}/bolo2pg
-%{_sbindir}/bolo2meta
-%{_sbindir}/bolo2redis
-%{_sbindir}/bolo2rrd
-%{_initrddir}/bolo2pg
-%{_initrddir}/bolo2meta
-%{_initrddir}/bolo2redis
-%{_initrddir}/bolo2rrd
 %{_mandir}/man8/bcache.8.gz
-%{_mandir}/man8/bolo2pg.8.gz
-%{_mandir}/man8/bolo2meta.8.gz
-%{_mandir}/man8/bolo2redis.8.gz
-%{_mandir}/man8/bolo2rrd.8.gz
 %doc %{_datadir}/bolo
 
 
