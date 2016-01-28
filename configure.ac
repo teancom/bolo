@@ -18,7 +18,7 @@
 #
 
 AC_PREREQ(2.63)
-AC_INIT([Bolo], [0.2.15], [bolo@niftylogic.com])
+AC_INIT([Bolo], [0.2.15], [bolo@niftylogic.com],, [http://bolo.niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])
@@ -87,5 +87,5 @@ else
 	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 0, [PCRE library exports pcre_free_study()])
 fi
 
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES([Makefile rpm.spec])
 AC_OUTPUT
