@@ -526,9 +526,8 @@ int main(int argc, char **argv)
 	} else
 		logger(LOG_INFO, "disabling beaconing, no beacon endpoint given");
 
+	int i, n = 0;
 	for (;;) {
-		int i, n;
-
 		uint64_t now = time_ms();
 		now = now - now % 1000;
 
