@@ -2,7 +2,7 @@
 source t/lib ; trap "cleanup" EXIT TERM INT
 [[ -x bolo2rrd ]]                || skip
 [[ -n "$(command -v rrdtool)" ]] || skip
-
+need_command z{pub,pull}
 tmpfs
 
 LISTENER="ipc://${ROOT}/bolo.listener.sock"

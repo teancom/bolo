@@ -105,6 +105,17 @@ skip() {
   exit 77
 }
 
+###############################################################################
+#
+# need_command - verify that a given command is installed.
+# USAGE: need_command ${name} ...
+#
+need_command() {
+  for cmd in "$@"; do
+    [[ -x "$(command -v $cmd)" ]] || bail "${cmd} is not installed."
+  done
+}
+
 
 ###############################################################################
 #

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 source t/lib ; trap "cleanup" EXIT TERM INT
+need_command zsub
 tmpfs
 
 for dir in etc var out log; do
