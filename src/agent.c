@@ -44,7 +44,7 @@ static struct {
 
 	char     *beacon;
 	int       reconnects;
-	uint64_t  timeout
+	uint64_t  timeout;
 } OPTIONS = { 0 };
 
 typedef struct {
