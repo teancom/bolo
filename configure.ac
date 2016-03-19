@@ -30,6 +30,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 AX_TEST_COVERAGE
 
 AC_PROG_CC
+AC_CHECK_HEADERS(stdint.h)
 
 BOLO_WITH([postgres], [the PostgreSQL libraries (libpq) and header files])
 BOLO_WITH([hiredis],  [the HiRedis libraries (libhiredis) and header files])

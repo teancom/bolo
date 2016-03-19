@@ -1,3 +1,8 @@
+# Bug Fixes
+
+- Check for stdint.h, so that librrd header files see that
+  we have it.  Avoids a configure-time panic.
+
 # Developer Stuff
 
 - release process is now fully scripted in re/lease
