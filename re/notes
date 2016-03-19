@@ -1,29 +1,3 @@
-# New Features
-
-- RRDcached Support.
-- Agent Beaconing to allow detection, and restart, of dead TCP connections.
-- New bolo2redis subscriber.
-- memory-map the savedb for performance gains.
-- New `bcache utility` for caching broadcast data.
-- New `grace.period` setting for broadcast delay.
-- `bolo` can now dump configuration.
-
-# Fixes
-
-- Subscriber man pages only get installed now if the subscribers they
-  document have been installed.
-- SETKEYS is now broadcast periodically.
-- Fixed an off-by-one buffer overflow in binf.o.
-- VPATH builds should work now.
-- send_bolo now properly closes / shuts down the 0MQ runtime.
-- Minor signal-handling fixes in supervisor and subscribers.
-- Minor logging cleanups (stray newlines, mostly)
-- More strict adherence to supervisor thread PDUs.
-
 # Developer Stuff
 
-- New `spin` utility for running all the pieces of a bolo installation
-  in a single tmux session.
-- Removed some unused submit_* methods, and the vx_* functions that were
-  moved into libvigor proper.
-- New t/stress stress tester for unit tests.
+- release process is now fully scripted in re/lease

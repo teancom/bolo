@@ -18,7 +18,7 @@
 #
 
 AC_PREREQ(2.63)
-AC_INIT([Bolo], [0.2.16], [bolo@niftylogic.com],, [http://bolo.niftylogic.com])
+AC_INIT([Bolo], [m4_esyscmd([./version.sh])], [bolo@niftylogic.com],, [http://bolo.niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
 AC_CONFIG_AUX_DIR([build])
