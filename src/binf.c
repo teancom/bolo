@@ -25,11 +25,13 @@ typedef struct PACKED {
 	uint32_t  last_seen;
 	 uint8_t  status;
 	 uint8_t  stale;
+	 uint8_t  ignore;
 } binf_state_t;
 
 typedef struct PACKED {
 	uint32_t  last_seen;
 	uint64_t  value;
+	 uint8_t  ignore;
 } binf_counter_t;
 
 typedef struct PACKED {
@@ -42,6 +44,7 @@ typedef struct PACKED {
 	double    mean_;
 	double    var;
 	double    var_;
+	 uint8_t  ignore;
 } binf_sample_t;
 
 typedef struct PACKED {
@@ -49,6 +52,7 @@ typedef struct PACKED {
 	uint32_t last_seen;
 	uint64_t first;
 	uint64_t last;
+	 uint8_t ignore;
 } binf_rate_t;
 
 typedef struct PACKED {
@@ -154,6 +158,7 @@ static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 		body.state.last_seen = htonl(payload.state->last_seen);
 		body.state.status    = payload.state->status;
 		body.state.stale     = payload.state->stale;
+		body.state.ignore    = payload.state->ignore;
 
 		_cpybin(addr, &body.state, *len, sizeof(body.state))
 
@@ -168,6 +173,7 @@ static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 	case RECORD_TYPE_COUNTER:
 		body.counter.last_seen = htonl(payload.counter->last_seen);
 		body.counter.value     = htonll(payload.counter->value);
+		body.counter.ignore    = payload.counter->ignore;
 
 		_cpybin(addr, &body.counter, *len, sizeof(body.counter))
 
@@ -186,6 +192,7 @@ static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 		body.sample.mean_     = htonl(payload.sample->mean_);
 		body.sample.var       = htonl(payload.sample->var);
 		body.sample.var_      = htonl(payload.sample->var_);
+		body.sample.ignore    = payload.sample->ignore;
 
 		_cpybin(addr, &body.sample, *len, sizeof(body.sample))
 
@@ -212,6 +219,7 @@ static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 		body.rate.last_seen  = htonl(payload.rate->last_seen);
 		body.rate.first      = htonll(payload.rate->first);
 		body.rate.last       = htonll(payload.rate->last);
+		body.rate.ignore     = payload.rate->ignore;
 
 		_cpybin(addr, &body.rate, *len, sizeof(body.rate))
 
@@ -269,6 +277,7 @@ static int s_read_record(void *addr, size_t *len, uint8_t *type, void **r)
 		payload.state->last_seen = ntohl(body.state.last_seen);
 		payload.state->status    = body.state.status;
 		payload.state->stale     = body.state.stale;
+		payload.state->ignore    = body.state.ignore;
 
 		want = record.len - sizeof(record) - sizeof(body.state);
 		buf = vmalloc(want+1);
@@ -298,6 +307,7 @@ static int s_read_record(void *addr, size_t *len, uint8_t *type, void **r)
 
 		payload.counter->last_seen = ntohl(body.counter.last_seen);
 		payload.counter->value     = ntohll(body.counter.value);
+		payload.counter->ignore    = body.counter.ignore;
 
 		want = record.len - sizeof(record) - sizeof(body.counter);
 		buf = vmalloc(want+1);
@@ -326,6 +336,7 @@ static int s_read_record(void *addr, size_t *len, uint8_t *type, void **r)
 		payload.sample->mean_     = ntohl(body.sample.mean_);
 		payload.sample->var       = ntohl(body.sample.var);
 		payload.sample->var_      = ntohl(body.sample.var_);
+		payload.sample->ignore    = body.sample.ignore;
 
 		want = record.len - sizeof(record) - sizeof(body.sample);
 		buf = vmalloc(want+1);
@@ -379,6 +390,7 @@ static int s_read_record(void *addr, size_t *len, uint8_t *type, void **r)
 		payload.rate->last_seen  = ntohl(body.rate.last_seen);
 		payload.rate->first      = ntohll(body.rate.first);
 		payload.rate->last       = ntohll(body.rate.last);
+		payload.rate->ignore     = body.rate.ignore;
 
 		want = record.len - sizeof(record) - sizeof(body.rate);
 		buf = vmalloc(want+1);
@@ -569,6 +581,7 @@ int binf_read(db_t *db, const char *file, int db_size)
 				found.state->last_seen = payload.state->last_seen;
 				found.state->status    = payload.state->status;
 				found.state->stale     = payload.state->stale;
+				found.state->ignore    = payload.state->ignore;
 
 			} else {
 				logger(LOG_INFO, "state %s not found in configuration, skipping", payload.state->name);
@@ -584,6 +597,7 @@ int binf_read(db_t *db, const char *file, int db_size)
 			if ((found.counter = find_counter(db, payload.counter->name)) != NULL) {
 				found.counter->last_seen = payload.counter->last_seen;
 				found.counter->value     = payload.counter->value;
+				found.counter->ignore    = payload.counter->ignore;
 
 			} else {
 				logger(LOG_INFO, "counter %s not found in configuration, skipping", payload.counter->name);
@@ -605,6 +619,7 @@ int binf_read(db_t *db, const char *file, int db_size)
 				found.sample->mean_     = payload.sample->mean_;
 				found.sample->var       = payload.sample->var;
 				found.sample->var_      = payload.sample->var_;
+				found.sample->ignore    = payload.sample->ignore;
 
 			} else {
 				logger(LOG_INFO, "sample %s not found in configuration, skipping", payload.sample->name);
@@ -625,6 +640,7 @@ int binf_read(db_t *db, const char *file, int db_size)
 				found.rate->last_seen  = payload.rate->last_seen;
 				found.rate->first      = payload.rate->first;
 				found.rate->last       = payload.rate->last;
+				found.rate->ignore     = payload.rate->ignore;
 			} else {
 				logger(LOG_INFO, "rate %s not found in configuration, skipping", payload.rate->name);
 			}

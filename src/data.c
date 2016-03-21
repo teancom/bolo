@@ -103,6 +103,7 @@ state_t *find_state(db_t *db, const char *name)
 			x->status  = PENDING;
 			x->expiry  = re->type->freshness + time_s();
 			x->summary = strdup("(state is pending results)");
+			x->ignore  = 0;
 			return x;
 		}
 	}
@@ -124,6 +125,7 @@ counter_t *find_counter(db_t *db, const char *name)
 			x->name    = strdup(name);
 			x->window  = re->window;
 			x->value   = 0;
+			x->ignore  = 0;
 			return x;
 		}
 	}
@@ -145,6 +147,7 @@ sample_t *find_sample(db_t *db, const char *name)
 			x->name    = strdup(name);
 			x->window  = re->window;
 			x->n       = 0;
+			x->ignore  = 0;
 			return x;
 		}
 	}
@@ -165,6 +168,7 @@ rate_t *find_rate(db_t *db, const char *name)
 			hash_set(&db->rates, name, x);
 			x->name   = strdup(name);
 			x->window = re->window;
+			x->ignore = 0;
 			return x;
 		}
 	}

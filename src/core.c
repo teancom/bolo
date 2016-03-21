@@ -51,6 +51,8 @@ typedef struct {
 #define winend(x, t)   (winstart((x), (t)) + (x)->window->time)
 #define max(a,b) ((a) > (b) ? (a) : (b))
 #define min(a,b) ((a) < (b) ? (a) : (b))
+#define payload_is(payload, type) (((payload) & (type)) > 0)
+
 
 static void broadcast_state(kernel_t*, state_t*);
 static void broadcast_setkeys(kernel_t*);
@@ -279,7 +281,7 @@ static void check_freshness(kernel_t *kernel) /* {{{ */
 
 	logger(LOG_INFO, "checking freshness");
 	for_each_key_value(&kernel->server->db.states, key, state) {
-		if (state->expiry > now) continue;
+		if (state->expiry > now || state->ignore) continue;
 
 		int transition = !state->stale || state->status != state->type->status;
 
@@ -511,7 +513,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			counter_t *counter;
 			for_each_key_value(&kernel->server->db.counters, name, counter) {
-				if (counter->last_seen == 0 || winend(counter, counter->last_seen) >= ts)
+				if (counter->ignore || counter->last_seen == 0 || winend(counter, counter->last_seen) >= ts)
 					continue;
 				broadcast_counter(kernel, counter);
 				counter_reset(counter);
@@ -519,14 +521,14 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			sample_t *sample;
 			for_each_key_value(&kernel->server->db.samples, name, sample) {
-				if (sample->last_seen == 0 || winend(sample, sample->last_seen) >= ts)
+				if (sample->ignore || sample->last_seen == 0 || winend(sample, sample->last_seen) >= ts)
 					continue;
 				broadcast_sample(kernel, sample);
 				sample_reset(sample);
 			}
 			rate_t *rate;
 			for_each_key_value(&kernel->server->db.rates, name, rate) {
-				if (rate->last_seen == 0 || winend(rate, rate->last_seen) >= ts)
+				if (rate->ignore || rate->last_seen == 0 || winend(rate, rate->last_seen) >= ts)
 					continue;
 				broadcast_rate(kernel, rate);
 				rate_reset(rate);
@@ -734,6 +736,104 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			return VIGOR_REACTOR_CONTINUE;
 		}
 		/* }}} */
+		/* [ FORGET | type | pattern | ig ] {{{ */
+		if (_pdu_is(pdu, "FORGET", 4, 4)) {
+			const char *re_err;
+			char *pattern, *s;
+			int   re_off;
+			pcre *re;
+
+			s = pdu_string(pdu, 1); uint16_t payload   = strtoul(s, NULL, 10); free(s);
+			s = pdu_string(pdu, 3); uint8_t  ignore    = strtoul(s, NULL, 10); free(s);
+			pattern = pdu_string(pdu, 2);
+			re = pcre_compile(pattern, 0, &re_err, &re_off, NULL);
+
+			if (!re) {
+				pdu_send_and_free(pdu_reply(pdu, "ERROR", 1, re_err), socket);
+
+			} else {
+				pcre_extra *re_extra = pcre_study(re, 0, &re_err);
+				int counter = 0, total = 0;
+				if (payload_is(payload, PAYLOAD_STATE)) {
+					state_t *dp;
+					char    *name;
+					counter = 0;
+					for_each_key_value(&kernel->server->db.states, name, dp) {
+						if (pcre_exec(re, re_extra, name, strlen(name), 0, 0, NULL, 0) != 0)
+							continue;
+
+						if (ignore)
+							dp->ignore =1;
+						else
+							hash_unset(&kernel->server->db.states, name);
+						counter++;
+					}
+					total += counter;
+					logger(LOG_DEBUG, "removing [%i] states matching pattern [%s] from monitoring", counter, pattern);
+				}
+
+				if (payload_is(payload, PAYLOAD_COUNTER)) {
+					counter_t *dp;
+					char      *name;
+					counter = 0;
+					for_each_key_value(&kernel->server->db.counters, name, dp) {
+						if (pcre_exec(re, re_extra, name, strlen(name), 0, 0, NULL, 0) != 0)
+							continue;
+
+						if (ignore)
+							dp->ignore =1;
+						else
+							hash_unset(&kernel->server->db.counters, name);
+						counter++;
+					}
+					total += counter;
+					logger(LOG_DEBUG, "removing [%i] counters matching pattern [%s] from monitoring", counter, pattern);
+				}
+
+				if (payload_is(payload, PAYLOAD_SAMPLE)) {
+					sample_t *dp;
+					char     *name;
+					counter = 0;
+					for_each_key_value(&kernel->server->db.samples, name, dp) {
+						if (pcre_exec(re, re_extra, name, strlen(name), 0, 0, NULL, 0) != 0)
+							continue;
+
+						if (ignore)
+							dp->ignore =1;
+						else
+							hash_unset(&kernel->server->db.samples, name);
+						counter++;
+					}
+					total += counter;
+					logger(LOG_DEBUG, "removing [%i] samples matching pattern [%s] from monitoring", counter, pattern);
+				}
+
+				if (payload_is(payload, PAYLOAD_RATE)) {
+					rate_t *dp;
+					char   *name;
+					counter = 0;
+					for_each_key_value(&kernel->server->db.rates, name, dp) {
+						if (pcre_exec(re, re_extra, name, strlen(name), 0, 0, NULL, 0) != 0)
+							continue;
+
+						if (ignore)
+							dp->ignore =1;
+						else
+							hash_unset(&kernel->server->db.rates, name);
+						counter++;
+					}
+					total += counter;
+					logger(LOG_DEBUG, "removing [%i] rates matching pattern [%s] from monitoring", counter, pattern);
+				}
+
+				logger(LOG_INFO, "removing [%i] datapoints matching pattern [%s] from monitoring", total, pattern);
+				pdu_send_and_free(pdu_reply(pdu, "OK", 0), socket);
+			}
+
+			free(pattern);
+			return VIGOR_REACTOR_CONTINUE;
+		}
+		/* }}} */
 
 		logger(LOG_WARNING, "unhandled [%s] PDU (of %i frames) received on management port",
 			pdu_type(pdu), pdu_size(pdu));
@@ -752,7 +852,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			if (name && *name && msg && *msg) {
 				state_t *state = find_state(&kernel->server->db, name);
-				if (state) {
+				if (state && state->ignore == 0) {
 					logger(LOG_INFO, "updating state %s, status=%i, ts=%i, msg=[%s]", name, code, ts, msg);
 					int transition = state->stale || state->status != code;
 
@@ -791,7 +891,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			if (name && *name) {
 				counter_t *counter = find_counter(&kernel->server->db, name);
-				if (counter) {
+				if (counter && counter->ignore == 0) {
 					/* check for window closure */
 					if (counter->last_seen > 0 && counter->last_seen != ts
 					 && winstart(counter, counter->last_seen) != winstart(counter, ts)) {
@@ -825,7 +925,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			if (name && *name) {
 				sample_t *sample = find_sample(&kernel->server->db, name);
 
-				if (sample) {
+				if (sample && sample->ignore == 0) {
 					/* check for window closure */
 					if (sample->last_seen > 0 && sample->last_seen != ts
 					 && winstart(sample, sample->last_seen) != winstart(sample, ts)) {
@@ -867,7 +967,7 @@ static int _kernel_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			if (name && *name) {
 				rate_t *rate = find_rate(&kernel->server->db, name);
-				if (rate) {
+				if (rate && rate->ignore == 0) {
 					/* check for window closure */
 					if (rate->last_seen > 0 && rate->last_seen != ts
 					 && winstart(rate, rate->last_seen) != winstart(rate, ts)) {

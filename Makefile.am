@@ -65,16 +65,18 @@ bolo2redis_SOURCES     = $(SUBS_SRC) src/sub_redis.c
 bolo2redis_LDADD       = -lhiredis
 endif
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy bolo_forget
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
+bolo_forget_SOURCES = $(CORE_SRC) src/forget.c
 
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
 dist_check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
                      t/beacon t/util-send_bolo t/util-bcache \
-                     t/rrd-subscriber t/meta-subscriber t/log-subscriber
+                     t/rrd-subscriber t/meta-subscriber t/log-subscriber \
+                     t/forget
 TESTS = $(check_SCRIPTS)
 
 dist_man_MANS  =
@@ -95,6 +97,7 @@ dist_man_MANS += man/dbolo.1
 dist_man_MANS += man/dbolo.conf.5
 dist_man_MANS += man/send_bolo.1
 dist_man_MANS += man/stat_bolo.1
+dist_man_MANS += man/bolo_forget.1
 
 man/%.1: man/%.1.pod
 	./man/build $< @PACKAGE_VERSION@ > $@

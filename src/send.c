@@ -19,6 +19,22 @@
 
 #include "bolo.h"
 
+pdu_t *parse_forget_pdu(int argc, char **argv)
+{
+	if (argc < 3)
+		return NULL;
+	uint16_t payload = (uint16_t) argv[0];
+	uint8_t  ignore  = (uint8_t)  argv[2];
+	char    *regex   = argv[1];
+
+	pdu_t *pdu = pdu_make("FORGET", 0);
+	pdu_extendf(pdu, "%u", payload);
+	pdu_extendf(pdu, "%s", regex);
+	pdu_extendf(pdu, "%u", ignore);
+
+	return pdu;
+}
+
 pdu_t *parse_state_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 3)
@@ -182,6 +198,16 @@ pdu_t *stream_pdu(const char *line)
 	}
 
 	strings_free(l);
+	return pdu;
+}
+
+pdu_t *forget_pdu(uint16_t payload, char *regex, uint8_t ignore)
+{
+	pdu_t *pdu = pdu_make("FORGET", 0);
+	pdu_extendf(pdu, "%u", payload);
+	pdu_extendf(pdu, "%s", regex);
+	pdu_extendf(pdu, "%u", ignore); /* flags */
+
 	return pdu;
 }
 
