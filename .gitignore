@@ -50,6 +50,7 @@ bolo2meta
 !redhat/init.d/bolo2meta
 bolo2sqlite
 bolo_nsca
+bolo_forget
 send_bolo
 stat_bolo
 bolospy

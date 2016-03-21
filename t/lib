@@ -190,3 +190,24 @@ string_like() {
   fi
   tdiag "ok ${msg}"
 }
+
+###############################################################################
+#
+# string_notlike - assert that two strings do not match via regex
+# USAGE: string_unlike ${actual} ${unexpected} \
+#                  "message to print on failure"
+#
+string_notlike() {
+  got=$1
+  expect=$2
+  msg=${3:-strings should not match}
+
+  if [[ "${got}" =~ ${expect} ]]; then
+    echo >&2 "${msg}: FAILED"
+    echo >&2 "  unexpect: '${expect}'"
+    echo >&2 "       got: '${got}'"
+    echo >&2
+    fail
+  fi
+  tdiag "ok ${msg}"
+}

@@ -23,6 +23,7 @@
                              [EVENT] |     | [SEARCH.KEYS]
                           [SET.KEYS] |     | [DUMP]
                                      |     | [SAVESTATE]
+                                     |     | [FORGET]
                                      v     v
                               .-------------------.
                               |    BOLO KERNEL    |
@@ -217,6 +218,13 @@
 
      SAVESTATE             OK                ; request that the kernel save its
                                              ; state and keys databases.
+
+     ---------------------------------------------------------------------------
+
+     FORGET                OK                ; request that the kernel drop
+     <PAYLOAD>                               ; matching datapoints
+     <PATTERN>
+     <IGNORE>
 
 
   ##############################################################################

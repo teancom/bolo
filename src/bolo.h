@@ -49,6 +49,15 @@
 #define UNKNOWN  3
 #define PENDING  4
 
+#define PAYLOAD_STATE     0x0001
+#define PAYLOAD_COUNTER   0x0002
+#define PAYLOAD_RATE      0x0004
+#define PAYLOAD_SAMPLE    0x0008
+#define PAYLOAD_EVENT     0x0010
+#define PAYLOAD_FACT      0x0020
+#define PAYLOAD_RESERVED  0xFF70
+#define PAYLOAD_ALL       0xFFFF
+
 #define DEFAULT_CONFIG_FILE "/etc/bolo.conf"
 #define DEFAULT_AGENT_FILE  "/etc/dbolo.conf"
 
@@ -91,6 +100,7 @@ typedef struct {
 	uint8_t   status;
 	char     *summary;
 	uint8_t   stale;
+	uint8_t   ignore;
 } state_t;
 
 typedef struct {
@@ -106,6 +116,7 @@ typedef struct {
 	char     *name;
 	int32_t   last_seen;
 	uint64_t  value;
+	uint8_t   ignore;
 } counter_t;
 
 typedef struct {
@@ -127,6 +138,7 @@ typedef struct {
 	double    sum;
 	double    mean, mean_;
 	double    var,  var_;
+	uint8_t   ignore;
 } sample_t;
 
 typedef struct {
@@ -145,6 +157,7 @@ typedef struct {
 
 	uint64_t    first;
 	uint64_t    last;
+	uint8_t     ignore;
 } rate_t;
 
 typedef struct {
@@ -254,6 +267,7 @@ pdu_t *parse_setkeys_pdu(int argc, char **argv);
 pdu_t *parse_event_pdu  (int argc, char **argv, const char *ts);
 pdu_t *stream_pdu(const char *line);
 
+pdu_t *forget_pdu  (uint16_t payload, const char *regex, uint8_t ignore);
 pdu_t *state_pdu   (const char *name, int status, const char *msg);
 pdu_t *counter_pdu (const char *name, unsigned int value);
 pdu_t *sample_pdu  (const char *name, int n, ...);

@@ -1,0 +1,57 @@
+=head1 NAME
+
+bolo_forget - Bolo forget utility
+
+=head1 SYNOPSIS
+
+B<bolo_forget> -e <endpoint> <pattern>
+
+B<bolo_forget> -t state <pattern>
+
+B<bolo_forget> -t counter -t rate <pattern>
+
+B<bolo_forget> -t all --ignore <pattern>
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo_forget> is a utility that sends controll messages to the
+B<bolo> core to forget matching data patterns.
+
+=head1 OPTIONS
+
+=over
+
+=item B<pattern>
+
+A Perl Compatible Regular Expression to match against named
+datapoints. A pattern is always required.
+
+=item B<-t>, B<--type> (state|counter|sample|rate|all)
+
+The type of datapoints to forget, this options can be called
+multiple times. If no option is specified, type defaults to all.
+Where all is state, counter, sample, and rate. Which is everything
+except keys and events.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo controller endpoint to connect to. Defaults to I<tcp:127.0.0.1:2998>
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-i>, B<--ignore>
+
+For matched datapoints, ignore future submissions that have the exact name,
+that was previously ignored.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+bolo_forget was written by Dan Molik.
+#AUTHOR

@@ -185,6 +185,16 @@ pdu_t *stream_pdu(const char *line)
 	return pdu;
 }
 
+pdu_t *forget_pdu(uint16_t payload, const char *regex, uint8_t ignore)
+{
+	pdu_t *pdu = pdu_make("FORGET", 0);
+	pdu_extendf(pdu, "%u", payload);
+	pdu_extendf(pdu, "%s", regex);
+	pdu_extendf(pdu, "%u", ignore); /* flags */
+
+	return pdu;
+}
+
 pdu_t *state_pdu(const char *name, int status, const char *msg)
 {
 	pdu_t *pdu = pdu_make("STATE", 0);

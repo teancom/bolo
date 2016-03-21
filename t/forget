@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+source t/lib ; trap "cleanup" EXIT TERM INT
+tmpfs
+
+for dir in etc var out log; do
+	mkdir -p ${ROOT}/${dir}
+done
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+cat <<EOF >${ROOT}/etc/bolo.conf
+listener   ${LISTENER}
+controller ${CONTROLLER}
+broadcast  ${BROADCAST}
+
+log debug console
+
+savefile   ${ROOT}/var/savedb
+keysfile   ${ROOT}/var/keysdb
+
+max.events 3
+type :default {
+  freshness 3
+  warning "it is stale"
+}
+state :default m/./
+
+window  @default 1
+counter @default m/./
+sample  @default m/./
+rate    @default m/./
+EOF
+
+./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+BOLO_PID=$!
+clean_pid ${BOLO_PID}
+diag_file ${ROOT}/log/bolo
+
+zsub -c ${BROADCAST} > ${ROOT}/out/broadcast &
+SUBSCRIBER_PID=$!
+clean_pid ${SUBSCRIBER_PID}
+diag_file ${ROOT}/out/broadcast
+
+sleep 1
+
+TS=$(date +%s)
+ZTK_OPTS="--timeout 200"
+cat <<EOF | zpush --timeout 250 -c ${LISTENER}
+STATE|$TS|test1-state|0|all good
+COUNTER|$TS|test1-counter|2
+SAMPLE|$TS|test1-sample|1|2|3
+RATE|$TS|test1-rate|41
+STATE|$TS|test2-state|0|all good
+RATE|$TS|test2-rate|42
+STATE|$TS|test3-ignore|0|all good
+EOF
+
+sleep 1
+string_is "$(./bolo_forget -e ${CONTROLLER} test1)" \
+"OK" "Forget all test1 datapoints"
+string_is "$(./bolo_forget -e ${CONTROLLER} -t state test2)" \
+"OK" "Forget test2 states"
+string_is "$(./bolo_forget -e ${CONTROLLER} -t state --ignore test3)" \
+"OK" "Forget test3 states and ignore"
+sleep 1
+
+TS=$(date +%s)
+cat <<EOF | zpush --timeout 250 -c ${LISTENER}
+STATE|$TS|test3-ignore|2|missed transition
+EOF
+sleep 1
+
+kill -TERM ${SUBSCRIBER_PID}
+kill -TERM ${BOLO_PID}
+
+string_like "$(cat ${ROOT}/log/bolo)" \
+	removing\ \\[4\\]\ datapoints\ matching\ pattern\ \\[test1\\]\ from\ monitoring \
+	"Ensure we log removal messages"
+
+string_like "$(cat ${ROOT}/log/bolo)" \
+	removing\ \\[1\\]\ datapoints\ matching\ pattern\ \\[test2\\]\ from\ monitoring \
+	"Ensure we match on PAYLOAD type"
+
+string_like "$(cat ${ROOT}/log/bolo)" \
+	removing\ \\[1\\]\ states\ matching\ pattern\ \\[test2\\]\ from\ monitoring \
+	"Ensure we match on PAYLOAD type"
+
+string_notlike "$(cat ${ROOT}/out/broadcast)" \
+	STATE\\\|test3-ignore\\\|[0-9]{13}\\\|fresh\\\|CRITICAL\\\|missed\ transition \
+	"Ensure ignore flag, ignores future submissions"
+
+exit 0
