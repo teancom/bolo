@@ -267,6 +267,7 @@ pdu_t *parse_setkeys_pdu(int argc, char **argv);
 pdu_t *parse_event_pdu  (int argc, char **argv, const char *ts);
 pdu_t *stream_pdu(const char *line);
 
+pdu_t *forget_pdu  (uint16_t payload, const char *regex, uint8_t ignore);
 pdu_t *state_pdu   (const char *name, int status, const char *msg);
 pdu_t *counter_pdu (const char *name, unsigned int value);
 pdu_t *sample_pdu  (const char *name, int n, ...);

@@ -121,10 +121,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	pdu_t *p = pdu_make("FORGET", 0);
-	pdu_extendf(p, "%hu", OPTIONS.payload);
-	pdu_extendf(p, "%s",  OPTIONS.pattern);
-	pdu_extendf(p, "%u",  OPTIONS.ignore);
+	pdu_t *p = forget_pdu(OPTIONS.payload, OPTIONS.pattern, OPTIONS.ignore);
 	if (pdu_send_and_free(p, z) != 0) {
 		fprintf(stderr, "failed to send [SET.KEYS] PDU to %s; command aborted\n", OPTIONS.endpoint);
 		return 3;
