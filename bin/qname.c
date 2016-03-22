@@ -61,6 +61,16 @@ int main(int argc, char **argv)
 		fprintf(stdout, "yes\n");
 		exit(0);
 
+	} else if (strcmp(argv[1], "check") == 0) {
+		if (argc < 3) {
+			fprintf(stderr, "USAGE: %s check <name> [<name> ...]\n", argv[0]);
+			exit(1);
+		}
+		int i;
+		for (i = 2; i < argc; i++)
+			fprintf(stdout, "%svalid\n", qname_parse(argv[i]) ? "" : "in");
+		exit(0);
+
 	} else if (strcmp(argv[1], "fix") == 0) {
 		if (argc < 3) {
 			fprintf(stderr, "USAGE: %s fix <name> [<name> ...]\n", argv[0]);

@@ -1,28 +1,32 @@
 #!/bin/bash
-source t/lib ; trap "cleanup" EXIT TERM INT
-#tmpfs
+source ${srcdir:-.}/t/lib
 
-string_is $(./qname fix a=b)         "a=b"
-string_is $(./qname fix a=b,c=d)     "a=b,c=d"
-string_is $(./qname fix c=d,a=b)     "a=b,c=d"
-string_is $(./qname fix a=b,x=y,c=d) "a=b,c=d,x=y"
-string_is $(./qname fix c=a,a=b)     "a=b,c=a"        "only name keys matter for sorting..."
-string_is $(./qname fix '*')x        '*x'             # stray x avoids shell expansion
-string_is $(./qname fix 'x=y,*')     'x=y,*'
-string_is $(./qname fix '*,x=y')     'x=y,*'          "match-all always sorts to the end..."
-string_is $(./qname fix 'a=b,*,*')   "a=b,*"          "multiple match-alls collapse..."
-string_is $(./qname fix 'a=b,x=*')   "a=b,x=*"
-string_is $(./qname fix 'a=b,x=*')   "a=b,x=*"
-string_is $(./qname fix 'c=*,a=*')   "a=*,c=*"
+string_is "$(./qname fix '')"            ''               "empty qualified name is still empty"
+string_is "$(./qname fix '*')"           '*'
+string_is "$(./qname fix 'a=b')"         'a=b'
+string_is "$(./qname fix 'a=b,c=d')"     'a=b,c=d'
+string_is "$(./qname fix 'c=d,a=b')"     'a=b,c=d'
+string_is "$(./qname fix 'a=b,x=y,c=d')" 'a=b,c=d,x=y'
+string_is "$(./qname fix 'c=a,a=b')"     'a=b,c=a'        "only name keys matter for sorting..."
+string_is "$(./qname fix 'x=y,*')"       'x=y,*'
+string_is "$(./qname fix '*,x=y')"       'x=y,*'          "match-all always sorts to the end..."
+string_is "$(./qname fix 'a=b,*,*')"     'a=b,*'          "multiple match-alls collapse..."
+string_is "$(./qname fix 'a=b,x=*')"     'a=b,x=*'
+string_is "$(./qname fix 'a=b,x=*')"     'a=b,x=*'
+string_is "$(./qname fix 'c=*,a=*')"     'a=*,c=*'
 
-string_is $(./qname match 'a=b' 'a=b')  "yes"    "a=b should match a=b"
-string_is $(./qname match 'a=b' 'a=*')  "yes"    "a=b should match a=*"
-string_is $(./qname match 'a=b' 'c=d')  "no"     "a=b should not match c=d"
-string_is $(./qname match 'a=b' '*')    "yes"    "a=b should match match-all"
+string_is "$(./qname check 'a=b,')"    invalid
+string_is "$(./qname check 'a=b,**')"  invalid
 
-string_is $(./qname match 'a=b,c=d,e=f' 'a=b,c=d,*') "yes"  "strictly ordered match-all"
-string_is $(./qname match 'a=b,c=d,e=f' 'a=b,e=f,*') "yes"  "out-of-order match-all"
-string_is $(./qname match 'a=b,c=d,e=f' 'a=b,g=h,*') "no"   "must match explicit parts"
-string_is $(./qname match 'a=b'         'a=b,g=h,*') "no"   "must match explicit parts (short)"
+string_is "$(./qname match 'a=b' 'a=b')"  yes  "a=b should match a=b"
+string_is "$(./qname match 'a=b' 'a=*')"  yes  "a=b should match a=*"
+string_is "$(./qname match 'a=b' 'a=x')"  no   "a=b should not match a=x"
+string_is "$(./qname match 'a=b' 'c=d')"  no   "a=b should not match c=d"
+string_is "$(./qname match 'a=b' '*')"    yes  "a=b should match match-all"
+
+string_is "$(./qname match 'a=b,c=d,e=f' 'a=b,c=d,*')"  yes  "strictly ordered match-all"
+string_is "$(./qname match 'a=b,c=d,e=f' 'a=b,e=f,*')"  yes  "out-of-order match-all"
+string_is "$(./qname match 'a=b,c=d,e=f' 'a=b,g=h,*')"  no   "must match explicit parts"
+string_is "$(./qname match 'a=b'         'a=b,g=h,*')"  no   "must match explicit parts (short)"
 
 exit 0

@@ -16,11 +16,15 @@ qname_t* qname_parse(const char *name)
 
 	qn = vmalloc(sizeof(qname_t));
 
+	/* degenerate case */
+	if (!*name)
+		return qn;
+
 	for (i = 0, a = name; i < 1024;) {
 		for (b = a; *b && *b != '=' && *b != ','; b++)
 			;
 		if (!*b || *b == ',') {
-			if (strncmp(a, "*", b - a) == 0) {
+			if (b - a == 1 && strncmp(a, "*", 1) == 0) {
 				qn->wildcard = 1;
 
 				if (!*b)
