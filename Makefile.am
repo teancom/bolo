@@ -20,6 +20,7 @@ CORE_SRC += src/data.c
 CORE_SRC += src/util.c
 CORE_SRC += src/binf.c
 CORE_SRC += src/send.c
+CORE_SRC += src/qname.c
 
 SUBS_SRC  = $(CORE_SRC)
 SUBS_SRC += src/subs.h
@@ -66,16 +67,18 @@ bolo2redis_SOURCES     = $(SUBS_SRC) src/sub_redis.c
 bolo2redis_LDADD       = -lhiredis
 endif
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolospy bolo_forget
+bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo_forget
 send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
 stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
 bolo_forget_SOURCES = $(CORE_SRC) src/forget.c
 
+bin_PROGRAMS += bolospy qname
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
+qname_SOURCES     = $(CORE_SRC) bin/qname.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
-                t/beacon t/util-send_bolo t/util-bcache \
+                t/beacon t/util-send_bolo t/util-bcache t/qname \
                 t/rrd-subscriber t/meta-subscriber t/log-subscriber \
                 t/forget
 TESTS = $(check_SCRIPTS)
