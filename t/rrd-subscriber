@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-source t/lib ; trap "cleanup" EXIT TERM INT
+#!/bin/bash
+source ${srcdir:-.}/t/lib
 [[ -x bolo2rrd ]]                || skip
 [[ -n "$(command -v rrdtool)" ]] || skip
 need_command z{pub,pull}

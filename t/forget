@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-source t/lib ; trap "cleanup" EXIT TERM INT
+#!/bin/bash
+source ${srcdir:-.}/t/lib
 tmpfs
 
 for dir in etc var out log; do

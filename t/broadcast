@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-source t/lib ; trap "cleanup" EXIT TERM INT
+#!/bin/bash
+source ${srcdir:-.}/t/lib
 need_command z{sub,push}
 tmpfs
 
@@ -60,19 +60,17 @@ SAMPLE|$TS|test-sample|1|2|3
 RATE|$TS|test-rate|41
 EVENT|$TS|test-event|server rebooted
 EOF
-sleep 1
 cat <<EOF | zpush --timeout 250 -c ${LISTENER}
 COUNTER|$TS|test-counter|3
 SAMPLE|$TS|test-sample|4|5
 RATE|$TS|test-rate|1
 EOF
-sleep 1
 cat <<EOF | zpush --timeout 250 -c ${LISTENER}
 COUNTER|$TS|test-counter|3
 SAMPLE|$TS|test-sample|4|5
 RATE|$(( TS + 1 ))|test-rate|3
 EOF
-sleep 1
+sleep 3
 
 kill -TERM ${SUBSCRIBER_PID}
 kill -TERM ${BOLO_PID}

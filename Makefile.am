@@ -8,6 +8,7 @@ AM_CFLAGS =
 AM_CFLAGS += -Wall
 AM_CFLAGS += -g
 AM_CFLAGS += @GCOV_CFLAGS@
+LOG_DRIVER = $(top_srcdir)/t/run
 
 LDADD = -lvigor -lpthread -lzmq -lpcre
 
@@ -73,11 +74,12 @@ bolo_forget_SOURCES = $(CORE_SRC) src/forget.c
 
 bolospy_SOURCES   = $(CORE_SRC) src/spy.c
 
-dist_check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
-                     t/beacon t/util-send_bolo t/util-bcache \
-                     t/rrd-subscriber t/meta-subscriber t/log-subscriber \
-                     t/forget
-TESTS = $(dist_check_SCRIPTS)
+check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
+                t/beacon t/util-send_bolo t/util-bcache \
+                t/rrd-subscriber t/meta-subscriber t/log-subscriber \
+                t/forget
+TESTS = $(check_SCRIPTS)
+dist_check_SCRIPTS=$(check_SCRIPTS) t/run t/lib
 
 dist_man_MANS  =
 dist_man_MANS += man/bcache.8
