@@ -77,7 +77,7 @@ dist_check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/even
                      t/beacon t/util-send_bolo t/util-bcache \
                      t/rrd-subscriber t/meta-subscriber t/log-subscriber \
                      t/forget
-TESTS = $(check_SCRIPTS)
+TESTS = $(dist_check_SCRIPTS)
 
 dist_man_MANS  =
 dist_man_MANS += man/bcache.8
