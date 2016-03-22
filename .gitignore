@@ -54,6 +54,7 @@ bolo_forget
 send_bolo
 stat_bolo
 bolospy
+/qname
 
 .deps
 config.log
