@@ -1,6 +1,8 @@
 bolo - A Versatile Monitoring Toolkit
 =====================================
 
+[![Travis](https://img.shields.io/travis/bolo/bolo.svg)](https://travis-ci.org/bolo/bolo)
+
 bolo is a toolkit for building distributed, scalable monitoring
 systems.  It provides a set of small, versatile components that
 you can plug together in new and exciting ways, to gather and
