@@ -30,5 +30,31 @@ Little Things
   benchmarks of the mmap'd binfmt databases with the SQLite impl.
 
 
+Modular Decomposition
+---------------------
+
+Public header files go in `include/`.  A header file is public if
+it is applicable to someone building a something that interacts
+with bolo, but is not bolo itself.  For example, parts of the TSDP
+implementation should go in public header files, as do the
+structure definitions and function declarations for the subscriber
+architecture.
+
+All `*.c` files live under `src/`.
+
+Common internal will live in appropriate files directly underneath
+the `src/` directory.  For example, the qualified names
+implementation lives at `src/qnames.c`.  C translation units at
+this level should be small and singular in purpose -- they will be
+combined into larger binaries by the compilation process.
+
+Each utility will have it's own eponymous sub-directory under
+`src/`.  For example, the `bolo` daemon source code will live in
+`src/bolo/`, but the code specific to the `dbolo` agent will live
+in `src.dbolo`.
+
+
+
+
 [tsdp]: https://github.com/bolo/rfc/blob/master/draft-hunt-tsdp-00.txt
 [bolo-30]: https://github.com/bolo/bolo/issues/30
