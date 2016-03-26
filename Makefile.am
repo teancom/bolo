@@ -8,11 +8,15 @@ AM_CFLAGS =
 AM_CFLAGS += -Wall
 AM_CFLAGS += -g
 AM_CFLAGS += @GCOV_CFLAGS@
+
+AM_CPPFLAGS = -I$(top_srcdir)/include
+
 LOG_DRIVER = $(top_srcdir)/t/run
 
 LDADD = -lvigor -lpthread -lzmq -lpcre
 
 CORE_SRC  =
+CORE_SRC += include/bolo.h
 CORE_SRC += src/bolo.h
 #CORE_SRC += src/nsca.c
 CORE_SRC += src/config.c
@@ -40,7 +44,7 @@ bolo_SOURCES            = $(CORE_SRC) src/daemon.c src/core.c
 bolo2log_SOURCES        = $(SUBS_SRC) src/sub_log.c
 bolo2console_SOURCES    = $(SUBS_SRC) src/sub_console.c
 bolo2meta_SOURCES       = $(SUBS_SRC) src/sub_meta.c
-dbolo_SOURCES           = $(CORE_SRC) src/agent.c
+dbolo_SOURCES           = $(CORE_SRC) src/dbolo/main.c
 bcache_SOURCES          = $(SUBS_SRC) src/bcache.c
 
 if build_rrd_subscriber
