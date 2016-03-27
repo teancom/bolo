@@ -7,7 +7,7 @@ CONTROLLER="ipc://${ROOT}/bolo.controller.sock"
 BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
 
 
-BOLO="./bolo -Fc ${ROOT}/bolo.conf"
+BOLO="./bolo aggr -Fc ${ROOT}/bolo.conf"
 cat > ${ROOT}/bolo.conf <<EOF
 listener   ${LISTENER}
 controller ${CONTROLLER}

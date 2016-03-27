@@ -2,7 +2,7 @@
 source ${srcdir:-.}/t/lib
 tmpfs
 
-for bin in send_bolo bolo bcache \
+for bin in bolo \
            bolo2rrd bolo2meta bolo2log; do
 	if [[ -x ./${bin} ]]; then
 		./${bin} -V 2>&1 | grep -iq copyright || bail "${bin} -V did not contain Copyright notice"
@@ -20,7 +20,7 @@ echo "CORRUPT" > $ROOT/corrupt
 ./bolospy $ROOT/present $ROOT/corrupt 2>&1 | grep -iq 'corrupt savefile' \
 	|| bail "bolospay didn't complain about corrupt savefile"
 
-./bolo -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
+./bolo aggr -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
 	|| bail "bolo did not bail when --config was unreadable (ENOENT)"
 
 exit 0

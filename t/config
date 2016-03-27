@@ -5,7 +5,7 @@ tmpfs
 ###############################################################
 
 echo "" >${ROOT}/bolo.conf
-./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+./bolo aggr -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
 cat > ${ROOT}/expect <<EOF
 # bolo configuration
 # (from ${ROOT}/bolo.conf)
@@ -32,7 +32,7 @@ file_is ${ROOT}/got ${ROOT}/expect \
 ###############################################################
 
 echo "max.events 1h" > ${ROOT}/bolo.conf
-./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+./bolo aggr -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
 cat > ${ROOT}/expect <<EOF
 # bolo configuration
 # (from ${ROOT}/bolo.conf)
@@ -96,7 +96,7 @@ sample  @hourly   res.df:/
 rate    @minutely rate1
 EOF
 
-./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+./bolo aggr -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
 cat > ${ROOT}/expect <<EOF
 # bolo configuration
 # (from ${ROOT}/bolo.conf)
@@ -144,7 +144,7 @@ file_is ${ROOT}/got ${ROOT}/expect \
 ###############################################################
 
 echo "max.events 1h" > ${ROOT}/bolo.conf
-./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+./bolo aggr -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
 cat > ${ROOT}/expect <<EOF
 # bolo configuration
 # (from ${ROOT}/bolo.conf)
@@ -176,7 +176,7 @@ sample 60 disk
 counter 60 io
 EOF
 
-./bolo -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
+./bolo aggr -Dc ${ROOT}/bolo.conf > ${ROOT}/got 2>&1
 cat > ${ROOT}/expect <<EOF
 # bolo configuration
 # (from ${ROOT}/bolo.conf)

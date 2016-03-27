@@ -1,70 +1,66 @@
 =head1 NAME
 
-send_bolo - Bolo Monitoring System Client
+bolo send - Bolo Monitoring System Client
 
 =head1 SYNOPSIS
 
-B<send_bolo> -t state name (ok|warning|critical|unknown) message string
+B<bolo send> -t state name (ok|warning|critical|unknown) message string
 
-B<send_bolo> -t counter name [increment-value]
+B<bolo send> -t counter name [increment-value]
 
-B<send_bolo> -t sample name value [value ...]
+B<bolo send> -t sample name value [value ...]
 
-B<send_bolo> -t key key1=value1 key2=value2 ...
+B<bolo send> -t key key1=value1 key2=value2 ...
 
-B<send_bolo> -t event name [extra description ...]
+B<bolo send> -t event name [extra description ...]
 
-./script | B<send_bolo> -t stream
+./script | B<bolo send> -t stream
 
 =head1 DESCRIPTION
 
 #INTRO
 
-B<send_bolo> is a client that connects to a B<bolo> daemon and submits data.
+B<bolo send> is a client that connects to a B<bolo> daemon and submits data.
 
 =head1 OPTIONS
 
 =over
 
-=item B<-V>, B<--version>
-
-Print version and copyright information.
-
 =item B<-t>, B<--type> (state|counter|sample|key|event|stream)
 
-Changes the behavior of B<send_bolo>.  For all but I<stream>, B<send_bolo>
+Changes the behavior of B<bolo send>.  For all but I<stream>, B<bolo send>
 will interpret the rest of its arguments as a single type of data to submit.
 
-For B<-t state>, B<send_bolo> expects three arguments: a state name, a
+For B<-t state>, B<bolo send> expects three arguments: a state name, a
 status code (one of I<ok>, I<warning>, I<critical> or I<unknown>), and a
 message.  Any remaining arguments will be concatenated to the message
 argument, separated by spaces (much like /bin/echo).
 
-    send_bolo -t state cpu warning CPU is 96.3% used
+    bolo send -t state cpu warning CPU is 96.3% used
 
 For B<-t counter>, provide the name of the counter and optionally, the value
 to increment it by (which if not provided defaults to C<1>).
 
-    send_bolo -t counter eth0.drops 44
+    bolo send -t counter eth0.drops 44
 
-    send_bolo -t counter logins
+    bolo send -t counter logins
 
 For B<-t sample>, the name and one or more values must be provided.  Each
 value will be submitted.  For example, to submit three network packet/second
 readings:
 
-    send_bolo -t sample packets-per-second  120.4  130.8  99.76
+    bolo send -t sample packets-per-second  120.4  130.8  99.76
 
 For B<-t key>, you should supply one or more arguments, of the format
 C<key=value>:
 
-    send_bolo -t key hostname=host01 fqdn=host01.example.com
+    bolo send -t key hostname=host01 fqdn=host01.example.com
 
 Finally, for B<-t event>, all you need to provide is the event name;
 the remaining arguments will be treated as extra data for the event,
 separated by a single space.
 
-    send_bolo -t event user.login jhacker logged in from 10.0.0.233
+    bolo send -t event user.login jhacker logged in from 10.0.0.233
 
 Stream mode (B<-t stream>) allows the caller to submit multiple types of
 data within a single session, by reading specially-formatted lines on
@@ -82,10 +78,6 @@ Known commands for stream mode are:
 
 The bolo listener to connect to.  Defaults to I<tcp://127.0.0.1:2999>.
 Supports DNS resolution for both IPv4 and IPv6 endpoints.
-
-=item B<-v>, B<--verbose>
-
-Enable verbose mode, printing debugging information to standard error.
 
 =back
 

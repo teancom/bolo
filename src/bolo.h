@@ -17,8 +17,8 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BOLO_H
-#define BOLO_H
+#ifndef BOLO_INTERNALS_H
+#define BOLO_INTERNALS_H
 #include "config.h"
 #define BOLO_VERSION PACKAGE_VERSION
 

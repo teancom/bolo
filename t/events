@@ -24,7 +24,7 @@ keysfile   ${ROOT}/var/keysdb
 max.events 3
 EOF
 
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
 clean_pid ${BOLO_PID}
 diag_file ${ROOT}/log/bolo

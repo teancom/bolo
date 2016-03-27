@@ -76,20 +76,20 @@ By default, bolo starts up daemonized, and reads from
 Submitting Data
 ---------------
 
-The **send_bolo** utility can be used to submit metrics and state
+The **bolo send** utility can be used to submit metrics and state
 data to bolo, via the _listener_ port (TCP/2999 in our case):
 
-    $ send_bolo -e tcp://localhost:2999 -t sample life 42
-    $ send_bolo -e tcp://localhost:2999 -t sample universe 42
-    $ send_bolo -e tcp://localhost:2999 -t sample everything 42
+    $ bolo send -e tcp://localhost:2999 -t sample life 42
+    $ bolo send -e tcp://localhost:2999 -t sample universe 42
+    $ bolo send -e tcp://localhost:2999 -t sample everything 42
 
 At this point, you will probably want to go get
 [bolo-collectors][collectors] installed to give you some real
 metric collectors, for real things like memory usage, swap rates,
 CPU time allocation, etc.  The output from these collectors can be
-piped directly into **send_bolo**:
+piped directly into **bolo send**:
 
-    $ /path/to/collector | send_bolo -e tcp://localhost:2999
+    $ /path/to/collector | bolo send -e tcp://localhost:2999
 
 With collectors installed, you can also run **dbolo**, the
 distributed bolo agent.  Create the _/etc/dbolo.conf_
@@ -120,13 +120,13 @@ and creates / updates RRD files on disk.
 
 bolo2rrd daemonizes into the background.
 
-The **stat_bolo** utility also has a _listen_ mode wherein it
-connects to the broadcast port and prints out the data as it is
-received.  This can be useful for subscriber prototyping in
-languages like Perl or Ruby, without having to deal directly with
-0MQ and the bolo message protocol.
+The **bolo2log** utility can be run in foreground mode, where it
+will dump broadcast data it receives in real-time.  This can be
+useful for subscriber prototyping in languages like Perl or Ruby,
+without having to deal directly with 0MQ and the bolo message
+protocol.
 
-    $ stat_bolo -e tcp://localhost:2997 -l | grep 'universe'
+    $ bolo2log -Fvvve tcp://localhost:2997 | grep 'universe'
 
 Writing subscribers isn't that difficult, and provides an
 interesting way of customizing the behavior of your monitoring

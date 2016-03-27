@@ -43,8 +43,6 @@ typedef struct {
 	reactor_t *reactor;
 } dispatcher_t;
 
-int dispatcher_thread(void *zmq, const char *endpoint, const char *listen, const char *broadcast);
-
 static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 {
 	assert(socket != NULL);
@@ -133,7 +131,7 @@ static void * _dispatcher_thread(void *_) /* {{{ */
 	return NULL;
 }
 /* }}} */
-int dispatcher_thread(void *zmq, const char *endpoint, const char *listen, const char *broadcast) /* {{{ */
+static int dispatcher_thread(void *zmq, const char *endpoint, const char *listen, const char *broadcast) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(endpoint != NULL);
@@ -210,7 +208,7 @@ int dispatcher_thread(void *zmq, const char *endpoint, const char *listen, const
 
 /**************************/
 
-int main(int argc, char **argv) /* {{{ */
+int cmd_cache(int off, int argc, char **argv) /* {{{ */
 {
 	struct {
 		char *endpoint;
@@ -230,14 +228,12 @@ int main(int argc, char **argv) /* {{{ */
 		.listen    = strdup("tcp://127.0.0.1:2898"),
 		.broadcast = strdup("tcp://127.0.0.1:2897"),
 		.daemonize = 1,
-		.pidfile   = strdup("/var/run/bcache.pid"),
+		.pidfile   = strdup("/var/run/bolo/cache.pid"),
 		.user      = strdup("root"),
 		.group     = strdup("root"),
 	};
 
 	struct option long_opts[] = {
-		{ "help",             no_argument, NULL, 'h' },
-		{ "version",          no_argument, NULL, 'V' },
 		{ "verbose",          no_argument, NULL, 'v' },
 		{ "endpoint",   required_argument, NULL, 'e' },
 		{ "broadcast",  required_argument, NULL, 'B' },
@@ -248,37 +244,13 @@ int main(int argc, char **argv) /* {{{ */
 		{ "group",      required_argument, NULL, 'g' },
 		{ 0, 0, 0, 0 },
 	};
+
+	optind = ++off;
 	for (;;) {
-		int idx = 1;
-		int c = getopt_long(argc, argv, "h?Vv+e:Fp:u:g:S:P:l:B:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "v+e:Fp:u:g:S:P:l:B:", long_opts, &off);
 		if (c == -1) break;
 
 		switch (c) {
-		case 'h':
-		case '?':
-			printf("bcache v%s\n", BOLO_VERSION);
-			printf("Usage: bcache [-h?FVv] [-e tcp://host:port] [-P PREFIX] [-S tcp://host:port]\n"
-			       "                [-l tcp://host:port] [-B tcp://host:port]\n"
-			       "                [-u user] [-g group] [-p /path/to/pidfile]\n\n");
-			printf("Options:\n");
-			printf("  -?, -h               show this help screen\n");
-			printf("  -F, --foreground     don't daemonize, stay in the foreground\n");
-			printf("  -V, --version        show version information and exit\n");
-			printf("  -v, --verbose        turn on debugging, to standard error\n");
-			printf("  -e, --endpoint       bolo broadcast endpoint to connect to\n");
-			printf("  -B, --broadcast      address to bind and re-broadcast from\n");
-			printf("  -l, --listen         address to listen on for re-broadcast requests\n");
-			printf("  -u, --user           user to run as (if daemonized)\n");
-			printf("  -g, --group          group to run as (if daemonized)\n");
-			printf("  -p, --pidfile        where to store the pidfile (if daemonized)\n");
-			exit(0);
-
-		case 'V':
-			printf("bcache v%s\n"
-			       "Copyright (C) 2015 James Hunt\n",
-			       BOLO_VERSION);
-			exit(0);
-
 		case 'v':
 			OPTIONS.verbose++;
 			break;
@@ -324,7 +296,7 @@ int main(int argc, char **argv) /* {{{ */
 	}
 
 	if (OPTIONS.daemonize) {
-		log_open("bcache", "daemon");
+		log_open("bolo-cache", "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
@@ -334,7 +306,7 @@ int main(int argc, char **argv) /* {{{ */
 		}
 		umask(um);
 	} else {
-		log_open("bcache", "console");
+		log_open("bolo-cache", "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");

@@ -47,7 +47,7 @@ EOF
 
 touch ${ROOT}/etc/agent.conf
 
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
 clean_pid ${BOLO_PID}
 diag_file ${ROOT}/log/bolo
@@ -83,7 +83,7 @@ EOF
 file_is     ${ROOT}/log/agent ${ROOT}/expect \
             "ensure the agent recieves beacon message"
 
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
 clean_pid ${BOLO_PID}
 diag_file ${ROOT}/log/bolo
@@ -100,7 +100,7 @@ sleep 2
 # restart bolo
 kill -TERM ${BOLO_PID}
 sleep 1
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
 clean_pid ${BOLO_PID}
 diag_file ${ROOT}/log/bolo

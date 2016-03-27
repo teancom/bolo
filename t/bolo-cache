@@ -3,14 +3,14 @@ source ${srcdir:-.}/t/lib
 need_command z{sub,pub,push}
 tmpfs
 
-BCACHE_BROADCAST="ipc://${ROOT}/bcache.relay.sock"
-BCACHE_CONTROLLER="ipc://${ROOT}/bcache.control.sock"
+BCACHE_BROADCAST="ipc://${ROOT}/bolo-cache.relay.sock"
+BCACHE_CONTROLLER="ipc://${ROOT}/bolo-cache.control.sock"
 BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
 
-./bcache -Fvvvvvv -e ${BROADCAST} -B ${BCACHE_BROADCAST} -l ${BCACHE_CONTROLLER} > ${ROOT}/bcache.out 2>&1 &
+./bolo cache -Fvvvvvv -e ${BROADCAST} -B ${BCACHE_BROADCAST} -l ${BCACHE_CONTROLLER} > ${ROOT}/bolo-cache.out 2>&1 &
 BCACHE_PID=$!
 clean_pid ${BCACHE_PID}
-diag_file ${ROOT}/bcache.out
+diag_file ${ROOT}/bolo-cache.out
 
 zsub --connect ${BCACHE_BROADCAST} >${ROOT}/early.out 2>&1 &
 EARLY_SUB_PID=$!
@@ -70,11 +70,11 @@ grep -q "$(grep "a.random.rate" ${ROOT}/early.out)" ${ROOT}/late.out \
 grep -q "TRANSITION|sys.cpu" ${ROOT}/early.out \
 	|| bail "early subscriber did not receive the sys.cpu STATE TRANSITION"
 grep -q "TRANSITION" ${ROOT}/late.out \
-	&& bail "bcache should NOT rebroadcast ephemeral TRANSITION PDUs"
+	&& bail "\`bolo cache' should NOT rebroadcast ephemeral TRANSITION PDUs"
 
 grep -q "EVENT|.*|reboot" ${ROOT}/early.out \
 	|| bail "early subscriber did not receive the reboot EVENT"
 grep -q "EVENT" ${ROOT}/late.out \
-	&& bail "bcache should NOT rebroadcast ephemeral EVENT PDUs"
+	&& bail "\`bolo cache' should NOT rebroadcast ephemeral EVENT PDUs"
 
 exit 0

@@ -36,13 +36,11 @@ EXTRA_DIST += bootstrap
 EXTRA_DIST += man examples
 EXTRA_DIST += redhat
 
-sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo bcache
-bolo_SOURCES            = $(CORE_SRC) src/daemon.c src/core.c
+sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = $(SUBS_SRC) src/bolo2log/main.c
 bolo2console_SOURCES    = $(SUBS_SRC) src/bolo2console/main.c
 bolo2meta_SOURCES       = $(SUBS_SRC) src/bolo2meta/main.c
 dbolo_SOURCES           = $(CORE_SRC) src/dbolo/main.c
-bcache_SOURCES          = $(SUBS_SRC) src/bcache/main.c
 
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
@@ -68,26 +66,32 @@ bolo2redis_SOURCES     = $(SUBS_SRC) src/bolo2redis/main.c
 bolo2redis_LDADD       = -lhiredis
 endif
 
-bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo_forget
-send_bolo_SOURCES = $(CORE_SRC) src/send_bolo/main.c
-stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo/main.c
+bin_PROGRAMS = bolo_nsca
 bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca/main.c
-bolo_forget_SOURCES = $(CORE_SRC) src/bolo_forget/main.c
+
+bin_PROGRAMS += bolo
+bolo_SOURCES  = $(SUBS_SRC)
+bolo_SOURCES += src/bolo/main.c
+bolo_SOURCES += src/bolo/cmd_aggregator.c   src/core.c
+bolo_SOURCES += src/bolo/cmd_cache.c
+bolo_SOURCES += src/bolo/cmd_forget.c
+bolo_SOURCES += src/bolo/cmd_help.c
+bolo_SOURCES += src/bolo/cmd_query.c
+bolo_SOURCES += src/bolo/cmd_send.c
+bolo_SOURCES += src/bolo/cmd_version.c
 
 bin_PROGRAMS += bolospy qname
 bolospy_SOURCES   = $(CORE_SRC) src/bolospy/main.c
 qname_SOURCES     = $(CORE_SRC) bin/qname.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
-                t/beacon t/util-send_bolo t/util-bcache t/qname \
+                t/beacon t/bolo-send t/bolo-cache t/qname \
                 t/rrd-subscriber t/meta-subscriber t/log-subscriber \
                 t/forget
 TESTS = $(check_SCRIPTS)
 dist_check_SCRIPTS=$(check_SCRIPTS) t/run t/lib
 
 dist_man_MANS  =
-dist_man_MANS += man/bcache.8
-dist_man_MANS += man/bolo.8
 if build_pg_subscriber
 dist_man_MANS += man/bolo2pg.8
 endif
@@ -101,9 +105,12 @@ endif
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/dbolo.1
 dist_man_MANS += man/dbolo.conf.5
-dist_man_MANS += man/send_bolo.1
-dist_man_MANS += man/stat_bolo.1
-dist_man_MANS += man/bolo_forget.1
+
+dist_man_MANS += man/bolo-aggr.1
+dist_man_MANS += man/bolo-cache.1
+dist_man_MANS += man/bolo-forget.1
+dist_man_MANS += man/bolo-query.1
+dist_man_MANS += man/bolo-send.1
 
 man/%.1: man/%.1.pod
 	./man/build $< @PACKAGE_VERSION@ > $@

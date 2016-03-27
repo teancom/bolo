@@ -40,7 +40,7 @@ rate    @minutely m/./
 sample  @minutely m/./
 EOF
 
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 clean_pid $!
 diag_file ${ROOT}/log/bolo
 

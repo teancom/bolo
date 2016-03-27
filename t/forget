@@ -33,7 +33,7 @@ sample  @default m/./
 rate    @default m/./
 EOF
 
-./bolo -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
+./bolo aggr -Fc ${ROOT}/etc/bolo.conf > ${ROOT}/log/bolo 2>&1 &
 BOLO_PID=$!
 clean_pid ${BOLO_PID}
 diag_file ${ROOT}/log/bolo
@@ -58,11 +58,11 @@ STATE|$TS|test3-ignore|0|all good
 EOF
 
 sleep 1
-string_is "$(./bolo_forget -e ${CONTROLLER} test1)" \
+string_is "$(./bolo forget -e ${CONTROLLER} test1)" \
 "OK" "Forget all test1 datapoints"
-string_is "$(./bolo_forget -e ${CONTROLLER} -t state test2)" \
+string_is "$(./bolo forget -e ${CONTROLLER} -t state test2)" \
 "OK" "Forget test2 states"
-string_is "$(./bolo_forget -e ${CONTROLLER} -t state --ignore test3)" \
+string_is "$(./bolo forget -e ${CONTROLLER} -t state --ignore test3)" \
 "OK" "Forget test3 states and ignore"
 sleep 1
 

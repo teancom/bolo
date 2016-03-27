@@ -9,7 +9,7 @@ ZPULL_PID=$!
 clean_pid ${ZPULL_PID}
 diag_file ${ROOT}/pull
 
-SENDER="./send_bolo -e ${ENDPOINT}"
+SENDER="./bolo send -e ${ENDPOINT}"
 
 ${SENDER} 2>&1 </dev/null -7 | grep -iq invalid \
 	|| bail "unrecognized option did not trigger expected error message"
@@ -114,6 +114,6 @@ EOF
 sed -i'' -e "s/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]*/<ts>/" \
     ${ROOT}/pull ${ROOT}/expect
 file_is ${ROOT}/pull ${ROOT}/expect \
-        "send_bolo formatted all sent PDUs properly"
+        "\`bolo send\` formatted all sent PDUs properly"
 
 exit 0

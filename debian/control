@@ -19,7 +19,6 @@ Build-Depends: debhelper (>= 8),
 Package: bolo-server
 Architecture: any
 Depends: libvigor1, ${misc:Depends}, ${shlibs:Depends}
-Recommends: bolo-clients
 Description: Monitoring System Server
  bolo is a lightweight and scalable monitoring system that can
  track samples, counters, states and configuration data.
@@ -36,26 +35,6 @@ Description: Debugging Symbols for Monitoring System Server
  track samples, counters, states and configuration data.
  .
  This package provides debugging symbols for bolo.
-
-Package: bolo-clients
-Architecture: any
-Depends: libvigor1, ${misc:Depends}, ${shlibs:Depends}
-Description: Monitoring System Clients
- bolo is a lightweight and scalable monitoring system that can
- track samples, counters, states and configuration data.
- .
- This package provides client programs for bolo.
-
-Package: bolo-clients-dbg
-Architecture: any
-Section: debug
-Priority: extra
-Depends: bolo-clients (= ${binary:Version}), ${misc:Depends}
-Description: Debugging Symbols for Monitoring System Clients
- bolo is a lightweight and scalable monitoring system that can
- track samples, counters, states and configuration data.
- .
- This package provides debugging symbols for bolo clients.
 
 Package: bolo-subscribers
 Architecture: any

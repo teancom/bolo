@@ -20,6 +20,8 @@
 #ifndef BOLO_H
 #define BOLO_H
 
+#include <vigor.h>
+
 #define BOLO_VERSION "@VERSION@"
 
 #define OK       0
@@ -27,6 +29,15 @@
 #define CRITICAL 2
 #define UNKNOWN  3
 #define PENDING  4
+
+#define PAYLOAD_STATE     0x0001
+#define PAYLOAD_COUNTER   0x0002
+#define PAYLOAD_RATE      0x0004
+#define PAYLOAD_SAMPLE    0x0008
+#define PAYLOAD_EVENT     0x0010
+#define PAYLOAD_FACT      0x0020
+#define PAYLOAD_RESERVED  0xff70
+#define PAYLOAD_ALL       0xffff
 
 typedef struct {
 	char *name;

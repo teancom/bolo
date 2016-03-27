@@ -1,22 +1,22 @@
 =head1 NAME
 
-bolo_forget - Bolo forget utility
+bolo forget - Bolo forget utility
 
 =head1 SYNOPSIS
 
-B<bolo_forget> -e <endpoint> <pattern>
+B<bolo forget> -e <endpoint> <pattern>
 
-B<bolo_forget> -t state <pattern>
+B<bolo forget> -t state <pattern>
 
-B<bolo_forget> -t counter -t rate <pattern>
+B<bolo forget> -t counter -t rate <pattern>
 
-B<bolo_forget> -t all --ignore <pattern>
+B<bolo forget> -t all --ignore <pattern>
 
 =head1 DESCRIPTION
 
 #INTRO
 
-B<bolo_forget> is a utility that sends controll messages to the
+B<bolo forget> is a utility that sends controll messages to the
 B<bolo> core to forget matching data patterns.
 
 =head1 OPTIONS
@@ -53,5 +53,4 @@ that was previously ignored.
 
 =head1 AUTHOR
 
-bolo_forget was written by Dan Molik.
 #AUTHOR

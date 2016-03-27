@@ -1,16 +1,16 @@
 =head1 NAME
 
-bcache - Bolo Caching Daemon
+bolo cache - Bolo Caching Daemon
 
 =head1 SYNOPSIS
 
-B<bcache> [options] -e tcp://bolo:2997 -B tcp://127.0.0.1:2997
+B<bolo cache> [options] -e tcp://bolo:2997 -B tcp://127.0.0.1:2997
 
 =head1 DESCRIPTION
 
 #INTRO
 
-B<bcache> is a special bit of bolo infrastructure that subscribes to an upstream
+B<bolo cache> is a special bit of bolo infrastructure that subscribes to an upstream
 B<bolo>(8) instance (the I<endpoint>), and caches all seen metric and state PDUs
 while relaying them through to its own subscribers.  Additionally, it binds a control
 port that allows clients to request a retransmission of all cached data, as if it were
@@ -50,21 +50,21 @@ Defaults to I<tcp://127.0.0.1:2898>.
 
 =item B<-F>, B<--foreground>
 
-By default, B<bcache> will fork into the background, detach its terminal
+By default, B<bolo cache> will fork into the background, detach its terminal
 and daemonize itself.  This option inhibits that behavior, and also stops
 its from setting the effective UID / GID (see B<-u> and B<-g>).
 
 =item B<-p>, B<--pidfile> I</path/to/pidfile>
 
-Specify where B<bcache> should write its PID to, for control by init
-scripts.  Defaults to B</var/run/bcache.pid>.  Has no effect if B<-F> is
+Specify where B<bolo cache> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo/cache.pid>.  Has no effect if B<-F> is
 given.
 
 =item B<-u>, B<--user> I<USERNAME>
 
 =item B<-g>, B<--group> I<GROUP NAME>
 
-User and group to drop privileges to.  By default, B<bcache> will run as
+User and group to drop privileges to.  By default, B<bolo cache> will run as
 root:root, which is probably not what you want.
 
 =item B<-v>, B<--verbose>
@@ -77,7 +77,7 @@ Enable verbose mode, printing debugging information to standard error.
 
 If you run B<bolo>(8) and bind its broadcast endpoint to something other
 than I<tcp://*:2997> (say, for instance, I<tcp://127.0.0.1:1234>),
-you can transparently front it with B<bcache> broadcasting on I<tcp://*:2997>
+you can transparently front it with B<bolo cache> broadcasting on I<tcp://*:2997>
 and clients will never know the difference.
 
 =head1 SEE ALSO

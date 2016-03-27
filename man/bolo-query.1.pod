@@ -1,0 +1,69 @@
+=head1 NAME
+
+bolo query - Bolo Monitoring System Controller
+
+=head1 SYNOPSIS
+
+B<bolo query> [-e tcp://host:port]
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo query> is a clent that reads commands from standard input, and relays
+them to a bolo aggregator (specified by the B<-e> flag).
+
+The following commands are understood:
+
+=over
+
+=item B<state> STATE-NAME
+
+Retrieve the current status and summary message of the given state.
+
+=item B<set.keys> KEY1 VALUE1 [KEY2 VALUE2 ...]
+
+Set one or more keys and their values.
+
+=item B<get.keys> KEY1 [KEY2 ...]
+
+Retrieve the value for one or more keys, by name.
+
+=item B<del.keys> KEY1 [KEY2 ...]
+
+Delete the named keys from the B<bolo> keystore.
+
+=item B<search.keys> PATTERN
+
+List out keys that match the given pattern.
+
+=item B<get.events> [SINCE]
+
+Retrieve and print the list of buffered events that occurred on or after
+the given timestamp.  If there is no timestamp, all events are retrieved.
+
+=item B<dump>
+
+Dump the state data, as YAML.
+
+=back
+
+=head1 OPTIONS
+
+=over
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+What endpoint to connect to.  Defaults to I<tcp://127.0.0.1:2998>.
+
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

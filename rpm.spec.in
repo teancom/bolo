@@ -76,14 +76,17 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/bolo_forget
 %{_bindir}/bolospy
-%{_sbindir}/bolo
+%{_bindir}/bolo
 %{_initrddir}/bolo
 %config %{_sysconfdir}/bolo.conf
-%{_mandir}/man1/bolo_forget.1.gz
 %{_mandir}/man5/bolo.conf.5.gz
-%{_mandir}/man8/bolo.8.gz
+%{_mandir}/man1/bolo.1.gz
+%{_mandir}/man1/bolo-aggr.1.gz
+%{_mandir}/man1/bolo-cache.1.gz
+%{_mandir}/man1/bolo-forget.1.gz
+%{_mandir}/man1/bolo-query.1.gz
+%{_mandir}/man1/bolo-send.1.gz
 
 
 #######################################################################
@@ -120,11 +123,7 @@ fi
 %defattr(-,root,root,-)
 %{_sbindir}/dbolo
 %{_initrddir}/dbolo
-%{_bindir}/send_bolo
-%{_bindir}/stat_bolo
 %{_mandir}/man1/dbolo.1.gz
-%{_mandir}/man1/send_bolo.1.gz
-%{_mandir}/man1/stat_bolo.1.gz
 %{_mandir}/man5/dbolo.conf.5.gz
 
 
@@ -288,10 +287,8 @@ This package provides utility components for bolo.
 
 %files utils
 %defattr(-,root,root,-)
-%{_sbindir}/bcache
 %{_sbindir}/bolo2console
 %{_sbindir}/bolo2log
-%{_mandir}/man8/bcache.8.gz
 %doc %{_datadir}/bolo
 
 
