@@ -23,7 +23,8 @@ Here's an example dump:
       first seen 1459088992 / last seen 1459088992
     
     sample :: res.df:/
-      n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 mean=4.200000e+01 var=0.000000e+00
+      n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 \
+        mean=4.200000e+01 var=0.000000e+00
       window 3600
       last seen 1459088992
     
