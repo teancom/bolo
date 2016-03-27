@@ -1,5 +1,5 @@
 /*
-  Copyright 2016 James Hunt <james@jameshunt.us>
+  Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.
 
   This file is part of Bolo.
 

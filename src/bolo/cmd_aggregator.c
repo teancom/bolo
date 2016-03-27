@@ -1,5 +1,5 @@
 /*
-  Copyright 2015 James Hunt <james@jameshunt.us>
+  Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.
 
   This file is part of Bolo.
 
@@ -70,7 +70,7 @@ int cmd_aggregator(int off, int argc, char **argv)
 		case 'V':
 			logger(LOG_DEBUG, "handling -V/--version");
 			printf("bolo v%s\n"
-			       "Copyright (C) 2015 James Hunt\n",
+			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
 

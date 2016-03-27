@@ -156,18 +156,5 @@ coverage:
 clean-local-cov:
 endif
 
-# aliases
-test: check
-
-############################################################
-
-version:
-	@echo $(VERSION)
-
-distfile: dist
-	@echo $(PACKAGE)-$(VERSION).tar.gz
-
-manifest:
-	@echo >&2 "nothin doin"
-
-test: check
+copyright:
+	@find . -not -name config.h -name *.[ch] | xargs -r grep -L 'Copyright 20'
