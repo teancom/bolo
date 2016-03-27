@@ -34,9 +34,6 @@ EXTRA_DIST += README.md
 EXTRA_DIST += PROTO
 EXTRA_DIST += bootstrap
 EXTRA_DIST += man examples
-EXTRA_DIST += util/packet
-EXTRA_DIST += util/savefile
-EXTRA_DIST += util/sender
 EXTRA_DIST += redhat
 
 sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo bcache
