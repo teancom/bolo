@@ -2,12 +2,29 @@
 
 TITLE="Bolo Manual"
 DATE=$(date +'%Y-%m-%d')
-VERSION=$2
-POD=$1
+VERSION=$3
+POD=$2
+TYPE=$1
 
 SECTION=${POD%.pod}; SECTION=${SECTION##*.}
-NAME=${POD%%.*}; NAME=${NAME##*/}; NAME=$(echo $NAME | dd conv=ucase 2>/dev/null)
+NAME=${POD%%.*}; NAME=${NAME##*/};
 
-echo >&2 "[POD] $POD -> $NAME($SECTION) v$VERSION"
-sed -f man/fixup.sed < $POD | pod2man --center "$TITLE" --date "$DATE" --release "Bolo v$VERSION" --name "$NAME" --section "$SECTION"
+echo >&2 "[POD] $POD -> $NAME($SECTION) v$VERSION [${TYPE}]"
+case ${TYPE} in
+(*roff)
+	NAME=$(echo $NAME | dd conv=ucase 2>/dev/null)
+	sed -f man/fixup.sed < $POD | pod2man --center "$TITLE" --date "$DATE" --release "Bolo v$VERSION" --name "$NAME" --section "$SECTION"
+	;;
+(*yml)
+	cat <<EOF
+url:       ${NAME}.${SECTION}.html
+name:      $NAME
+section:   $SECTION
+date:      $DATE
+release:   $VERSION
+--- |-
+EOF
+	sed -f man/fixup.sed < $POD | pod2text
+	;;
+esac
 rm -f man/*.tmp

@@ -27,6 +27,7 @@ man/*.6
 man/*.7
 man/*.8
 man/*.9
+man/*.yml
 
 config.h
 

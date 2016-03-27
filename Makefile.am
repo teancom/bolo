@@ -111,15 +111,33 @@ dist_man_MANS += man/bolo-cache.1
 dist_man_MANS += man/bolo-forget.1
 dist_man_MANS += man/bolo-query.1
 dist_man_MANS += man/bolo-send.1
+yaml_manpages  = $(dist_man_MANS:%=%.yml)
+CLEANFILES = $(yaml_manpages)
+
+update-website: $(yaml_manpages)
+	test -d ../bolo-website
+	mkdir -p ../bolo-website/data/man
+	cp -a $^ ../bolo-website/data/man/
 
 man/%.1: man/%.1.pod
-	./man/build $< @PACKAGE_VERSION@ > $@
+	./man/build nroff $< @PACKAGE_VERSION@ > $@
+man/%.1.yml: man/%.1.pod
+	./man/build yml $< @PACKAGE_VERSION@ > $@
+
 man/%.5: man/%.5.pod
-	./man/build $< @PACKAGE_VERSION@ > $@
+	./man/build nroff $< @PACKAGE_VERSION@ > $@
+man/%.5.yml: man/%.5.pod
+	./man/build yml $< @PACKAGE_VERSION@ > $@
+
 man/%.7: man/%.7.pod
-	./man/build $< @PACKAGE_VERSION@ > $@
+	./man/build nroff $< @PACKAGE_VERSION@ > $@
+man/%.7.yml: man/%.7.pod
+	./man/build yml $< @PACKAGE_VERSION@ > $@
+
 man/%.8: man/%.8.pod
-	./man/build $< @PACKAGE_VERSION@ > $@
+	./man/build nroff $< @PACKAGE_VERSION@ > $@
+man/%.8.yml: man/%.8.pod
+	./man/build yml $< @PACKAGE_VERSION@ > $@
 
 .PHONY: coverage-clean coverage-report coverage clean-local-cov distclean-local
 distclean-local:
