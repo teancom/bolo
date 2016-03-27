@@ -72,13 +72,13 @@ bolo2redis_LDADD       = -lhiredis
 endif
 
 bin_PROGRAMS = send_bolo stat_bolo bolo_nsca bolo_forget
-send_bolo_SOURCES = $(CORE_SRC) src/send_bolo.c
-stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo.c
-bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca.c
-bolo_forget_SOURCES = $(CORE_SRC) src/forget.c
+send_bolo_SOURCES = $(CORE_SRC) src/send_bolo/main.c
+stat_bolo_SOURCES = $(CORE_SRC) src/stat_bolo/main.c
+bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca/main.c
+bolo_forget_SOURCES = $(CORE_SRC) src/bolo_forget/main.c
 
 bin_PROGRAMS += bolospy qname
-bolospy_SOURCES   = $(CORE_SRC) src/spy.c
+bolospy_SOURCES   = $(CORE_SRC) src/bolospy/main.c
 qname_SOURCES     = $(CORE_SRC) bin/qname.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \

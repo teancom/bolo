@@ -17,7 +17,7 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
+#include "../bolo.h"
 #include <getopt.h>
 
 static struct {

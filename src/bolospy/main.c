@@ -1,4 +1,4 @@
-#include "bolo.h"
+#include "../bolo.h"
 
 typedef struct {
 	int   type;
