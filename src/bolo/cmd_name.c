@@ -20,27 +20,27 @@
 #include <stdio.h>
 #include "../src/bolo.h"
 
-int main(int argc, char **argv)
+int cmd_name(int off, int argc, char **argv)
 {
 	/*
-	    qname dump name=blah,test=this
-	    qname match x=y,a=b a=b,x=y
-	    qname match '*' x=y
-	    qname fix b=c,a=b
+	    bolo name dump name=blah,test=this
+	    bolo name match x=y,a=b a=b,x=y
+	    bolo name match '*' x=y
+	    bolo name fix b=c,a=b
 	 */
 
-	if (argc < 2) {
-		fprintf(stderr, "USAGE: %s <command> [options]\n", argv[0]);
+	if (argc - off < 2) {
+		fprintf(stderr, "USAGE: bolo name <command> [options]\n");
 		exit(1);
 	}
 
 	if (strcmp(argv[1], "dump") == 0) {
-		if (argc < 3) {
-			fprintf(stderr, "USAGE: %s dump <name> [<name> ...]\n", argv[0]);
+		if (argc - off < 3) {
+			fprintf(stderr, "USAGE: bolo name dump <name> [<name> ...]\n");
 			exit(1);
 		}
 		int i;
-		for (i = 2; i < argc; i++) {
+		for (i = off + 2; i < argc; i++) {
 			fprintf(stderr, "qname: %s\n", argv[i]);
 
 			qname_t* qn = qname_parse(argv[i]);
@@ -58,18 +58,18 @@ int main(int argc, char **argv)
 			}
 		}
 
-	} else if (strcmp(argv[1], "match") == 0) {
-		if (argc != 4) {
-			fprintf(stderr, "USAGE: %s match <name> <other-name>\n", argv[0]);
+	} else if (strcmp(argv[off + 1], "match") == 0) {
+		if (argc - off != 4) {
+			fprintf(stderr, "USAGE: bolo name match <name> <other-name>\n");
 			exit(1);
 		}
 
 		qname_t *a, *b;
-		a = qname_parse(argv[2]);
-		b = qname_parse(argv[3]);
+		a = qname_parse(argv[off + 2]);
+		b = qname_parse(argv[off + 3]);
 
-		if (!a) fprintf(stderr, "%s: not a valid qualified name\n", argv[2]);
-		if (!b) fprintf(stderr, "%s: not a valid qualified name\n", argv[3]);
+		if (!a) fprintf(stderr, "%s: not a valid qualified name\n", argv[off + 2]);
+		if (!b) fprintf(stderr, "%s: not a valid qualified name\n", argv[off + 3]);
 		if (!a || !b) exit(1);
 
 		if (qname_match(a, b) != 0) {
@@ -79,23 +79,23 @@ int main(int argc, char **argv)
 		fprintf(stdout, "yes\n");
 		exit(0);
 
-	} else if (strcmp(argv[1], "check") == 0) {
-		if (argc < 3) {
-			fprintf(stderr, "USAGE: %s check <name> [<name> ...]\n", argv[0]);
+	} else if (strcmp(argv[off + 1], "check") == 0) {
+		if (argc - off < 3) {
+			fprintf(stderr, "USAGE: bolo name check <name> [<name> ...]\n");
 			exit(1);
 		}
 		int i;
-		for (i = 2; i < argc; i++)
+		for (i = off + 2; i < argc; i++)
 			fprintf(stdout, "%svalid\n", qname_parse(argv[i]) ? "" : "in");
 		exit(0);
 
-	} else if (strcmp(argv[1], "fix") == 0) {
-		if (argc < 3) {
-			fprintf(stderr, "USAGE: %s fix <name> [<name> ...]\n", argv[0]);
+	} else if (strcmp(argv[off + 1], "fix") == 0) {
+		if (argc - off < 3) {
+			fprintf(stderr, "USAGE: bolo name fix <name> [<name> ...]\n");
 			exit(1);
 		}
 		int i;
-		for (i = 2; i < argc; i++) {
+		for (i = off + 2; i < argc; i++) {
 			qname_t* qn = qname_parse(argv[i]);
 			if (qn == NULL) {
 				fprintf(stderr, "%s: not a valid qualified name\n", argv[i]);
@@ -108,8 +108,7 @@ int main(int argc, char **argv)
 		}
 
 	} else {
-		/* FIXME: help / -h / --help */
-		fprintf(stderr, "Unrecognized command '%s'\n", argv[1]);
+		fprintf(stderr, "Unrecognized command '%s'\n", argv[off + 1]);
 		exit(1);
 	}
 

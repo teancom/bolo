@@ -25,6 +25,7 @@ int cmd_aggregator(int i, int argc, char **argv);
 int cmd_cache(int i, int argc, char **argv);
 int cmd_forget(int i, int argc, char **argv);
 int cmd_help(int i, int argc, char **argv);
+int cmd_name(int i, int argc, char **argv);
 int cmd_query(int i, int argc, char **argv);
 int cmd_send(int i, int argc, char **argv);
 int cmd_version(int i, int argc, char **argv);
@@ -73,6 +74,9 @@ int main(int argc, char **argv)
 
 	if (strcmp(argv[i], "forget") == 0)
 		return cmd_forget(i, argc, argv);
+
+	if (strcmp(argv[i], "name") == 0)
+		return cmd_name(i, argc, argv);
 
 	if (strcmp(argv[i], "query") == 0)
 		return cmd_query(i, argc, argv);

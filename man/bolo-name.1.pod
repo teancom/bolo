@@ -1,0 +1,58 @@
+=head1 NAME
+
+bolo name - Bolo Monitoring System Qualified Name Utility
+
+=head1 SYNOPSIS
+
+B<bolo name> check QUALIFIED NAME [...]
+
+B<bolo name> dump  QUALIFIED-NAME [...]
+
+B<bolo name> fix   QUALIFIED NAME [...]
+
+B<bolo name> match NAME1 NAME2
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo query> is a small utility that parses and analyzes TSDP Qualified
+Names (i.e. B<type=sys,host=example01,m=cpu>).  It provides sub-comands for
+checking name equivalence (including wildcard matching semantics),
+canonicalization (via B<fix>), validation (B<check>) and debugging.
+
+The following commands are understood:
+
+=over
+
+=item B<check> NAME(S)
+
+Check the well-formedness of one or more qualified names.  Evaluates all
+arguments, and exits non-zero if any of them are invalid.
+
+=item B<dump> NAME(S)
+
+Prints debugging information from the I<qname> parser, which can be useful
+to developers and system integrators wishing to understand qualified names
+on a deeper level, and chase down bugs in the implementation.
+
+=item B<fix> NAME(S)
+
+Parses each qualified name, canonicalizes it (by re-ordering name
+components), and prints it to standard out.  Invalid or malformed names will
+be skipped, and an error (for each) will be printed to standard error.
+
+=item B<match> NAME1 NAME2
+
+Parses both qualified names and checks if C<NAME1> is equivalent to
+C<NAME2>, taking into account wildcard matching semantics.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

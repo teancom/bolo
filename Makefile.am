@@ -76,16 +76,16 @@ bolo_SOURCES += src/bolo/cmd_aggregator.c   src/core.c
 bolo_SOURCES += src/bolo/cmd_cache.c
 bolo_SOURCES += src/bolo/cmd_forget.c
 bolo_SOURCES += src/bolo/cmd_help.c
+bolo_SOURCES += src/bolo/cmd_name.c
 bolo_SOURCES += src/bolo/cmd_query.c
 bolo_SOURCES += src/bolo/cmd_send.c
 bolo_SOURCES += src/bolo/cmd_version.c
 
-bin_PROGRAMS += bolospy qname
+bin_PROGRAMS += bolospy
 bolospy_SOURCES   = $(CORE_SRC) src/bolospy/main.c
-qname_SOURCES     = $(CORE_SRC) bin/qname.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
-                t/beacon t/bolo-send t/bolo-cache t/qname \
+                t/beacon t/bolo-send t/bolo-cache t/bolo-name \
                 t/rrd-subscriber t/meta-subscriber t/log-subscriber \
                 t/forget
 TESTS = $(check_SCRIPTS)
@@ -109,6 +109,7 @@ dist_man_MANS += man/dbolo.conf.5
 dist_man_MANS += man/bolo-aggr.1
 dist_man_MANS += man/bolo-cache.1
 dist_man_MANS += man/bolo-forget.1
+dist_man_MANS += man/bolo-name.1
 dist_man_MANS += man/bolo-query.1
 dist_man_MANS += man/bolo-send.1
 yaml_manpages  = $(dist_man_MANS:%=%.yml)

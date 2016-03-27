@@ -5,6 +5,7 @@
 /usr/share/man/man1/bolo-aggr.1
 /usr/share/man/man1/bolo-cache.1
 /usr/share/man/man1/bolo-forget.1
+/usr/share/man/man1/bolo-name.1
 /usr/share/man/man1/bolo-query.1
 /usr/share/man/man1/bolo-send.1
 examples/bolo.conf etc

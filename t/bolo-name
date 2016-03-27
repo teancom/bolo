@@ -1,0 +1,32 @@
+#!/bin/bash
+source ${srcdir:-.}/t/lib
+
+string_is "$(./bolo name fix '')"            ''               "empty qualified name is still empty"
+string_is "$(./bolo name fix '*')"           '*'
+string_is "$(./bolo name fix 'a=b')"         'a=b'
+string_is "$(./bolo name fix 'a=b,c=d')"     'a=b,c=d'
+string_is "$(./bolo name fix 'c=d,a=b')"     'a=b,c=d'
+string_is "$(./bolo name fix 'a=b,x=y,c=d')" 'a=b,c=d,x=y'
+string_is "$(./bolo name fix 'c=a,a=b')"     'a=b,c=a'        "only name keys matter for sorting..."
+string_is "$(./bolo name fix 'x=y,*')"       'x=y,*'
+string_is "$(./bolo name fix '*,x=y')"       'x=y,*'          "match-all always sorts to the end..."
+string_is "$(./bolo name fix 'a=b,*,*')"     'a=b,*'          "multiple match-alls collapse..."
+string_is "$(./bolo name fix 'a=b,x=*')"     'a=b,x=*'
+string_is "$(./bolo name fix 'a=b,x=*')"     'a=b,x=*'
+string_is "$(./bolo name fix 'c=*,a=*')"     'a=*,c=*'
+
+string_is "$(./bolo name check 'a=b,')"    invalid
+string_is "$(./bolo name check 'a=b,**')"  invalid
+
+string_is "$(./bolo name match 'a=b' 'a=b')"  yes  "a=b should match a=b"
+string_is "$(./bolo name match 'a=b' 'a=*')"  yes  "a=b should match a=*"
+string_is "$(./bolo name match 'a=b' 'a=x')"  no   "a=b should not match a=x"
+string_is "$(./bolo name match 'a=b' 'c=d')"  no   "a=b should not match c=d"
+string_is "$(./bolo name match 'a=b' '*')"    yes  "a=b should match match-all"
+
+string_is "$(./bolo name match 'a=b,c=d,e=f' 'a=b,c=d,*')"  yes  "strictly ordered match-all"
+string_is "$(./bolo name match 'a=b,c=d,e=f' 'a=b,e=f,*')"  yes  "out-of-order match-all"
+string_is "$(./bolo name match 'a=b,c=d,e=f' 'a=b,g=h,*')"  no   "must match explicit parts"
+string_is "$(./bolo name match 'a=b'         'a=b,g=h,*')"  no   "must match explicit parts (short)"
+
+exit 0
