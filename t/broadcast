@@ -70,7 +70,7 @@ COUNTER|$TS|test-counter|3
 SAMPLE|$TS|test-sample|4|5
 RATE|$(( TS + 1 ))|test-rate|3
 EOF
-sleep 3
+sleep 4
 
 kill -TERM ${SUBSCRIBER_PID}
 kill -TERM ${BOLO_PID}

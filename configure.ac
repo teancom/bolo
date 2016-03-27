@@ -27,6 +27,8 @@ AC_CONFIG_HEADERS(config.h)
 
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects])
 
+LT_INIT
+
 AX_TEST_COVERAGE
 
 AC_PROG_CC

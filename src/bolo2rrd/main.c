@@ -30,7 +30,6 @@
 
 #include <vigor.h>
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 /**************************/
 

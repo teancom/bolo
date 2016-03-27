@@ -17,9 +17,9 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
-#include <bolo/subscriber.h>
+#include <bolo.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include <string.h>
 #include <assert.h>

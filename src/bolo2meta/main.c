@@ -27,7 +27,6 @@
 
 #include <vigor.h>
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */

@@ -27,7 +27,6 @@
 
 #include <vigor.h>
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 #define MASK_STATE       0x01
 #define MASK_TRANSITION  0x02

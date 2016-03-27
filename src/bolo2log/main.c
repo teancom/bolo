@@ -30,7 +30,6 @@
 #include <pcre.h>
 
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 #define TYPE_SYSLOG 1
 #define TYPE_FILE   2

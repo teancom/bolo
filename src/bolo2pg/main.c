@@ -26,7 +26,6 @@
 #include <libpq-fe.h>
 #include <vigor.h>
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 /***********************************************************/
 

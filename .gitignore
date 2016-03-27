@@ -1,4 +1,7 @@
 *.o
+*.lo
+*.la
+.libs
 *~
 *.gc??
 lcov.info
@@ -53,12 +56,18 @@ Makefile.in
 config.h.in
 Makefile
 configure
+libtool
 autom4te.cache
 aclocal.m4
 build/*
 !build/*.m4
+build/lt*.m4
+build/libtool.m4
 rpm.spec
 !rpm.spec.in
+
+/include/bolo.h
+!/include/bolo.h.in
 
 dev/
 

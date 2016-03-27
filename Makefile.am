@@ -27,7 +27,6 @@ CORE_SRC += src/send.c
 CORE_SRC += src/qname.c
 
 SUBS_SRC  = $(CORE_SRC)
-SUBS_SRC += include/bolo/subscriber.h
 SUBS_SRC += src/subs.c
 
 EXTRA_DIST += README.md
@@ -36,51 +35,56 @@ EXTRA_DIST += bootstrap
 EXTRA_DIST += man examples
 EXTRA_DIST += redhat
 
+include_HEADERS = include/bolo.h
+lib_LTLIBRARIES = libbolo.la
+libbolo_la_SOURCES  =
+libbolo_la_SOURCES += $(SUBS_SRC)
+LDADD += libbolo.la
+
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
-bolo2log_SOURCES        = $(SUBS_SRC) src/bolo2log/main.c
-bolo2console_SOURCES    = $(SUBS_SRC) src/bolo2console/main.c
-bolo2meta_SOURCES       = $(SUBS_SRC) src/bolo2meta/main.c
-dbolo_SOURCES           = $(CORE_SRC) src/dbolo/main.c
+bolo2log_SOURCES        = src/bolo2log/main.c
+bolo2console_SOURCES    = src/bolo2console/main.c
+bolo2meta_SOURCES       = src/bolo2meta/main.c
+dbolo_SOURCES           = src/dbolo/main.c
 
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
-bolo2rrd_SOURCES        = $(SUBS_SRC) src/bolo2rrd/main.c
+bolo2rrd_SOURCES        = src/bolo2rrd/main.c
 bolo2rrd_LDADD          = -lrrd_th
 endif
 
 if build_pg_subscriber
 sbin_PROGRAMS          += bolo2pg
-bolo2pg_SOURCES         = $(SUBS_SRC) src/bolo2pg/main.c
+bolo2pg_SOURCES         = src/bolo2pg/main.c
 bolo2pg_LDADD           = -lpq
 endif
 
 if build_sqlite_subscriber
 sbin_PROGRAMS         += bolo2sqlite
-bolo2sqlite_SOURCES    = $(SUBS_SRC) src/bolo2sqlite/main.c
+bolo2sqlite_SOURCES    = src/bolo2sqlite/main.c
 bolo2sqlite_LDADD      = -lsqlite3
 endif
 
 if build_redis_subscriber
 sbin_PROGRAMS         += bolo2redis
-bolo2redis_SOURCES     = $(SUBS_SRC) src/bolo2redis/main.c
+bolo2redis_SOURCES     = src/bolo2redis/main.c
 bolo2redis_LDADD       = -lhiredis
 endif
 
 bin_PROGRAMS = bolo_nsca
-bolo_nsca_SOURCES = $(CORE_SRC) src/bolo_nsca/main.c
+bolo_nsca_SOURCES = src/bolo_nsca/main.c
 
 bin_PROGRAMS += bolo
-bolo_SOURCES  = $(SUBS_SRC)
-bolo_SOURCES += src/bolo/main.c
-bolo_SOURCES += src/bolo/cmd_aggregator.c   src/core.c
-bolo_SOURCES += src/bolo/cmd_cache.c
-bolo_SOURCES += src/bolo/cmd_forget.c
-bolo_SOURCES += src/bolo/cmd_help.c
-bolo_SOURCES += src/bolo/cmd_name.c
-bolo_SOURCES += src/bolo/cmd_query.c
-bolo_SOURCES += src/bolo/cmd_send.c
-bolo_SOURCES += src/bolo/cmd_spy.c
-bolo_SOURCES += src/bolo/cmd_version.c
+bolo_SOURCES  = src/bolo/main.c \
+                src/bolo/cmd_aggregator.c   src/core.c \
+                src/bolo/cmd_cache.c \
+                src/bolo/cmd_forget.c \
+                src/bolo/cmd_help.c \
+                src/bolo/cmd_name.c \
+                src/bolo/cmd_query.c \
+                src/bolo/cmd_send.c \
+                src/bolo/cmd_spy.c \
+                src/bolo/cmd_version.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
                 t/beacon t/bolo-send t/bolo-cache t/bolo-name \

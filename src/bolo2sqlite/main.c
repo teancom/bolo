@@ -26,7 +26,6 @@
 
 #include <vigor.h>
 #include <bolo.h>
-#include <bolo/subscriber.h>
 
 static  int64_t TIME  = 0;
 static uint64_t COUNT = 0;
