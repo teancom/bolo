@@ -1,0 +1,47 @@
+=head1 NAME
+
+bolo spy - Bolo Monitoring System Savefile Utility
+
+=head1 SYNOPSIS
+
+B<bolo spy> /path/to/bolo.conf /path/to/savedb
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo spy> is a small admin utility for dumping the contents of a bolo savedb.
+
+Here's an example dump:
+
+    counter :: counter1 = 5
+      window 60
+      last seen 1459088992
+    
+    rate :: rate1 ( 1000 : 1347 )
+      window 60
+      first seen 1459088992 / last seen 1459088992
+    
+    sample :: res.df:/
+      n=1 min=4.200000e+01 max=4.200000e+01 sum=4.200000e+01 mean=4.200000e+01 var=0.000000e+00
+      window 3600
+      last seen 1459088992
+    
+    state :: test.state.0
+      [0] OK - all good
+      last seen 1459088992 / expires 1459089053
+      freshness 60
+    
+    state :: test.state.1
+      [2] CRITICAL - critically-ness
+      last seen 1459088992 / expires 1459089053
+      freshness 60
+
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

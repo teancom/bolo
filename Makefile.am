@@ -79,10 +79,8 @@ bolo_SOURCES += src/bolo/cmd_help.c
 bolo_SOURCES += src/bolo/cmd_name.c
 bolo_SOURCES += src/bolo/cmd_query.c
 bolo_SOURCES += src/bolo/cmd_send.c
+bolo_SOURCES += src/bolo/cmd_spy.c
 bolo_SOURCES += src/bolo/cmd_version.c
-
-bin_PROGRAMS += bolospy
-bolospy_SOURCES   = $(CORE_SRC) src/bolospy/main.c
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
                 t/beacon t/bolo-send t/bolo-cache t/bolo-name \
@@ -112,6 +110,7 @@ dist_man_MANS += man/bolo-forget.1
 dist_man_MANS += man/bolo-name.1
 dist_man_MANS += man/bolo-query.1
 dist_man_MANS += man/bolo-send.1
+dist_man_MANS += man/bolo-spy.1
 yaml_manpages  = $(dist_man_MANS:%=%.yml)
 CLEANFILES = $(yaml_manpages)
 

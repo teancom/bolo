@@ -41,10 +41,10 @@ static void box(int type, void *ptr, char *key, strings_t *sort, hash_t *index)
 	free(key);
 }
 
-int main(int argc, char **argv)
+int cmd_spy(int off, int argc, char **argv)
 {
-	if (argc != 3) {
-		fprintf(stderr, "USAGE: %s bolo.cfg /path/to/save.db\n", argv[0]);
+	if (argc - off != 3) {
+		fprintf(stderr, "USAGE: bolo spy bolo.cfg /path/to/save.db\n");
 		return 1;
 	}
 
@@ -61,12 +61,12 @@ int main(int argc, char **argv)
 	s.config.savefile     = strdup(DEFAULT_SAVEFILE);
 	s.config.save_size    = DEFAULT_SAVE_SIZE;
 
-	if (configure(argv[1], &s) != 0) {
-		perror(argv[1]);
+	if (configure(argv[off + 1], &s) != 0) {
+		perror(argv[off + 1]);
 		return 2;
 	}
-	if (binf_read(&s.db, argv[2], s.config.save_size) != 0) {
-		fprintf(stderr, "%s: %s\n", argv[2],
+	if (binf_read(&s.db, argv[off + 2], s.config.save_size) != 0) {
+		fprintf(stderr, "%s: %s\n", argv[off + 2],
 			errno == 0 ? "corrupt savefile" : strerror(errno));
 		return 2;
 	}

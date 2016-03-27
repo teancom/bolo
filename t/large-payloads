@@ -78,7 +78,7 @@ string_is "$(echo 'SAVESTATE' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
           "OK" \
           "SAVESTATE via controller"
 
-./bolospy ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
+./bolo spy ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
     sed -e 's/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/{{timestamp}}/g' > ${ROOT}/got
 cat <<EOF > ${ROOT}/expect
 counter :: $(payload 12 c1small) = 42

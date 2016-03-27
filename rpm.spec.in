@@ -76,7 +76,6 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/bolospy
 %{_bindir}/bolo
 %{_initrddir}/bolo
 %config %{_sysconfdir}/bolo.conf
@@ -88,6 +87,7 @@ fi
 %{_mandir}/man1/bolo-name.1.gz
 %{_mandir}/man1/bolo-query.1.gz
 %{_mandir}/man1/bolo-send.1.gz
+%{_mandir}/man1/bolo-spy.1.gz
 
 
 #######################################################################

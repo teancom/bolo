@@ -1,4 +1,3 @@
-/usr/bin/bolospy
 /usr/bin/bolo
 /usr/share/man/man5/bolo.conf.5
 /usr/share/man/man1/bolo.1
@@ -8,4 +7,5 @@
 /usr/share/man/man1/bolo-name.1
 /usr/share/man/man1/bolo-query.1
 /usr/share/man/man1/bolo-send.1
+/usr/share/man/man1/bolo-spy.1
 examples/bolo.conf etc
