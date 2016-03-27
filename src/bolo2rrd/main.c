@@ -17,14 +17,20 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
-#include "subs.h"
+#include <stdint.h>
 #include <pthread.h>
 #include <signal.h>
 #include <getopt.h>
+#include <assert.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <rrd.h>
 #include <rrd_client.h>
-#include <assert.h>
+
+#include <vigor.h>
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 /**************************/
 

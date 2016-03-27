@@ -1,5 +1,5 @@
 /*
-  Copyright 2015 James Hunt <james@jameshunt.us>
+  Copyright 2016 James Hunt <james@jameshunt.us>
 
   This file is part of Bolo.
 
@@ -17,11 +17,16 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
-#include "subs.h"
 #include <assert.h>
+#include <string.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <libpq-fe.h>
+#include <vigor.h>
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 /***********************************************************/
 

@@ -17,9 +17,16 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
+#include <stdio.h>
+#include <string.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sqlite3.h>
+
+#include <vigor.h>
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 static  int64_t TIME  = 0;
 static uint64_t COUNT = 0;
@@ -403,7 +410,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
 		return 3;
 	}

@@ -27,7 +27,7 @@ CORE_SRC += src/send.c
 CORE_SRC += src/qname.c
 
 SUBS_SRC  = $(CORE_SRC)
-SUBS_SRC += src/subs.h
+SUBS_SRC += include/bolo/subscriber.h
 SUBS_SRC += src/subs.c
 
 EXTRA_DIST += README.md
@@ -41,33 +41,33 @@ EXTRA_DIST += redhat
 
 sbin_PROGRAMS = bolo bolo2log bolo2console bolo2meta dbolo bcache
 bolo_SOURCES            = $(CORE_SRC) src/daemon.c src/core.c
-bolo2log_SOURCES        = $(SUBS_SRC) src/sub_log.c
-bolo2console_SOURCES    = $(SUBS_SRC) src/sub_console.c
-bolo2meta_SOURCES       = $(SUBS_SRC) src/sub_meta.c
+bolo2log_SOURCES        = $(SUBS_SRC) src/bolo2log/main.c
+bolo2console_SOURCES    = $(SUBS_SRC) src/bolo2console/main.c
+bolo2meta_SOURCES       = $(SUBS_SRC) src/bolo2meta/main.c
 dbolo_SOURCES           = $(CORE_SRC) src/dbolo/main.c
-bcache_SOURCES          = $(SUBS_SRC) src/bcache.c
+bcache_SOURCES          = $(SUBS_SRC) src/bcache/main.c
 
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
-bolo2rrd_SOURCES        = $(SUBS_SRC) src/sub_rrd.c
+bolo2rrd_SOURCES        = $(SUBS_SRC) src/bolo2rrd/main.c
 bolo2rrd_LDADD          = -lrrd_th
 endif
 
 if build_pg_subscriber
 sbin_PROGRAMS          += bolo2pg
-bolo2pg_SOURCES         = $(SUBS_SRC) src/sub_pg.c
+bolo2pg_SOURCES         = $(SUBS_SRC) src/bolo2pg/main.c
 bolo2pg_LDADD           = -lpq
 endif
 
 if build_sqlite_subscriber
 sbin_PROGRAMS         += bolo2sqlite
-bolo2sqlite_SOURCES    = $(SUBS_SRC) src/sub_sqlite.c
+bolo2sqlite_SOURCES    = $(SUBS_SRC) src/bolo2sqlite/main.c
 bolo2sqlite_LDADD      = -lsqlite3
 endif
 
 if build_redis_subscriber
 sbin_PROGRAMS         += bolo2redis
-bolo2redis_SOURCES     = $(SUBS_SRC) src/sub_redis.c
+bolo2redis_SOURCES     = $(SUBS_SRC) src/bolo2redis/main.c
 bolo2redis_LDADD       = -lhiredis
 endif
 

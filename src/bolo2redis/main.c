@@ -17,9 +17,15 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
+#include <string.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <hiredis/hiredis.h>
+
+#include <vigor.h>
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 static struct {
 	char *endpoint;
@@ -168,7 +174,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
 		return 3;
 	}

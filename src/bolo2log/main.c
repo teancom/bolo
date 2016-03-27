@@ -17,9 +17,20 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
+#include <stdint.h>
+#include <vigor.h>
+
+#include <string.h>
 #include <signal.h>
 #include <getopt.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <pcre.h>
+
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 #define TYPE_SYSLOG 1
 #define TYPE_FILE   2
@@ -288,7 +299,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
 		return 3;
 	}

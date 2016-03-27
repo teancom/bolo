@@ -1,5 +1,5 @@
 #include "bolo.h"
-#include "subs.h"
+#include <bolo/subscriber.h>
 #include <stdint.h>
 #include <sys/types.h>
 #include <string.h>

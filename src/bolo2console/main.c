@@ -17,9 +17,17 @@
   with Bolo.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bolo.h"
+#include <string.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pcre.h>
+#if !HAVE_PCRE_FREE_STUDY
+#define pcre_free_study pcre_free
+#endif
+
+#include <vigor.h>
+#include <bolo.h>
+#include <bolo/subscriber.h>
 
 #define MASK_STATE       0x01
 #define MASK_TRANSITION  0x02
@@ -181,7 +189,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	logger(LOG_DEBUG, "connecting to %s", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		logger(LOG_ERR, "failed to connect to %s", OPTIONS.endpoint);
 		return 3;
 	}
