@@ -35,7 +35,6 @@ local
 .commit
 
 # built binaries
-/bcache
 /bolo
 /bolo2console
 /bolo2log
@@ -44,13 +43,8 @@ local
 /bolo2redis
 /bolo2rrd
 /bolo2sqlite
-/bolo_forget
 /bolo_nsca
-/bolospy
 /dbolo
-/qname
-/send_bolo
-/stat_bolo
 
 .deps
 config.log
