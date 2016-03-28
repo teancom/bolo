@@ -24,7 +24,6 @@ CORE_SRC += src/data.c
 CORE_SRC += src/util.c
 CORE_SRC += src/binf.c
 CORE_SRC += src/send.c
-CORE_SRC += src/qname.c
 
 SUBS_SRC  = $(CORE_SRC)
 SUBS_SRC += src/subs.c
@@ -39,6 +38,7 @@ include_HEADERS = include/bolo.h
 lib_LTLIBRARIES = libbolo.la
 libbolo_la_SOURCES  =
 libbolo_la_SOURCES += $(SUBS_SRC)
+libbolo_la_SOURCES += src/bolo_name.c
 LDADD += libbolo.la
 
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo

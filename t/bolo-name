@@ -29,4 +29,8 @@ string_is "$(./bolo name match 'a=b,c=d,e=f' 'a=b,e=f,*')"  yes  "out-of-order m
 string_is "$(./bolo name match 'a=b,c=d,e=f' 'a=b,g=h,*')"  no   "must match explicit parts"
 string_is "$(./bolo name match 'a=b'         'a=b,g=h,*')"  no   "must match explicit parts (short)"
 
+string_is "$(./bolo name concat 'a=b' 'c=d')"    'a=b,c=d'  "simple concatenation"
+string_is "$(./bolo name set    'a=b' 'c' 'd')"  'a=b,c=d'  "simple addition"
+string_is "$(./bolo name unset  'a=b,c=d' 'c')"  'a=b'      "simple removal"
+
 exit 0

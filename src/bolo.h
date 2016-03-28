@@ -176,18 +176,6 @@ typedef struct {
 } event_t;
 
 typedef struct {
-	char *name;
-	char *value;
-	int   wildcard;
-} qname_part_t;
-
-typedef struct {
-	int           size;
-	int           wildcard;
-	qname_part_t* parts;
-} qname_t;
-
-typedef struct {
 	hash_t  states;
 	hash_t  counters;
 	hash_t  samples;
@@ -286,11 +274,6 @@ pdu_t *sample_pdu  (const char *name, int n, ...);
 pdu_t *rate_pdu    (const char *name, unsigned long value);
 pdu_t *setkeys_pdu (int n, ...);
 pdu_t *event_pdu   (const char *name, const char *extra);
-
-/* qualified names */
-qname_t* qname_parse(const char *name);
-char*    qname_string(qname_t *name);
-int      qname_match(qname_t *a, qname_t *b);
 
 /* threads */
 int core_scheduler_thread(void *zmq, int interval);

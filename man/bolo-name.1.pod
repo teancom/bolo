@@ -6,8 +6,6 @@ bolo name - Bolo Monitoring System Qualified Name Utility
 
 B<bolo name> check QUALIFIED NAME [...]
 
-B<bolo name> dump  QUALIFIED-NAME [...]
-
 B<bolo name> fix   QUALIFIED NAME [...]
 
 B<bolo name> match NAME1 NAME2
@@ -29,12 +27,6 @@ The following commands are understood:
 
 Check the well-formedness of one or more qualified names.  Evaluates all
 arguments, and exits non-zero if any of them are invalid.
-
-=item B<dump> NAME(S)
-
-Prints debugging information from the I<qname> parser, which can be useful
-to developers and system integrators wishing to understand qualified names
-on a deeper level, and chase down bugs in the implementation.
 
 =item B<fix> NAME(S)
 

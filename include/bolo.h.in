@@ -39,17 +39,41 @@
 #define PAYLOAD_RESERVED  0xff70
 #define PAYLOAD_ALL       0xffff
 
-typedef struct {
-	char *name;
-	char *value;
-	int   wildcard;
-} qname_part_t;
+typedef struct __bolo_name* bolo_name_t;
 
-typedef struct {
-	int           size;
-	int           wildcard;
-	qname_part_t* parts;
-} qname_t;
+bolo_name_t bolo_name_parse(const char *);
+bolo_name_t bolo_name_copy(bolo_name_t);
+char*       bolo_name_string(bolo_name_t);
+int         bolo_name_match(bolo_name_t, bolo_name_t);
+int         bolo_name_set(bolo_name_t, const char*, const char*);
+int         bolo_name_unset(bolo_name_t, const char*);
+int         bolo_name_concat(bolo_name_t, bolo_name_t);
+
+typedef struct __bolo_subscriber* bolo_subscriber_t;
+typedef int (*bolo_subscriber_fn)(pdu_t*, void*);
+
+bolo_subscriber_t bolo_subscriber_new();
+int bolo_subscriber_set(bolo_subscriber_t, int, void*, size_t);
+int bolo_subscriber_get(bolo_subscriber_t, int, void**, size_t*);
+int bolo_subscriber_run(bolo_subscriber_t, bolo_subscriber_fn, void*);
+int bolo_subscriber_wait(bolo_subscriber_t);
+void bolo_subscriber_track(const char *, ...);
+
+pdu_t* bolo_FORGET(unsigned int, const char*, int);
+pdu_t* bolo_STATE(const char*, int, const char*);
+pdu_t* bolo_COUNTER(const char*, unsigned int);
+pdu_t* bolo_SAMPLE(const char*, int, ...);
+pdu_t* bolo_RATE(const char*, unsigned long);
+pdu_t* bolo_SETKEYS(int n, ...);
+pdu_t* bolo_EVENT(const char*, const char*);
+
+int bolo_send_FORGET(unsigned int, const char*, int);
+int bolo_send_STATE(const char*, int, const char*);
+int bolo_send_COUNTER(const char*, unsigned int);
+int bolo_send_SAMPLE(const char*, int, ...);
+int bolo_send_RATE(const char*, unsigned long);
+int bolo_send_SETKEYS(int n, ...);
+int bolo_send_EVENT(const char*, const char*);
 
 pdu_t *parse_state_pdu  (int argc, char **argv, const char *ts);
 pdu_t *parse_counter_pdu(int argc, char **argv, const char *ts);
@@ -66,11 +90,6 @@ pdu_t *sample_pdu  (const char *name, int n, ...);
 pdu_t *rate_pdu    (const char *name, unsigned long value);
 pdu_t *setkeys_pdu (int n, ...);
 pdu_t *event_pdu   (const char *name, const char *extra);
-
-/* qualified names */
-qname_t* qname_parse(const char *name);
-char*    qname_string(qname_t *name);
-int      qname_match(qname_t *a, qname_t *b);
 
 /* subscriber */
 int subscriber_init(void);
