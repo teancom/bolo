@@ -36,10 +36,12 @@ EXTRA_DIST += redhat
 
 include_HEADERS = include/bolo.h
 lib_LTLIBRARIES = libbolo.la
-libbolo_la_SOURCES  =
-libbolo_la_SOURCES += $(SUBS_SRC)
-libbolo_la_SOURCES += src/bolo_name.c
-LDADD += libbolo.la
+noinst_LTLIBRARIES = libimpl.la
+LDADD += libbolo.la libimpl.la
+
+libimpl_la_SOURCES = $(SUBS_SRC)
+
+libbolo_la_SOURCES = src/bolo_name.c
 
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c
