@@ -52,25 +52,25 @@ dbolo_SOURCES           = src/dbolo/main.c
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
 bolo2rrd_SOURCES        = src/bolo2rrd/main.c
-bolo2rrd_LDADD          = -lrrd_th
+bolo2rrd_LDADD          = $(LDADD) -lrrd_th
 endif
 
 if build_pg_subscriber
 sbin_PROGRAMS          += bolo2pg
 bolo2pg_SOURCES         = src/bolo2pg/main.c
-bolo2pg_LDADD           = -lpq
+bolo2pg_LDADD           = $(LDADD) -lpq
 endif
 
 if build_sqlite_subscriber
 sbin_PROGRAMS         += bolo2sqlite
 bolo2sqlite_SOURCES    = src/bolo2sqlite/main.c
-bolo2sqlite_LDADD      = -lsqlite3
+bolo2sqlite_LDADD      = $(LDADD) -lsqlite3
 endif
 
 if build_redis_subscriber
 sbin_PROGRAMS         += bolo2redis
 bolo2redis_SOURCES     = src/bolo2redis/main.c
-bolo2redis_LDADD       = -lhiredis
+bolo2redis_LDADD       = $(LDADD) -lhiredis
 endif
 
 bin_PROGRAMS = bolo_nsca
