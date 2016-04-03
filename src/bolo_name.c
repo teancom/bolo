@@ -35,7 +35,7 @@ struct __bolo_name {
 
 /***************************************************************/
 
-static int s_sort(const void *a_, const void *b_) 
+static int s_sort(const void *a_, const void *b_)
 {
 	struct __bolo_name_part *a = (struct __bolo_name_part*)a_;
 	struct __bolo_name_part *b = (struct __bolo_name_part*)b_;
@@ -44,7 +44,7 @@ static int s_sort(const void *a_, const void *b_)
 
 /***************************************************************/
 
-bolo_name_t bolo_name_parse(const char *name) 
+bolo_name_t bolo_name_parse(const char *name)
 {
 	bolo_name_t qn;
 	const char *a, *b;
@@ -95,7 +95,7 @@ bolo_name_t bolo_name_parse(const char *name)
 	return qn;
 }
 
-bolo_name_t bolo_name_copy(bolo_name_t name) 
+bolo_name_t bolo_name_copy(bolo_name_t name)
 {
 	bolo_name_t copy = vmalloc(sizeof(struct __bolo_name));
 	copy->size     = name->size;
@@ -112,7 +112,7 @@ bolo_name_t bolo_name_copy(bolo_name_t name)
 	return copy;
 }
 
-char* bolo_name_string(bolo_name_t name) 
+char* bolo_name_string(bolo_name_t name)
 {
 	size_t len = 0;
 	int i;
@@ -149,7 +149,7 @@ char* bolo_name_string(bolo_name_t name)
 	return s;
 }
 
-int bolo_name_match(bolo_name_t a, bolo_name_t b) 
+int bolo_name_match(bolo_name_t a, bolo_name_t b)
 {
 	/* degenerate case: * matches everything */
 	if (b->size == 0 && b->wildcard)
