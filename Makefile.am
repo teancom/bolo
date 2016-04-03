@@ -35,7 +35,7 @@ EXTRA_DIST += redhat
 include_HEADERS = include/bolo.h
 lib_LTLIBRARIES = libbolo.la
 noinst_LTLIBRARIES = libimpl.la
-LDADD += libbolo.la libimpl.la
+LDADD += libbolo.la
 
 libimpl_la_SOURCES = $(SUBS_SRC)
 
@@ -88,6 +88,7 @@ bolo_SOURCES  = src/bolo/main.c \
                 src/bolo/cmd_send.c \
                 src/bolo/cmd_spy.c \
                 src/bolo/cmd_version.c
+bolo_LDADD = $(LDADD) libimpl.la
 
 check_SCRIPTS = t/usage t/config t/core t/broadcast t/large-payloads t/events \
                 t/beacon t/bolo-send t/bolo-cache t/bolo-name \
