@@ -19,7 +19,7 @@
 
 #include "bolo.h"
 
-pdu_t *parse_state_pdu(int argc, char **argv, const char *ts)
+pdu_t *bolo_parse_state_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 3)
 		return NULL;
@@ -61,7 +61,7 @@ pdu_t *parse_state_pdu(int argc, char **argv, const char *ts)
 	return pdu;
 }
 
-pdu_t *parse_counter_pdu(int argc, char **argv, const char *ts)
+pdu_t *bolo_parse_counter_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 1)
 		return NULL;
@@ -79,7 +79,7 @@ pdu_t *parse_counter_pdu(int argc, char **argv, const char *ts)
 	return pdu;
 }
 
-pdu_t *parse_sample_pdu(int argc, char **argv, const char *ts)
+pdu_t *bolo_parse_sample_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 2)
 		return NULL;
@@ -96,7 +96,7 @@ pdu_t *parse_sample_pdu(int argc, char **argv, const char *ts)
 	return pdu;
 }
 
-pdu_t *parse_rate_pdu(int argc, char **argv, const char *ts)
+pdu_t *bolo_parse_rate_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 2)
 		return NULL;
@@ -110,7 +110,7 @@ pdu_t *parse_rate_pdu(int argc, char **argv, const char *ts)
 	return pdu;
 }
 
-pdu_t *parse_setkeys_pdu(int argc, char **argv)
+pdu_t *bolo_parse_setkeys_pdu(int argc, char **argv)
 {
 	if (argc < 1)
 		return NULL;
@@ -132,7 +132,7 @@ pdu_t *parse_setkeys_pdu(int argc, char **argv)
 	return pdu;
 }
 
-pdu_t *parse_event_pdu(int argc, char **argv, const char *ts)
+pdu_t *bolo_parse_event_pdu(int argc, char **argv, const char *ts)
 {
 	if (argc < 1)
 		return NULL;
@@ -154,7 +154,7 @@ pdu_t *parse_event_pdu(int argc, char **argv, const char *ts)
 	return pdu;
 }
 
-pdu_t *stream_pdu(const char *line)
+pdu_t *bolo_stream_pdu(const char *line)
 {
 	pdu_t *pdu = NULL;
 
@@ -163,29 +163,29 @@ pdu_t *stream_pdu(const char *line)
 
 	strings_t *l = strings_split(line, strlen(line), " ", SPLIT_NORMAL);
 	if (strcasecmp(l->strings[0], "STATE") == 0) {
-		pdu = parse_state_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+		pdu = bolo_parse_state_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 	} else if (strcasecmp(l->strings[0], "COUNTER") == 0) {
-		pdu = parse_counter_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+		pdu = bolo_parse_counter_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 	} else if (strcasecmp(l->strings[0], "SAMPLE") == 0) {
-		pdu = parse_sample_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+		pdu = bolo_parse_sample_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 	} else if (strcasecmp(l->strings[0], "RATE") == 0) {
-		pdu = parse_rate_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+		pdu = bolo_parse_rate_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 
 	} else if (strcasecmp(l->strings[0], "KEY") == 0) {
-		pdu = parse_setkeys_pdu(l->num - 1, l->strings + 1);
+		pdu = bolo_parse_setkeys_pdu(l->num - 1, l->strings + 1);
 
 	} else if (strcasecmp(l->strings[0], "EVENT") == 0) {
-		pdu = parse_event_pdu(l->num - 2, l->strings + 2, l->strings[1]);
+		pdu = bolo_parse_event_pdu(l->num - 2, l->strings + 2, l->strings[1]);
 	}
 
 	strings_free(l);
 	return pdu;
 }
 
-pdu_t *forget_pdu(uint16_t payload, const char *regex, uint8_t ignore)
+pdu_t *bolo_forget_pdu(uint16_t payload, const char *regex, uint8_t ignore)
 {
 	pdu_t *pdu = pdu_make("FORGET", 0);
 	pdu_extendf(pdu, "%u", payload);
@@ -195,7 +195,7 @@ pdu_t *forget_pdu(uint16_t payload, const char *regex, uint8_t ignore)
 	return pdu;
 }
 
-pdu_t *state_pdu(const char *name, int status, const char *msg)
+pdu_t *bolo_state_pdu(const char *name, int status, const char *msg)
 {
 	pdu_t *pdu = pdu_make("STATE", 0);
 	pdu_extendf(pdu, "%i", time_s());
@@ -205,7 +205,7 @@ pdu_t *state_pdu(const char *name, int status, const char *msg)
 	return pdu;
 }
 
-pdu_t *counter_pdu(const char *name, unsigned int value)
+pdu_t *bolo_counter_pdu(const char *name, unsigned int value)
 {
 	pdu_t *pdu = pdu_make("COUNTER", 0);
 	pdu_extendf(pdu, "%i", time_s());
@@ -226,7 +226,7 @@ static pdu_t *_vsample_pdu(const char *name, int n, va_list ap)
 	return pdu;
 }
 
-pdu_t *sample_pdu(const char *name, int n, ...)
+pdu_t *bolo_sample_pdu(const char *name, int n, ...)
 {
 	va_list ap;
 	va_start(ap, n);
@@ -236,7 +236,7 @@ pdu_t *sample_pdu(const char *name, int n, ...)
 	return pdu;
 }
 
-pdu_t *rate_pdu(const char *name, unsigned long value)
+pdu_t *bolo_rate_pdu(const char *name, unsigned long value)
 {
 	pdu_t *pdu = pdu_make("RATE", 0);
 	pdu_extendf(pdu, "%i", time_s());
@@ -265,7 +265,7 @@ static pdu_t* _vsetkeys_pdu(int n, va_list ap)
 	return pdu;
 }
 
-pdu_t *setkeys_pdu(int n, ...)
+pdu_t *bolo_setkeys_pdu(int n, ...)
 {
 	va_list ap;
 	va_start(ap, n);
@@ -274,7 +274,7 @@ pdu_t *setkeys_pdu(int n, ...)
 	return pdu;
 }
 
-pdu_t *event_pdu(const char *name, const char *extra)
+pdu_t *bolo_event_pdu(const char *name, const char *extra)
 {
 	pdu_t *pdu = pdu_make("EVENT", 0);
 	pdu_extendf(pdu, "%i", time_s());

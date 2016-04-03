@@ -142,12 +142,12 @@ int dispatcher_thread(void *zmq, const char *endpoint) /* {{{ */
 
 
 	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &dispatcher->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting dispatcher.monitor -> monitor");
-	rc = subscriber_connect_monitor(zmq, &dispatcher->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &dispatcher->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -328,25 +328,25 @@ int main(int argc, char **argv) /* {{{ */
 	}
 
 	int rc;
-	rc = subscriber_init();
+	rc = bolo_subscriber_init();
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to initialize subscriber architecture");
 		exit(2);
 	}
 
-	rc = subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
+	rc = bolo_subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up monitor thread");
 		exit(2);
 	}
 
-	rc = subscriber_scheduler_thread(zmq, 5 * 1000);
+	rc = bolo_subscriber_scheduler_thread(zmq, 5 * 1000);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up scheduler thread");
 		exit(2);
 	}
 
-	rc = subscriber_metrics(zmq,
+	rc = bolo_subscriber_metrics(zmq,
 		"COUNT",  "counter",    "COUNT",  "bogon.counter",
 		"COUNT",  "sample",     "COUNT",  "bogon.sample",
 		"COUNT",  "rate",       "COUNT",  "bogon.rate",
@@ -365,7 +365,7 @@ int main(int argc, char **argv) /* {{{ */
 		exit(2);
 	}
 
-	subscriber_supervisor(zmq);
+	bolo_subscriber_supervisor(zmq);
 
 	free(OPTIONS.endpoint);
 

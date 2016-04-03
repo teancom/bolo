@@ -340,7 +340,7 @@ static void s_sink(socket_t *sock, command_t *cmd)
 			if (!nl) break;
 
 			*nl++ = '\0';
-			pdu_t *pdu = stream_pdu(cmd->buffer);
+			pdu_t *pdu = bolo_stream_pdu(cmd->buffer);
 			if (pdu) {
 				logger(LOG_INFO, "sending [%s] to %s", cmd->buffer, sock->endpoint);
 				pdu_send_and_free(pdu, sock->zocket);

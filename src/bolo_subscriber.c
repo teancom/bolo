@@ -68,7 +68,7 @@ typedef struct {
 
 /***********************************************************/
 
-int subscriber_init(void) /* {{{ */
+int bolo_subscriber_init(void) /* {{{ */
 {
 	int rc;
 	sigset_t blocked;
@@ -164,7 +164,7 @@ static int _monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			case METRIC_TYPE_COUNT:
 				logger(LOG_DEBUG, "METRIC %s => [%lu]", submit, value->count);
 				pdu_send_and_free(
-					counter_pdu(submit, value->count),
+					bolo_counter_pdu(submit, value->count),
 					monitor->submission);
 				_reset(value);
 				break;
@@ -173,7 +173,7 @@ static int _monitor_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				median = _median(value);
 				logger(LOG_DEBUG, "METRIC %s => [%lf]", submit, median);
 				pdu_send_and_free(
-					sample_pdu(submit, 1, median),
+					bolo_sample_pdu(submit, 1, median),
 					monitor->submission);
 				_reset(value);
 				break;
@@ -287,7 +287,7 @@ static void * _monitor_thread(void *_) /* {{{ */
 	return NULL;
 }
 /* }}} */
-int subscriber_monitor_thread(void *zmq, const char *prefix, const char *endpoint) /* {{{ */
+int bolo_subscriber_monitor_thread(void *zmq, const char *prefix, const char *endpoint) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(prefix != NULL);
@@ -299,12 +299,12 @@ int subscriber_monitor_thread(void *zmq, const char *prefix, const char *endpoin
 	monitor->prefix = strdup(prefix);
 
 	logger(LOG_DEBUG, "connecting monitor.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &monitor->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &monitor->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting monitor.tock -> scheduler");
-	rc = subscriber_connect_scheduler(zmq, &monitor->tock);
+	rc = bolo_subscriber_connect_scheduler(zmq, &monitor->tock);
 	if (rc != 0)
 		return rc;
 
@@ -387,7 +387,7 @@ static void * _scheduler_thread(void *_) /* {{{ */
 	return NULL;
 }
 /* }}} */
-int subscriber_scheduler_thread(void *zmq, int interval) /* {{{ */
+int bolo_subscriber_scheduler_thread(void *zmq, int interval) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(interval > 0);
@@ -397,7 +397,7 @@ int subscriber_scheduler_thread(void *zmq, int interval) /* {{{ */
 	scheduler->interval = interval;
 
 	logger(LOG_DEBUG, "connecting scheduler.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &scheduler->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &scheduler->control);
 	if (rc != 0)
 		return rc;
 
@@ -418,7 +418,7 @@ int subscriber_scheduler_thread(void *zmq, int interval) /* {{{ */
 }
 /* }}} */
 
-int subscriber_supervisor(void *zmq) /* {{{ */
+int bolo_subscriber_supervisor(void *zmq) /* {{{ */
 {
 	int rc, sig;
 	void *command;
@@ -461,13 +461,13 @@ int subscriber_supervisor(void *zmq) /* {{{ */
 }
 /* }}} */
 
-int subscriber_metrics(void *zmq, ...) /* {{{ */
+int bolo_subscriber_metrics(void *zmq, ...) /* {{{ */
 {
 	int rc;
 	void *zocket;
 	va_list ap;
 
-	rc = subscriber_connect_monitor(zmq, &zocket);
+	rc = bolo_subscriber_connect_monitor(zmq, &zocket);
 	if (rc != 0)
 		return rc;
 
@@ -492,7 +492,7 @@ int subscriber_metrics(void *zmq, ...) /* {{{ */
 }
 /* }}} */
 
-int subscriber_connect_monitor(void *zmq, void **zocket) /* {{{ */
+int bolo_subscriber_connect_monitor(void *zmq, void **zocket) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(zocket != NULL);
@@ -510,7 +510,7 @@ int subscriber_connect_monitor(void *zmq, void **zocket) /* {{{ */
 	return 0;
 }
 /* }}} */
-int subscriber_connect_scheduler(void *zmq, void **zocket) /* {{{ */
+int bolo_subscriber_connect_scheduler(void *zmq, void **zocket) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(zocket != NULL);
@@ -532,7 +532,7 @@ int subscriber_connect_scheduler(void *zmq, void **zocket) /* {{{ */
 	return 0;
 }
 /* }}} */
-int subscriber_connect_supervisor(void *zmq, void **zocket) /* {{{ */
+int bolo_subscriber_connect_supervisor(void *zmq, void **zocket) /* {{{ */
 {
 	assert(zmq != NULL);
 	assert(zocket != NULL);

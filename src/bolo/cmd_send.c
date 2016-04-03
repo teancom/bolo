@@ -103,28 +103,28 @@ int cmd_send(int off, int argc, char **argv)
 	pdu_t *pdu = NULL;
 
 	if (type == TYPE_STATE) {
-		pdu = parse_state_pdu(argc - optind, argv + optind, NULL);
+		pdu = bolo_parse_state_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t state name code message\n", argv[0]);
 			return 1;
 		}
 
 	} else if (type == TYPE_COUNTER) {
-		pdu = parse_counter_pdu(argc - optind, argv + optind, NULL);
+		pdu = bolo_parse_counter_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t counter name [increment]\n", argv[0]);
 			return 1;
 		}
 
 	} else if (type == TYPE_SAMPLE) {
-		pdu = parse_sample_pdu(argc - optind, argv + optind, NULL);
+		pdu = bolo_parse_sample_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t sample name value [value ...]\n", argv[0]);
 			return 1;
 		}
 
 	} else if (type == TYPE_RATE) {
-		pdu = parse_rate_pdu(argc - optind, argv + optind, NULL);
+		pdu = bolo_parse_rate_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t rate name value\n", argv[0]);
 			return 1;
@@ -137,14 +137,14 @@ int cmd_send(int off, int argc, char **argv)
 		}
 
 	} else if (type == TYPE_KEY) {
-		pdu = parse_setkeys_pdu(argc - optind, argv + optind);
+		pdu = bolo_parse_setkeys_pdu(argc - optind, argv + optind);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t key key1=value1 key2=value2 ...\n", argv[0]);
 			return 1;
 		}
 
 	} else if (type == TYPE_EVENT) {
-		pdu = parse_event_pdu(argc - optind, argv + optind, NULL);
+		pdu = bolo_parse_event_pdu(argc - optind, argv + optind, NULL);
 		if (!pdu) {
 			fprintf(stderr, "USAGE: %s -t event name [extra description ...]\n", argv[0]);
 			return 1;
@@ -184,7 +184,7 @@ int cmd_send(int off, int argc, char **argv)
 			char *a = strrchr(buf, '\n');
 			if (a) *a = '\0';
 
-			pdu = stream_pdu(buf);
+			pdu = bolo_stream_pdu(buf);
 			if (pdu) {
 				rc = send_pdu(z, pdu);
 				if (rc) break;

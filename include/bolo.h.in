@@ -39,6 +39,7 @@
 #define PAYLOAD_RESERVED  0xff70
 #define PAYLOAD_ALL       0xffff
 
+/* name */
 typedef struct __bolo_name* bolo_name_t;
 
 bolo_name_t bolo_name_parse(const char *);
@@ -49,56 +50,31 @@ int         bolo_name_set(bolo_name_t, const char*, const char*);
 int         bolo_name_unset(bolo_name_t, const char*);
 int         bolo_name_concat(bolo_name_t, bolo_name_t);
 
-typedef struct __bolo_subscriber* bolo_subscriber_t;
-typedef int (*bolo_subscriber_fn)(pdu_t*, void*);
+/* pdu */
+pdu_t *bolo_parse_state_pdu  (int argc, char **argv, const char *ts);
+pdu_t *bolo_parse_counter_pdu(int argc, char **argv, const char *ts);
+pdu_t *bolo_parse_sample_pdu (int argc, char **argv, const char *ts);
+pdu_t *bolo_parse_rate_pdu   (int argc, char **argv, const char *ts);
+pdu_t *bolo_parse_setkeys_pdu(int argc, char **argv);
+pdu_t *bolo_parse_event_pdu  (int argc, char **argv, const char *ts);
+pdu_t *bolo_stream_pdu(const char *line);
 
-bolo_subscriber_t bolo_subscriber_new();
-int bolo_subscriber_set(bolo_subscriber_t, int, void*, size_t);
-int bolo_subscriber_get(bolo_subscriber_t, int, void**, size_t*);
-int bolo_subscriber_run(bolo_subscriber_t, bolo_subscriber_fn, void*);
-int bolo_subscriber_wait(bolo_subscriber_t);
-void bolo_subscriber_track(const char *, ...);
-
-pdu_t* bolo_FORGET(unsigned int, const char*, int);
-pdu_t* bolo_STATE(const char*, int, const char*);
-pdu_t* bolo_COUNTER(const char*, unsigned int);
-pdu_t* bolo_SAMPLE(const char*, int, ...);
-pdu_t* bolo_RATE(const char*, unsigned long);
-pdu_t* bolo_SETKEYS(int n, ...);
-pdu_t* bolo_EVENT(const char*, const char*);
-
-int bolo_send_FORGET(unsigned int, const char*, int);
-int bolo_send_STATE(const char*, int, const char*);
-int bolo_send_COUNTER(const char*, unsigned int);
-int bolo_send_SAMPLE(const char*, int, ...);
-int bolo_send_RATE(const char*, unsigned long);
-int bolo_send_SETKEYS(int n, ...);
-int bolo_send_EVENT(const char*, const char*);
-
-pdu_t *parse_state_pdu  (int argc, char **argv, const char *ts);
-pdu_t *parse_counter_pdu(int argc, char **argv, const char *ts);
-pdu_t *parse_sample_pdu (int argc, char **argv, const char *ts);
-pdu_t *parse_rate_pdu   (int argc, char **argv, const char *ts);
-pdu_t *parse_setkeys_pdu(int argc, char **argv);
-pdu_t *parse_event_pdu  (int argc, char **argv, const char *ts);
-pdu_t *stream_pdu(const char *line);
-
-pdu_t *forget_pdu  (uint16_t payload, const char *regex, uint8_t ignore);
-pdu_t *state_pdu   (const char *name, int status, const char *msg);
-pdu_t *counter_pdu (const char *name, unsigned int value);
-pdu_t *sample_pdu  (const char *name, int n, ...);
-pdu_t *rate_pdu    (const char *name, unsigned long value);
-pdu_t *setkeys_pdu (int n, ...);
-pdu_t *event_pdu   (const char *name, const char *extra);
+pdu_t *bolo_forget_pdu  (uint16_t payload, const char *regex, uint8_t ignore);
+pdu_t *bolo_state_pdu   (const char *name, int status, const char *msg);
+pdu_t *bolo_counter_pdu (const char *name, unsigned int value);
+pdu_t *bolo_sample_pdu  (const char *name, int n, ...);
+pdu_t *bolo_rate_pdu    (const char *name, unsigned long value);
+pdu_t *bolo_setkeys_pdu (int n, ...);
+pdu_t *bolo_event_pdu   (const char *name, const char *extra);
 
 /* subscriber */
-int subscriber_init(void);
-int subscriber_monitor_thread(void *zmq, const char *prefix, const char *endpoint);
-int subscriber_scheduler_thread(void *zmq, int interval);
-int subscriber_supervisor(void *zmq);
-int subscriber_metrics(void *zmq, ...);
-int subscriber_connect_monitor(void *zmq, void **zocket);
-int subscriber_connect_scheduler(void *zmq, void **zocket);
-int subscriber_connect_supervisor(void *zmq, void **zocket);
+int bolo_subscriber_init(void);
+int bolo_subscriber_monitor_thread(void *zmq, const char *prefix, const char *endpoint);
+int bolo_subscriber_scheduler_thread(void *zmq, int interval);
+int bolo_subscriber_supervisor(void *zmq);
+int bolo_subscriber_metrics(void *zmq, ...);
+int bolo_subscriber_connect_monitor(void *zmq, void **zocket);
+int bolo_subscriber_connect_scheduler(void *zmq, void **zocket);
+int bolo_subscriber_connect_supervisor(void *zmq, void **zocket);
 
 #endif

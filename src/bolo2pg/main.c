@@ -194,12 +194,12 @@ int inserter_thread(void *zmq, int id, const char *dsn) /* {{{ */
 	inserter->dsn = strdup(dsn);
 
 	logger(LOG_DEBUG, "inserter[%i]: connecting inserter.control -> supervisor", id);
-	rc = subscriber_connect_supervisor(zmq, &inserter->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &inserter->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "inserter[%i]: connecting inserter.monitor -> monitor", id);
-	rc = subscriber_connect_monitor(zmq, &inserter->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &inserter->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -351,17 +351,17 @@ int reconciler_thread(void *zmq, const char *dsn) /* {{{ */
 	reconciler->dsn = strdup(dsn);
 
 	logger(LOG_DEBUG, "reconciler: connecting reconciler.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &reconciler->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &reconciler->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "reconciler: connecting reconciler.monitor -> monitor");
-	rc = subscriber_connect_monitor(zmq, &reconciler->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &reconciler->monitor);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "reconciler: connecting reconciler.tock -> scheduler");
-	rc = subscriber_connect_scheduler(zmq, &reconciler->tock);
+	rc = bolo_subscriber_connect_scheduler(zmq, &reconciler->tock);
 	if (rc != 0)
 		return rc;
 
@@ -494,12 +494,12 @@ int dispatcher_thread(void *zmq, const char *endpoint) /* {{{ */
 	dispatcher_t *dispatcher = vmalloc(sizeof(dispatcher_t));
 
 	logger(LOG_DEBUG, "dispatcher: connecting dispatcher.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &dispatcher->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "dispatcher: connecting dispatcher.monitor -> monitor");
-	rc = subscriber_connect_monitor(zmq, &dispatcher->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &dispatcher->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -784,25 +784,25 @@ int main(int argc, char **argv)
 	free(pass);
 
 	int rc;
-	rc = subscriber_init();
+	rc = bolo_subscriber_init();
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to initialize subscriber architecture");
 		exit(2);
 	}
 
-	rc = subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
+	rc = bolo_subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to initialize monitor thread");
 		exit(2);
 	}
 
-	rc = subscriber_scheduler_thread(zmq, 5 * 1000);
+	rc = bolo_subscriber_scheduler_thread(zmq, 5 * 1000);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up scheduler thread");
 		exit(2);
 	}
 
-	rc = subscriber_metrics(zmq,
+	rc = bolo_subscriber_metrics(zmq,
 		"COUNT",  "insert.ops",
 		"COUNT",  "reconcile.ops",
 		"COUNT",  "insert.errors",
@@ -840,7 +840,7 @@ int main(int argc, char **argv)
 	}
 	free(dsn);
 
-	subscriber_supervisor(zmq);
+	bolo_subscriber_supervisor(zmq);
 
 	free(OPTIONS.endpoint);
 	free(OPTIONS.submit_to);

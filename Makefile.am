@@ -23,10 +23,8 @@ CORE_SRC += src/config.c
 CORE_SRC += src/data.c
 CORE_SRC += src/util.c
 CORE_SRC += src/binf.c
-CORE_SRC += src/send.c
 
 SUBS_SRC  = $(CORE_SRC)
-SUBS_SRC += src/subs.c
 
 EXTRA_DIST += README.md
 EXTRA_DIST += PROTO
@@ -41,7 +39,9 @@ LDADD += libbolo.la libimpl.la
 
 libimpl_la_SOURCES = $(SUBS_SRC)
 
-libbolo_la_SOURCES = src/bolo_name.c
+libbolo_la_SOURCES = src/bolo_name.c \
+                     src/bolo_subscriber.c \
+                     src/bolo_pdu.c
 
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c

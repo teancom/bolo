@@ -106,7 +106,7 @@ int cmd_forget(int off, int argc, char **argv)
 		return 3;
 	}
 
-	pdu_t *p = forget_pdu(payload, pattern, ignore);
+	pdu_t *p = bolo_forget_pdu(payload, pattern, ignore);
 	if (pdu_send_and_free(p, z) != 0) {
 		fprintf(stderr, "failed to send [FORGET] PDU to %s; command aborted\n", endpoint);
 		return 3;

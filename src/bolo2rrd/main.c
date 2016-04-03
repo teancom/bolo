@@ -360,17 +360,17 @@ int dispatcher_thread(void *zmq, const char *endpoint, const char *root, const c
 
 
 	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &dispatcher->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting dispatcher.monitor -> monitor");
-	rc = subscriber_connect_monitor(zmq, &dispatcher->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &dispatcher->monitor);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "connecting dispatcher.tock -> scheduler");
-	rc = subscriber_connect_scheduler(zmq, &dispatcher->tock);
+	rc = bolo_subscriber_connect_scheduler(zmq, &dispatcher->tock);
 	if (rc != 0)
 		return rc;
 
@@ -600,12 +600,12 @@ int creator_thread(void *zmq, int id, const char *rras) /* {{{ */
 	logger(LOG_INFO, "initializing creator thread #%i", id);
 
 	logger(LOG_DEBUG, "creator[%i] connecting creator.control -> supervisor", id);
-	rc = subscriber_connect_supervisor(zmq, &creator->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &creator->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "creator[%i] connecting creator.monitor -> monitor", id);
-	rc = subscriber_connect_monitor(zmq, &creator->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &creator->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -824,12 +824,12 @@ int updater_thread(void *zmq, int id) /* {{{ */
 	logger(LOG_INFO, "initializing updater thread #%i", id);
 
 	logger(LOG_DEBUG, "updater[%i] connecting updater.control -> supervisor", id);
-	rc = subscriber_connect_supervisor(zmq, &updater->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &updater->control);
 	if (rc != 0)
 		return rc;
 
 	logger(LOG_DEBUG, "updater[%i] connecting updater.monitor -> monitor", id);
-	rc = subscriber_connect_monitor(zmq, &updater->monitor);
+	rc = bolo_subscriber_connect_monitor(zmq, &updater->monitor);
 	if (rc != 0)
 		return rc;
 
@@ -1089,25 +1089,25 @@ int main(int argc, char **argv) /* {{{ */
 	}
 
 	int rc;
-	rc = subscriber_init();
+	rc = bolo_subscriber_init();
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to initialize subscriber architecture");
 		exit(2);
 	}
 
-	rc = subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
+	rc = bolo_subscriber_monitor_thread(zmq, OPTIONS.prefix, OPTIONS.submit_to);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up monitor thread");
 		exit(2);
 	}
 
-	rc = subscriber_scheduler_thread(zmq, 5 * 1000);
+	rc = bolo_subscriber_scheduler_thread(zmq, 5 * 1000);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up scheduler thread");
 		exit(2);
 	}
 
-	rc = subscriber_metrics(zmq,
+	rc = bolo_subscriber_metrics(zmq,
 		"COUNT",  "create.ops",
 		"COUNT",  "update.ops",
 		"COUNT",  "create.errors",
@@ -1151,7 +1151,7 @@ int main(int argc, char **argv) /* {{{ */
 		}
 	}
 
-	subscriber_supervisor(zmq);
+	bolo_subscriber_supervisor(zmq);
 
 	free(OPTIONS.endpoint);
 	free(OPTIONS.root);

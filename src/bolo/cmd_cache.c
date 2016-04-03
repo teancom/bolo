@@ -144,7 +144,7 @@ static int dispatcher_thread(void *zmq, const char *endpoint, const char *listen
 	dispatcher_t *dispatcher = vmalloc(sizeof(dispatcher_t));
 
 	logger(LOG_DEBUG, "connecting dispatcher.control -> supervisor");
-	rc = subscriber_connect_supervisor(zmq, &dispatcher->control);
+	rc = bolo_subscriber_connect_supervisor(zmq, &dispatcher->control);
 	if (rc != 0)
 		return rc;
 
@@ -318,7 +318,7 @@ int cmd_cache(int off, int argc, char **argv) /* {{{ */
 	}
 
 	int rc;
-	rc = subscriber_init();
+	rc = bolo_subscriber_init();
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to initialize subscriber architecture");
 		exit(2);
@@ -330,7 +330,7 @@ int cmd_cache(int off, int argc, char **argv) /* {{{ */
 		exit(2);
 	}
 
-	subscriber_supervisor(zmq);
+	bolo_subscriber_supervisor(zmq);
 	logger(LOG_INFO, "shutting down");
 
 	free(OPTIONS.endpoint);
