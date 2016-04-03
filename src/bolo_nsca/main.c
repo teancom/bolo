@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 		return 3;
 	}
 	if (DEBUG) fprintf(stderr, "+>> connecting to %s\n", OPTIONS.endpoint);
-	if (vx_vzmq_connect(z, OPTIONS.endpoint) != 0) {
+	if (vzmq_connect(z, OPTIONS.endpoint) != 0) {
 		fprintf(stderr, "failed to connect to %s; aborting (results NOT submitted)\n", OPTIONS.endpoint);
 		return 3;
 	}
