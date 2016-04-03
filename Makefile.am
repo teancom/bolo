@@ -47,6 +47,7 @@ sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c
 bolo2console_SOURCES    = src/bolo2console/main.c
 bolo2meta_SOURCES       = src/bolo2meta/main.c
+bolo2meta_LDADD         = $(LDADD)
 dbolo_SOURCES           = src/dbolo/main.c
 
 if build_rrd_subscriber
