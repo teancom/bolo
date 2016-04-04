@@ -32,8 +32,8 @@ EXTRA_DIST += bootstrap
 EXTRA_DIST += man examples
 EXTRA_DIST += redhat
 
-include_HEADERS = include/bolo.h
-lib_LTLIBRARIES = libbolo.la
+include_HEADERS = include/bolo.h include/tsdp.h
+lib_LTLIBRARIES = libbolo.la libtsdp.la
 noinst_LTLIBRARIES = libimpl.la
 LDADD += libbolo.la
 
@@ -42,6 +42,16 @@ libimpl_la_SOURCES = $(SUBS_SRC)
 libbolo_la_SOURCES = src/bolo_name.c \
                      src/bolo_subscriber.c \
                      src/bolo_pdu.c
+
+libtsdp_la_SOURCES = tsdp/internal.h \
+                     tsdp/strings.c \
+                     tsdp/create.c \
+                     tsdp/destroy.c \
+                     tsdp/extend.c \
+                     tsdp/set.c \
+                     tsdp/get.c \
+                     tsdp/pack.c \
+                     tsdp/unpack.c
 
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c
