@@ -42,6 +42,7 @@ libimpl_la_SOURCES = $(SUBS_SRC)
 libbolo_la_SOURCES = src/bolo_name.c \
                      src/bolo_subscriber.c \
                      src/bolo_pdu.c
+libbolo_la_LDFLAGS = -version-info $(LIB_SOVERSION)
 
 libtsdp_la_SOURCES = tsdp/internal.h \
                      tsdp/strings.c \
@@ -52,6 +53,7 @@ libtsdp_la_SOURCES = tsdp/internal.h \
                      tsdp/get.c \
                      tsdp/pack.c \
                      tsdp/unpack.c
+libtsdp_la_LDFLAGS = -version-info $(TSDP_SOVERSION)
 
 sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c

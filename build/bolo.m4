@@ -94,3 +94,21 @@ AC_DEFUN([BOLO_WITH],
 			if test -d "$prefix/include/"; then CFLAGS="$CFLAGS -I$prefix/include"; fi
 		fi],[])
 	])
+
+dnl =============================================================
+dnl AX_ABI_VERSION(NAME, m4_esyscmd([./version.sh name]))
+dnl
+dnl Set the abi version of included libraries in the bolo code
+dnl
+dnl The idea is to set a library ABI version in version.sh
+dnl and simply call it and update the correspoding make variables
+dnl automatically.
+dnl
+dnl =============================================================
+AC_DEFUN([AX_ABI_VERSION],
+	[AC_DEFINE([$1_SOVERSION], ["$2:$3:$4"], [Set the Bolo $1 ABI version.])
+		AC_SUBST([$1_SOVERSION],  [$2:$3:$4])
+
+		AC_SUBST([$1_FULL], [m4_eval([$2] - [$4])])
+		AC_SUBST([$1_LATEST], ["m4_eval([$2] - [$4]).$4.$3"])
+	])

@@ -9,11 +9,8 @@ URL:            @PACKAGE_URL@
 Source0:        %{name}-%{version}.tar.gz
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
-BuildRequires:  autoconf
-BuildRequires:  automake
 BuildRequires:  gcc
 BuildRequires:  libtool
-BuildRequires:  libctap-devel
 BuildRequires:  pcre-devel
 BuildRequires:  zeromq-devel
 BuildRequires:  rrdtool-devel
@@ -51,6 +48,7 @@ install -m 0755 -D redhat/init.d/bolo2rrd   $RPM_BUILD_ROOT%{_initrddir}/bolo2rr
 install -m 0755 -D redhat/init.d/bolo2redis $RPM_BUILD_ROOT%{_initrddir}/bolo2redis
 install -m 0755 -D redhat/init.d/bolo2pg    $RPM_BUILD_ROOT%{_initrddir}/bolo2pg
 install -m 0755 -D redhat/init.d/bolo2meta  $RPM_BUILD_ROOT%{_initrddir}/bolo2meta
+ln -s %{_bindir}/bolo $RPM_BUILD_ROOT%{_sbindir}/bolo
 
 
 %clean
@@ -77,10 +75,10 @@ fi
 %files
 %defattr(-,root,root,-)
 %{_bindir}/bolo
+%{_sbindir}/bolo
 %{_initrddir}/bolo
 %config %{_sysconfdir}/bolo.conf
 %{_mandir}/man5/bolo.conf.5.gz
-%{_mandir}/man1/bolo.1.gz
 %{_mandir}/man1/bolo-aggr.1.gz
 %{_mandir}/man1/bolo-cache.1.gz
 %{_mandir}/man1/bolo-forget.1.gz
@@ -294,7 +292,52 @@ This package provides utility components for bolo.
 
 
 #######################################################################
+%package libs
+Summary:        Monitoring System Libraries
+Group:          System Environment/Libraries
 
+%description libs
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides libraries that are linked to in user
+subscribers.
+
+
+%files libs
+%defattr(-,root,root,-)
+%{_libdir}/libbolo.so.@LIB_FULL@
+%{_libdir}/libbolo.so.@LIB_LATEST@
+%{_libdir}/libtsdp.so.@TSDP_FULL@
+%{_libdir}/libtsdp.so.@TSDP_LATEST@
+
+
+#######################################################################
+%package libs-devel
+Summary:        Monitoring System Developer Libraries
+Group:          Development/Libraries
+
+%description libs-devel
+bolo is a lightweight and scalable monitoring system that can
+track samples, counters, states and configuration data.
+
+This package provides developer libraries and headers used to
+write user subscribers.
+
+
+%files libs-devel
+%defattr(-,root,root,-)
+%{_includedir}/bolo.h
+%{_includedir}/tsdp.h
+%{_libdir}/libbolo.a
+%{_libdir}/libbolo.la
+%{_libdir}/libbolo.so
+%{_libdir}/libtsdp.a
+%{_libdir}/libtsdp.la
+%{_libdir}/libtsdp.so
+
+
+#######################################################################
 %changelog
 * Mon Oct 12 2015 James Hunt <james@niftylogic.com> 0.2.15-1
 - package bolo2redis subscriber
