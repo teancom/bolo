@@ -36,6 +36,18 @@ int main(int argc, char **argv)
 	int run_help = 0;
 	int run_version = 0;
 
+	char proc[256];
+	char path[256];
+	pid_t pid = getpid();
+	sprintf(proc, "/proc/%d/exe", pid);
+	if (readlink(proc, path, 256) == -1) {
+		fprintf(stderr, "failed to read execution path from /proc\n");
+		return 1;
+	}
+
+	if (strcmp(path, "/usr/sbin/bolo") == 0)
+		return cmd_aggregator(argc, argc, argv);
+
 	int i;
 	for (i = 1; i < argc; i++) {
 		if (strcmp(argv[i], "-h") == 0
