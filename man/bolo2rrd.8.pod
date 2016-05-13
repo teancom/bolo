@@ -54,6 +54,11 @@ on how B<bolo2rrd> uses hashing algorithms, and why the map file is
 important.  Defaults to I<$root/map>, where I<$root> is the value of the
 B<--root> option.
 
+=item B<-s>, B<--schedule> I<seconds>
+
+The frequency, in seconds to kickoff bookkeeping tasks. The major task being,
+writing the rrd map file. B<Schedule> defaults to every 60 seconds.
+
 =item B<-F>, B<--foreground>
 
 By default, B<bolo2rrd> will fork into the background, detach its terminal

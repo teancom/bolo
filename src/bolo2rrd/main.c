@@ -912,6 +912,7 @@ int main(int argc, char **argv) /* {{{ */
 
 		char *submit_to;
 		char *prefix;
+		int   schedule;
 	} OPTIONS = {
 		.verbose   = 0,
 		.endpoint  = strdup("tcp://127.0.0.1:2997"),
@@ -925,6 +926,7 @@ int main(int argc, char **argv) /* {{{ */
 		.creators  = 2,
 		.updaters  = 8,
 		.prefix    = NULL, /* will be set later, if needed */
+		.schedule  = 60,
 	};
 
 	struct option long_opts[] = {
@@ -943,11 +945,12 @@ int main(int argc, char **argv) /* {{{ */
 		{ "creators",   required_argument, NULL, 'c' },
 		{ "submit",     required_argument, NULL, 'S' },
 		{ "prefix",     required_argument, NULL, 'P' },
+		{ "schedule",   required_argument, NULL, 's' },
 		{ 0, 0, 0, 0 },
 	};
 	for (;;) {
 		int idx = 1;
-		int c = getopt_long(argc, argv, "h?Vv+e:r:Fp:u:g:H:C:c:U:S:P:", long_opts, &idx);
+		int c = getopt_long(argc, argv, "h?Vv+e:r:Fp:u:g:H:C:c:U:S:P:s:", long_opts, &idx);
 		if (c == -1) break;
 
 		switch (c) {
@@ -969,6 +972,7 @@ int main(int argc, char **argv) /* {{{ */
 			printf("  -c, --creators       how many creator worker threads to run\n");
 			printf("  -r, --root           root directory in which to store RRD files\n");
 			printf("  -H, --hash           path to RRD map file\n");
+			printf("  -s, --schedule       frequncy of bookkeeping jobs in seconds\n");
 			printf("  -C, --rrdcached      address of rrdcached daemon to use\n");
 			printf("  -u, --user           user to run as (if daemonized)\n");
 			printf("  -g, --group          group to run as (if daemonized)\n");
@@ -1030,6 +1034,10 @@ int main(int argc, char **argv) /* {{{ */
 
 		case 'c':
 			OPTIONS.creators = strtoll(optarg, NULL, 10);
+			break;
+
+		case 's':
+			OPTIONS.schedule = strtoll(optarg, NULL, 10);
 			break;
 
 		case 'S':
@@ -1101,7 +1109,7 @@ int main(int argc, char **argv) /* {{{ */
 		exit(2);
 	}
 
-	rc = bolo_subscriber_scheduler_thread(zmq, 5 * 1000);
+	rc = bolo_subscriber_scheduler_thread(zmq, OPTIONS.schedule * 1000);
 	if (rc != 0) {
 		logger(LOG_ERR, "failed to spin up scheduler thread");
 		exit(2);

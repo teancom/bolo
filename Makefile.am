@@ -65,7 +65,7 @@ dbolo_SOURCES           = src/dbolo/main.c
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
 bolo2rrd_SOURCES        = src/bolo2rrd/main.c
-bolo2rrd_LDADD          = $(LDADD) -lrrd_th
+bolo2rrd_LDADD          = $(LDADD) -lrrd
 endif
 
 if build_pg_subscriber
