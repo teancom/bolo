@@ -304,9 +304,9 @@ static int s_parse(list_t *list, const char *file)
 			}
 			while (isspace(*a)) a++;
 
-			int offset = rand() * OPTIONS.splay * x / RAND_MAX;
+			unsigned int offset = rand() * OPTIONS.splay * x / RAND_MAX;
 			command_t *cmd = vmalloc(sizeof(command_t));
-			cmd->next_run =  time_s() + offset;
+			cmd->next_run =  ((unsigned long int) time_s() + offset) * 1000;
 			cmd->pid      = -1;
 			cmd->fd       = -1;
 			cmd->nread    =  0;
@@ -315,8 +315,8 @@ static int s_parse(list_t *list, const char *file)
 			cmd->exec = strdup(a);
 			list_push(list, &cmd->l);
 
-			logger(LOG_DEBUG, "check scheduled @%i (+%is / splay %0.2f) to run every %is: `%s`",
-				cmd->next_run, offset, OPTIONS.splay, cmd->interval / 1000, cmd->exec);
+			logger(LOG_DEBUG, "check scheduled @%lu (+%us / splay %0.2f) to run every %is: `%s`",
+				cmd->next_run / 1000, offset, OPTIONS.splay, cmd->interval / 1000, cmd->exec);
 			continue;
 		}
 
