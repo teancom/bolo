@@ -35,7 +35,7 @@ counter m/./
 rate    m/./
 EOF
   echo ; echo ; echo "STARTING BOLO"
-  ./bolo -Fc ${workdir}/etc/bolo.conf
+  ./bolo aggr -Fc ${workdir}/etc/bolo.conf
 
   echo
   echo "BOLO EXITED.  Press enter to close this session."
