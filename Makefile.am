@@ -99,6 +99,7 @@ bolo_SOURCES  = src/bolo/main.c \
                 src/bolo/cmd_query.c \
                 src/bolo/cmd_send.c \
                 src/bolo/cmd_spy.c \
+                src/bolo/cmd_tail.c \
                 src/bolo/cmd_version.c
 bolo_LDADD = $(LDADD) libimpl.la
 

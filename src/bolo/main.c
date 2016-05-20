@@ -29,6 +29,7 @@ int cmd_name(int i, int argc, char **argv);
 int cmd_query(int i, int argc, char **argv);
 int cmd_send(int i, int argc, char **argv);
 int cmd_spy(int i, int argc, char **argv);
+int cmd_tail(int i, int argc, char **argv);
 int cmd_version(int i, int argc, char **argv);
 
 int main(int argc, char **argv)
@@ -99,6 +100,9 @@ int main(int argc, char **argv)
 
 	if (strcmp(argv[i], "spy") == 0)
 		return cmd_spy(i, argc, argv);
+
+	if (strcmp(argv[i], "tail") == 0)
+		return cmd_tail(i, argc, argv);
 
 	fprintf(stderr, "Unrecognized command `%s'.  See bolo --help.\n", argv[i]);
 	return 1;

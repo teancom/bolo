@@ -58,7 +58,7 @@ int cmd_aggregator(int off, int argc, char **argv)
 		case '?':
 			logger(LOG_DEBUG, "handling -h/-?/--help");
 			printf("bolo v%s\n", BOLO_VERSION);
-			printf("Usage: bolo [-?hVF] [-c filename]\n\n");
+			printf("Usage: bolo aggr [-?hVF] [-c filename]\n\n");
 			printf("Options:\n");
 			printf("  -?, -h               show this help screen\n");
 			printf("  -V, --version        show version information and exit\n");
