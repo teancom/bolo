@@ -39,6 +39,7 @@ AC_CHECK_HEADERS(stdint.h)
 
 BOLO_WITH([postgres], [the PostgreSQL libraries (libpq) and header files])
 BOLO_WITH([hiredis],  [the HiRedis libraries (libhiredis) and header files])
+BOLO_WITH([ncurses],  [the Ncurses libraries (libncursesw) and header files])
 
 AC_HAVE_LIBRARY(pthread,,  AC_MSG_ERROR(Missing pthread library))
 AC_HAVE_LIBRARY(vigor,,    AC_MSG_ERROR(Missing libvigor - see http://github.com/jhunt/libvigor))
@@ -78,6 +79,11 @@ BOLO_SUBSCRIBER([redis], [auto], [stores KEY data in a redis database],
 	[#include <hiredis/hiredis.h>
 	 int main() { return 0; }
 	], [-lhiredis])
+
+BOLO_SUBSCRIBER([console], [auto], [displays measurement data in an text user inferface],
+	[#include <ncursesw/ncurses.h>
+	 int main() { return 0; }
+	], [-lncursesw])
 
 BOLO_SUBSCRIBER([influxdb], [auto], [stores sample and state data in InfluxDB],
 	[#include <stdlib.h>

@@ -55,9 +55,8 @@ libtsdp_la_SOURCES = tsdp/internal.h \
                      tsdp/unpack.c
 libtsdp_la_LDFLAGS = -version-info $(TSDP_SOVERSION)
 
-sbin_PROGRAMS = bolo2log bolo2console bolo2meta dbolo
+sbin_PROGRAMS = bolo2log bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c
-bolo2console_SOURCES    = src/bolo2console/main.c
 bolo2meta_SOURCES       = src/bolo2meta/main.c
 bolo2meta_LDADD         = $(LDADD)
 dbolo_SOURCES           = src/dbolo/main.c
@@ -84,6 +83,12 @@ if build_redis_subscriber
 sbin_PROGRAMS         += bolo2redis
 bolo2redis_SOURCES     = src/bolo2redis/main.c
 bolo2redis_LDADD       = $(LDADD) -lhiredis
+endif
+
+if build_console_subscriber
+sbin_PROGRAMS         += bolo2console
+bolo2console_SOURCES   = src/bolo2console/main.c
+bolo2console_LDADD     = $(LDADD) -lncursesw
 endif
 
 bin_PROGRAMS = bolo_nsca
