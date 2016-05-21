@@ -20,6 +20,7 @@ stamp-h?
 *.rpm
 *.tmp
 *.db
+/.bolo.spin.*
 
 man/*.1
 man/*.2

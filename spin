@@ -7,6 +7,13 @@ LISTENER="tcp://127.0.0.1:2999"
 
 REDIS="127.0.0.1:6379"
 
+WINDOW=60
+EVERY=20s
+if [[ -n ${FAST} ]]; then
+	WINDOW=3
+	EVERY=1s
+fi
+
 case "${1}" in
 (bolo)
   echo "RUNNING BOLO"
@@ -28,8 +35,8 @@ keysfile  ${workdir}/var/keys.db
 
 sweep 60
 
-window @minutely 60
-use @minutely
+window @aggr ${WINDOW}
+use @aggr
 sample  m/./
 counter m/./
 rate    m/./
@@ -56,13 +63,18 @@ EOF
   workdir=$PWD/$(mktemp -d .bolo.spin.XXXXXXX)
   trap "rm -rf ${workdir}" EXIT QUIT INT TERM
 
-  mkdir ${workdir}/etc
-  cat <<EOF | tee ${workdir}/etc/dbolo.conf
-@5s ${workdir}/bin/dummy
-EOF
-
   mkdir ${workdir}/bin
-  cat >${workdir}/bin/dummy <<'EOF'
+  mkdir ${workdir}/etc
+  if [[ -d $PWD/../bolo-collectors && -x $PWD/../bolo-collectors/linux ]]; then
+    cp $PWD/../bolo-collectors/linux ${workdir}/bin/linux
+    cat <<EOF | tee ${workdir}/etc/dbolo.conf
+@${EVERY} ${workdir}/bin/linux
+EOF
+  else
+    cat <<EOF | tee ${workdir}/etc/dbolo.conf
+@${EVERY} ${workdir}/bin/dummy
+EOF
+    cat >${workdir}/bin/dummy <<'EOF'
 #!/bin/bash
 d=$(date +%s)
 echo "fact name=hostname $HOSTNAME"
@@ -71,6 +83,7 @@ echo "tally $d t=tally,mode=$MODE 2"
 echo "event $d subsys=sudo,user=root,host=box sudo: root logged in (maybe...)"
 EOF
   chmod 0755 ${workdir}/bin/dummy
+  fi
 
   echo ; echo ; echo "STARTING DBOLO"
   MODE=dev \
