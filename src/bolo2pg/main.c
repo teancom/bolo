@@ -425,13 +425,15 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 		STOPWATCH(&watch, spent) {
 			if (strcmp(pdu_type(pdu), "STATE") == 0 && pdu_size(pdu) == 6) {
 				char *state = pdu_string(pdu, 1);
-				if (!hash_get(&dispatcher->seen, state)) {
+				char *code  = pdu_string(pdu, 4);
+				if (strcmp(code, "OK") != 0 || !hash_get(&dispatcher->seen, state)) {
 					hash_set(&dispatcher->seen, state, SEEN);
 					pdu_send_and_free(pdu_dup(pdu, NULL), dispatcher->inserts);
 				} else {
 					pdu_send_and_free(pdu_make("COUNT", 1, "dispatch.skips"), dispatcher->monitor);
 				}
 				free(state);
+				free(code);
 
 			} else if (strcmp(pdu_type(pdu), "TRANSITION") == 0 && pdu_size(pdu) == 6) {
 				char *state = pdu_string(pdu, 1);
