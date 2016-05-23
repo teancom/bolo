@@ -33,6 +33,15 @@ Little Things
   benchmarks of the mmap'd binfmt databases with the SQLite impl.
 
 
+Wanted Subscribers
+------------------
+
+- **bolo2influxdb** - Push metrics into InfluxDB.  _May_ require
+  the TSDP qualified names implementation.
+- **bolo2otsdb** - Push metrics into OpenTSDB (using TSD).  Also
+  probably requires the TSDP qualified names implementation.
+
+
 Modular Decomposition
 ---------------------
 
