@@ -31,6 +31,8 @@
 #include <vigor.h>
 #include <bolo.h>
 
+#define ME "bolo2rrd"
+
 /**************************/
 
 static char *CACHED = NULL;
@@ -389,7 +391,7 @@ int dispatcher_thread(void *zmq, const char *endpoint, const char *root, const c
 	dispatcher->updates = zmq_socket(zmq, ZMQ_PUSH);
 	if (!dispatcher->updates)
 		return -1;
-	rc = zmq_bind(dispatcher->updates, "inproc://bolo2rrd/v1/dispatcher.updates");
+	rc = zmq_bind(dispatcher->updates, "inproc://" ME "/v1/dispatcher.updates");
 	if (rc != 0)
 		return rc;
 
@@ -397,7 +399,7 @@ int dispatcher_thread(void *zmq, const char *endpoint, const char *root, const c
 	dispatcher->creates = zmq_socket(zmq, ZMQ_PUSH);
 	if (!dispatcher->creates)
 		return -1;
-	rc = zmq_bind(dispatcher->creates, "inproc://bolo2rrd/v1/dispatcher.creates");
+	rc = zmq_bind(dispatcher->creates, "inproc://" ME "/v1/dispatcher.creates");
 	if (rc != 0)
 		return rc;
 
@@ -613,7 +615,7 @@ int creator_thread(void *zmq, int id, const char *rras) /* {{{ */
 	creator->queue = zmq_socket(zmq, ZMQ_PULL);
 	if (!creator->queue)
 		return -1;
-	rc = zmq_connect(creator->queue, "inproc://bolo2rrd/v1/dispatcher.creates");
+	rc = zmq_connect(creator->queue, "inproc://" ME "/v1/dispatcher.creates");
 	if (rc != 0)
 		return rc;
 
@@ -837,7 +839,7 @@ int updater_thread(void *zmq, int id) /* {{{ */
 	updater->queue = zmq_socket(zmq, ZMQ_PULL);
 	if (!updater->queue)
 		return -1;
-	rc = zmq_connect(updater->queue, "inproc://bolo2rrd/v1/dispatcher.updates");
+	rc = zmq_connect(updater->queue, "inproc://" ME "/v1/dispatcher.updates");
 	if (rc != 0)
 		return rc;
 
@@ -920,7 +922,7 @@ int main(int argc, char **argv) /* {{{ */
 		.root      = strdup("/var/lib/bolo/rrd"),
 		.mapfile   = NULL, /* will be set later, based on root */
 		.daemonize = 1,
-		.pidfile   = strdup("/var/run/bolo2rrd.pid"),
+		.pidfile   = strdup("/var/run/" ME ".pid"),
 		.user      = strdup("root"),
 		.group     = strdup("root"),
 		.creators  = 2,
@@ -956,8 +958,8 @@ int main(int argc, char **argv) /* {{{ */
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2rrd v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2rrd [-h?FVv] [-e tcp://host:port] [-P PREFIX] [-S tcp://host:port]\n"
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?FVv] [-e tcp://host:port] [-P PREFIX] [-S tcp://host:port]\n"
 			       "                [-U #] [-c #] [-r /path/to/root] [-H /path/to/map] [-C]\n"
 			       "                [-u user] [-g group] [-p /path/to/pidfile]\n\n");
 			printf("Options:\n");
@@ -980,7 +982,7 @@ int main(int argc, char **argv) /* {{{ */
 			exit(0);
 
 		case 'V':
-			printf("bolo2rrd v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
@@ -1058,7 +1060,7 @@ int main(int argc, char **argv) /* {{{ */
 
 	if (!OPTIONS.prefix) {
 		char *s = fqdn();
-		OPTIONS.prefix = string("%s:sys:bolo2rrd", s);
+		OPTIONS.prefix = string("%s:sys:" ME, s);
 		free(s);
 	}
 
@@ -1072,7 +1074,7 @@ int main(int argc, char **argv) /* {{{ */
 	}
 
 	if (OPTIONS.daemonize) {
-		log_open("bolo2rrd", "daemon");
+		log_open(ME, "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
@@ -1082,7 +1084,7 @@ int main(int argc, char **argv) /* {{{ */
 		}
 		umask(um);
 	} else {
-		log_open("bolo2rrd", "console");
+		log_open(ME, "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	if (CACHED)
@@ -1140,7 +1142,7 @@ int main(int argc, char **argv) /* {{{ */
 
 	int i;
 	logger(LOG_DEBUG, "setting up creator pool with %lu threads", OPTIONS.creators);
-	char *rras = s_rradefs("/usr/lib/bolo/bolo2rrd/rra.def");
+	char *rras = s_rradefs("/usr/lib/bolo/" ME "/rra.def");
 	for (i = 0; i < OPTIONS.creators; i++) {
 		rc = creator_thread(zmq, i, rras);
 		if (rc != 0) {

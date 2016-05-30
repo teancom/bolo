@@ -50,6 +50,8 @@
 #define DEFAULT_STATUS_TOP     "bolo console v%v|[%e]|%m"
 #define DEFAULT_STATUS_BOTTOM  "%n/%N (%p)  %F|pid %P|%M"
 
+#define ME "bolo2console"
+
 typedef struct {
 	char  *name;
 	char   type;
@@ -735,8 +737,8 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2console v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2console [-h?Vv] [-e tcp://host:port] [-TRACES] [-m PATTERN]\n\n");
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?Vv] [-e tcp://host:port] [-TRACES] [-m PATTERN]\n\n");
 			printf("Options:\n");
 			printf("  -?, -h               show this help screen\n");
 			printf("  -V, --version        show version information and exit\n");
@@ -753,7 +755,7 @@ int main(int argc, char **argv)
 			exit(0);
 
 		case 'V':
-			printf("bolo2console v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
@@ -801,7 +803,7 @@ int main(int argc, char **argv)
 	if (!artist->mask)
 		artist->mask = MASK_ALL_THE_THINGS;
 
-	log_open("bolo2console", "console");
+	log_open(ME, "console");
 	if (verbose)
 		log_level(LOG_INFO + verbose, NULL);
 	else

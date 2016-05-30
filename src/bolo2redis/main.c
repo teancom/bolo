@@ -26,6 +26,8 @@
 #include <vigor.h>
 #include <bolo.h>
 
+#define ME "bolo2redis"
+
 static struct {
 	char *endpoint;
 
@@ -45,7 +47,7 @@ int main(int argc, char **argv)
 	OPTIONS.verbose    = 0;
 	OPTIONS.endpoint   = strdup("tcp://127.0.0.1:2997");
 	OPTIONS.daemonize  = 1;
-	OPTIONS.pidfile    = strdup("/var/run/bolo2redis.pid");
+	OPTIONS.pidfile    = strdup("/var/run/" ME ".pid");
 	OPTIONS.user       = strdup("root");
 	OPTIONS.group      = strdup("root");
 	OPTIONS.redis_host = strdup("127.0.0.1");
@@ -72,8 +74,8 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2redis v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2redis [-h?FVv] [-e tcp://host:port]\n"
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?FVv] [-e tcp://host:port]\n"
 			       "                  [-H redis.host.or.ip] [-P port]\n"
 			       "                  [-u user] [-g group] [-p /path/to/pidfile]\n\n");
 			printf("Options:\n");
@@ -91,7 +93,7 @@ int main(int argc, char **argv)
 
 		case 'V':
 			logger(LOG_DEBUG, "handling -V/--version");
-			printf("bolo2redis v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
@@ -140,7 +142,7 @@ int main(int argc, char **argv)
 	}
 
 	if (OPTIONS.daemonize) {
-		log_open("bolo2redis", "daemon");
+		log_open(ME, "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
@@ -150,7 +152,7 @@ int main(int argc, char **argv)
 		}
 		umask(um);
 	} else {
-		log_open("bolo2redis", "console");
+		log_open(ME, "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");

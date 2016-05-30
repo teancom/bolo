@@ -34,6 +34,8 @@
 #define TYPE_SYSLOG 1
 #define TYPE_FILE   2
 
+#define ME "bolo2log"
+
 static struct {
 	char *endpoint;
 
@@ -116,9 +118,9 @@ int main(int argc, char **argv)
 	OPTIONS.logfile   = NULL;
 	OPTIONS.facility  = strdup("daemon");
 	OPTIONS.match     = strdup(".");
-	OPTIONS.ident     = strdup("bolo2log");
+	OPTIONS.ident     = strdup(ME);
 	OPTIONS.level     = LOG_ALERT;
-	OPTIONS.pidfile   = strdup("/var/run/bolo2log.pid");
+	OPTIONS.pidfile   = strdup("/var/run/" ME "..pid");
 	OPTIONS.user      = strdup("root");
 	OPTIONS.group     = strdup("root");
 	OPTIONS.all       = 0;
@@ -148,8 +150,8 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2log v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2log [-h?FVv] [-e tcp://host:port]\n"
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?FVv] [-e tcp://host:port]\n"
 			       "                [-L /log/file] [-S facility] [-I ident] [-l level] [-A] [-m PATTERN]\n"
 			       "                [-u user] [-g group] [-p /path/to/pidfile]\n\n");
 			printf("Options:\n");
@@ -170,7 +172,7 @@ int main(int argc, char **argv)
 
 		case 'V':
 			logger(LOG_DEBUG, "handling -V/--version");
-			printf("bolo2pg v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);

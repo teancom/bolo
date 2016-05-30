@@ -28,6 +28,8 @@
 #include <vigor.h>
 #include <bolo.h>
 
+#define ME "bolo2meta"
+
 typedef struct {
 	void *control;    /* SUB:  hooked up to supervisor.command; receives control messages */
 	void *monitor;    /* PUSH: hooked up to monitor.input; relays monitoring messages */
@@ -205,7 +207,7 @@ int main(int argc, char **argv) /* {{{ */
 		.endpoint  = strdup("tcp://127.0.0.1:2997"),
 		.submit_to = strdup("tcp://127.0.0.1:2999"),
 		.daemonize = 1,
-		.pidfile   = strdup("/var/run/bolo2meta.pid"),
+		.pidfile   = strdup("/var/run/" ME ".pid"),
 		.user      = strdup("root"),
 		.group     = strdup("root"),
 		.prefix    = NULL, /* will be set later, if needed */
@@ -232,8 +234,8 @@ int main(int argc, char **argv) /* {{{ */
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2meta v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2meta [-h?FVv] [-e tcp://host:port] [-P PREFIX] [-S tcp://host:port]\n"
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?FVv] [-e tcp://host:port] [-P PREFIX] [-S tcp://host:port]\n"
 			       "                 [-u user] [-g group] [-p /path/to/pidfile]\n");
 			printf("Options:\n");
 			printf("  -?, -h               show this help screen\n");
@@ -249,7 +251,7 @@ int main(int argc, char **argv) /* {{{ */
 			exit(0);
 
 		case 'V':
-			printf("bolo2meta v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
@@ -305,7 +307,7 @@ int main(int argc, char **argv) /* {{{ */
 	}
 
 	if (OPTIONS.daemonize) {
-		log_open("bolo2meta", "daemon");
+		log_open(ME, "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
@@ -315,7 +317,7 @@ int main(int argc, char **argv) /* {{{ */
 		}
 		umask(um);
 	} else {
-		log_open("bolo2meta", "console");
+		log_open(ME, "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");

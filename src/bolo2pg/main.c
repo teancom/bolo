@@ -27,6 +27,8 @@
 #include <vigor.h>
 #include <bolo.h>
 
+#define ME "bolo2pg"
+
 /***********************************************************/
 
 typedef struct {
@@ -207,7 +209,7 @@ int inserter_thread(void *zmq, int id, const char *dsn) /* {{{ */
 	inserter->queue = zmq_socket(zmq, ZMQ_PULL);
 	if (!inserter->queue)
 		return -1;
-	rc = zmq_connect(inserter->queue, "inproc://bolo2pg/v1/dispatcher.inserts");
+	rc = zmq_connect(inserter->queue, "inproc://" ME "/v1/dispatcher.inserts");
 	if (rc != 0)
 		return rc;
 
@@ -520,7 +522,7 @@ int dispatcher_thread(void *zmq, const char *endpoint) /* {{{ */
 	dispatcher->inserts = zmq_socket(zmq, ZMQ_PUSH);
 	if (!dispatcher->inserts)
 		return -1;
-	rc = zmq_bind(dispatcher->inserts, "inproc://bolo2pg/v1/dispatcher.inserts");
+	rc = zmq_bind(dispatcher->inserts, "inproc://" ME "/v1/dispatcher.inserts");
 	if (rc != 0)
 		return rc;
 
@@ -607,7 +609,7 @@ int main(int argc, char **argv)
 		.endpoint  = strdup("tcp://127.0.0.1:2997"),
 		.submit_to = strdup("tcp://127.0.0.1:2999"),
 		.daemonize = 1,
-		.pidfile   = strdup("/var/run/bolo2pg.pid"),
+		.pidfile   = strdup("/var/run/" ME ".pid"),
 		.user      = strdup("root"),
 		.group     = strdup("root"),
 		.database  = strdup("bolo"),
@@ -643,8 +645,8 @@ int main(int argc, char **argv)
 		switch (c) {
 		case 'h':
 		case '?':
-			printf("bolo2pg v%s\n", BOLO_VERSION);
-			printf("Usage: bolo2pg [-h?FVv] [-e tcp://host:port] [-n PREFIX] [-S tcp://host:port]\n"
+			printf(ME " v%s\n", BOLO_VERSION);
+			printf("Usage: " ME " [-h?FVv] [-e tcp://host:port] [-n PREFIX] [-S tcp://host:port]\n"
 			       "               [-I #] [-H dbhost] [-P dbport] [-d dbname] [-C /path/to/creds]\n"
 			       "               [-u user] [-g group] [-p /path/to/pidfile]\n\n");
 			printf("Options:\n");
@@ -667,7 +669,7 @@ int main(int argc, char **argv)
 
 		case 'V':
 			logger(LOG_DEBUG, "handling -V/--version");
-			printf("bolo2pg v%s\n"
+			printf(ME " v%s\n"
 			       "Copyright (c) 2016 The Bolo Authors.  All Rights Reserved.\n",
 			       BOLO_VERSION);
 			exit(0);
@@ -743,12 +745,12 @@ int main(int argc, char **argv)
 
 	if (!OPTIONS.prefix) {
 		char *s = fqdn();
-		OPTIONS.prefix = string("%s:sys:bolo2pg", s);
+		OPTIONS.prefix = string("%s:sys:" ME, s);
 		free(s);
 	}
 
 	if (OPTIONS.daemonize) {
-		log_open("bolo2pg", "daemon");
+		log_open(ME, "daemon");
 		log_level(LOG_ERR + OPTIONS.verbose, NULL);
 
 		mode_t um = umask(0);
@@ -758,7 +760,7 @@ int main(int argc, char **argv)
 		}
 		umask(um);
 	} else {
-		log_open("bolo2pg", "console");
+		log_open(ME, "console");
 		log_level(LOG_INFO + OPTIONS.verbose, NULL);
 	}
 	logger(LOG_NOTICE, "starting up");
