@@ -40,13 +40,7 @@ local
 
 # built binaries
 /bolo
-/bolo2console
-/bolo2log
-/bolo2meta
-/bolo2pg
-/bolo2redis
-/bolo2rrd
-/bolo2sqlite
+/bolo2*
 /bolo_nsca
 /dbolo
 
