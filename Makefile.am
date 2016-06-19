@@ -58,7 +58,13 @@ sbin_PROGRAMS = bolo2log bolo2meta dbolo
 bolo2log_SOURCES        = src/bolo2log/main.c
 bolo2meta_SOURCES       = src/bolo2meta/main.c
 bolo2meta_LDADD         = $(LDADD)
+
+if build_slack_subscriber
+sbin_PROGRAMS          += bolo2slack
+bolo2slack_SOURCES      = src/bolo2slack/main.c
+bolo2slack_LDADD        = -lcurl
 dbolo_SOURCES           = src/dbolo/main.c
+endif
 
 if build_rrd_subscriber
 sbin_PROGRAMS          += bolo2rrd
@@ -123,6 +129,9 @@ dist_check_SCRIPTS=$(check_SCRIPTS) t/run t/lib
 dist_man_MANS  =
 dist_man_MANS += man/bolo2meta.8
 dist_man_MANS += man/bolo2log.8
+if build_slack_subscriber
+dist_man_MANS += man/bolo2slack.8
+endif
 if build_pg_subscriber
 dist_man_MANS += man/bolo2pg.8
 endif

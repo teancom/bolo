@@ -40,6 +40,12 @@ use @aggr
 sample  m/./
 counter m/./
 rate    m/./
+
+type :default {
+  freshness 60
+}
+use :default
+state m/./
 EOF
   echo ; echo ; echo "STARTING BOLO"
   ./bolo aggr -Fc ${workdir}/etc/bolo.conf
@@ -73,6 +79,7 @@ EOF
   else
     cat <<EOF | tee ${workdir}/etc/dbolo.conf
 @${EVERY} ${workdir}/bin/dummy
+@${EVERY} ${workdir}/bin/flapper
 EOF
     cat >${workdir}/bin/dummy <<'EOF'
 #!/bin/bash
@@ -82,7 +89,18 @@ echo "sample $d t=sample,mode=$MODE $RANDOM"
 echo "tally $d t=tally,mode=$MODE 2"
 echo "event $d subsys=sudo,user=root,host=box sudo: root logged in (maybe...)"
 EOF
-  chmod 0755 ${workdir}/bin/dummy
+    cat >${workdir}/bin/flapper <<'EOF'
+#!/bin/bash
+d=$(date +%s)
+if [[ -f /tmp/flap ]]; then
+  echo "state $d test=flapper,sys=dev WARNING oh noes it flapped"
+  rm -f /tmp/flap
+else
+  echo "state $d test=flapper,sys=dev OK all better now"
+  touch /tmp/flap
+fi
+EOF
+    chmod 0755 ${workdir}/bin/*
   fi
 
   echo ; echo ; echo "STARTING DBOLO"
