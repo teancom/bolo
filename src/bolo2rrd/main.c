@@ -282,7 +282,7 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			struct stat st;
 			pdu_t *relay;
-			if (stat(file->abspath, &st) != 0) {
+			if (stat(file->abspath, &st) != 0 || (CACHED && rrdc_is_connected(CACHED) && rrdc_info(file->abspath) == NULL)) {
 				relay = pdu_make("CREATE", 4,
 					file->parents[0], file->parents[1], file->abspath, pdu_type(pdu));
 
@@ -469,7 +469,7 @@ static int _creator_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 		char *file = pdu_string(pdu, 3);
 		struct stat st;
-		if (stat(file, &st) == 0) {
+		if (stat(file, &st) == 0 || (CACHED && rrdc_is_connected(CACHED) && rrdc_info(file) != NULL)) {
 			logger(LOG_DEBUG, "creator[%i] rrd %s already exists; logging create.misdirect", creator->id);
 			pdu_send_and_free(pdu_make("COUNT", 1, "create.misdirects"), creator->monitor);
 			free(file);
@@ -680,7 +680,7 @@ static int _updater_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 		char *file = pdu_string(pdu, 1);
 		struct stat st;
-		if (stat(file, &st) != 0) {
+		if (stat(file, &st) != 0 || (CACHED && rrdc_is_connected(CACHED) && rrdc_info(file) == NULL)) {
 			if (errno == ENOENT) {
 				logger(LOG_DEBUG, "updater[%i] rrd %s does not exist; logging update.misdirect", updater->id);
 				pdu_send_and_free(pdu_make("COUNT", 1, "update.misdirects"), updater->monitor);
