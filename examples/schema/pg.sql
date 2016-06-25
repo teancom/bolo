@@ -22,6 +22,8 @@ DROP FUNCTION IF EXISTS track_datapoint(metric, text, timestamp);
 DROP TYPE IF EXISTS status;
 DROP TYPE IF EXISTS metric;
 
+DROP TABLE IF EXISTS events;
+DROP INDEX IF EXISTS events_idx;
 -- --------------------------------------------------------------------
 
 CREATE TYPE status AS ENUM ('OK', 'WARNING', 'CRITICAL', 'UNKNOWN');
@@ -71,7 +73,6 @@ CREATE TABLE history_anomalies (
 	inserted_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	occurred_at  TIMESTAMP NOT NULL
 );
-
 
 CREATE OR REPLACE FUNCTION reconcile() RETURNS INTEGER AS $$
 DECLARE
@@ -273,3 +274,14 @@ BEGIN
 END
 $$
 LANGUAGE plpgsql;
+
+CREATE TABLE events (
+	id          SERIAL PRIMARY KEY,
+	name        TEXT NOT NULL,
+	occured_at  TIMESTAMP NOT NULL,
+
+	extra       TEXT,
+
+	UNIQUE (name, occured_at)
+);
+CREATE INDEX events_idx ON events (name, occured_at, extra);

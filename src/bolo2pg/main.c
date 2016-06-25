@@ -114,7 +114,7 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 					pdu_string(pdu, 2), /* ts      */
 				};
 #ifdef BOLO2PG_DEBUG
-				logger(LOG_DEBUG, "inserter[%i]: INSERTING %s @%s (code=%s) %s",
+				logger(LOG_DEBUG, "inserter[%i]: INSERTING state %s @%s (code=%s) %s",
 						inserter->id, params[0], params[3], params[2], params[1]);
 #endif
 				PGresult *r = PQexecPrepared(inserter->db, "INSERT_STAGING", 4,
@@ -138,14 +138,61 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 			}
 
 			if (rc == 0) {
-				pdu_t *perf = pdu_make("SAMPLE", 1, "insert.time.s");
+				pdu_t *perf = pdu_make("SAMPLE", 1, "state:insert.time.s");
 				pdu_extendf(perf, "%lf", spent / 1000.);
 				pdu_send_and_free(perf, inserter->monitor);
 
-				pdu_send_and_free(pdu_make("COUNT", 1, "insert.ops"), inserter->monitor);
+				pdu_send_and_free(pdu_make("COUNT", 1, "state:insert.ops"), inserter->monitor);
 
 			} else {
-				pdu_send_and_free(pdu_make("COUNT", 1, "insert.errors"), inserter->monitor);
+				pdu_send_and_free(pdu_make("COUNT", 1, "state:insert.errors"), inserter->monitor);
+			}
+
+		} else if (strcmp(pdu_type(pdu), "EVENT") == 0 && pdu_size(pdu) == 4) {
+
+			int rc = 0;
+
+			stopwatch_t watch;
+			uint64_t spent = 0;
+
+			STOPWATCH(&watch, spent) {
+				char* params[] = {
+					pdu_string(pdu, 1), /* name  */
+					pdu_string(pdu, 3), /* extra */
+					pdu_string(pdu, 2), /* ts    */
+				};
+#ifdef BOLO2PG_DEBUG
+				logger(LOG_DEBUG, "inserter[%i]: INSERTING event %s @%s %s",
+						inserter->id, params[0], params[2], params[1]);
+#endif
+				PGresult *r = PQexecPrepared(inserter->db, "INSERT_EVENT", 3,
+					(const char **)params,
+					NULL,     /* text params; lengths not necessary */
+					NULL, 0); /* all text formats */
+
+				if (PQresultStatus(r) != PGRES_COMMAND_OK) {
+					logger(LOG_ERR, "failed to insert into events table ($1 = '%s', $2 = '%s', $3 = '%s'): %s",
+						params[0], params[1], params[2],
+						PQresultErrorMessage(r));
+					rc = -1;
+				}
+
+				PQclear(r);
+
+				free(params[0]);
+				free(params[1]);
+				free(params[2]);
+			}
+
+			if (rc == 0) {
+				pdu_t *perf = pdu_make("SAMPLE", 1, "event:insert.time.s");
+				pdu_extendf(perf, "%lf", spent / 1000.);
+				pdu_send_and_free(perf, inserter->monitor);
+
+				pdu_send_and_free(pdu_make("COUNT", 1, "event:insert.ops"), inserter->monitor);
+
+			} else {
+				pdu_send_and_free(pdu_make("COUNT", 1, "event:insert.errors"), inserter->monitor);
 			}
 
 		} else {
@@ -238,15 +285,31 @@ int inserter_thread(void *zmq, int id, const char *dsn) /* {{{ */
 		return -1;
 	}
 
-	const char *sql =
+	const char *sql_staging =
 		"INSERT INTO states_staging "
 		"(name, status, message, occurred_at) "
 		"VALUES ($1, $2, $3, to_timestamp($4))";
 
-	PGresult *r = PQprepare(inserter->db, "INSERT_STAGING", sql, 4, NULL);
+	PGresult *r = PQprepare(inserter->db, "INSERT_STAGING", sql_staging, 4, NULL);
 
 	if (PQresultStatus(r) != PGRES_COMMAND_OK) {
-		logger(LOG_ERR, "Unable to prepare SQL `%s`: %s", sql, PQresultErrorMessage(r));
+		logger(LOG_ERR, "Unable to prepare SQL `%s`: %s", sql_staging, PQresultErrorMessage(r));
+
+		PQclear(r);
+		PQfinish(inserter->db);
+		return -1;
+	}
+	PQclear(r);
+
+	const char *sql_events =
+		"INSERT INTO events "
+		"(name, extra, occurred_at) "
+		"VALUES ($1, $2, to_timestamp($3))";
+
+	r = PQprepare(inserter->db, "INSERT_EVENT", sql_events, 3, NULL);
+
+	if (PQresultStatus(r) != PGRES_COMMAND_OK) {
+		logger(LOG_ERR, "Unable to prepare SQL `%s`: %s", sql_events, PQresultErrorMessage(r));
 
 		PQclear(r);
 		PQfinish(inserter->db);
