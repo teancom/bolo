@@ -34,7 +34,7 @@ if [[ -z $GITHUB_TOKEN ]]; then
   exit 1
 fi
 
-VERSION=$(./version.sh)
+VERSION=$(./version.sh package)
 DISTARCHIVE=${GITHUB_REPO}-${VERSION}.tar.gz
 echo "BUILDING ${PROJECT} v${VERSION} (${DISTARCHIVE})"
 echo
