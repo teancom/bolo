@@ -1,9 +1,32 @@
+# New Features
+
+- New `FORGET` PDU allows systems to completely forget all metrics
+  and STATE data based on name, which is useful if you've removed
+  or decommissioned a host.
+- Common CLI components (including the aggregator) have been
+  consolidated into a single, multi-call `bolo` binary.  So,
+  instead of `send_bolo`, you run `bolo send`
+- `bolo2rrd` subscriber now handles RRDtool 1.6.0 properly.  1.6.0
+  is the earliest recommended version of librrd, since it is
+  threadsafe and exports all of the rrdcached client functions.
+- `bolo2rrd` subscriber now allows you to configure how often it
+  will sync the RRD map file to disk.
+- New `bolo2console` subscriber, an ncurses-powered interface to
+  view states and metric data.
+- Preliminary support in `bolo2pg` subscriber for storing event
+  data in the database.
+
 # Bug Fixes
 
-- Check for stdint.h, so that librrd header files see that
-  we have it.  Avoids a configure-time panic.
-- `make distcheck` now works! (#61)
+- Fix some issues with dbolo splaying / scheduling (#72)
+- The `bolo2pg` subscriber now always inserts non-OK states (#77)
+- Fix handling of a failed `stat(2)` call in the `bolo2rrd`
+  subscriber (#82)
 
 # Developer Stuff
 
-- release process is now fully scripted in re/lease
+- Travis now tracks CLA status of PR submitters
+- Travis now builds from known good versions of upstream deps
+  (zmq, libsodium, etc.)
+- Source code has been reorganized around better module boundaries
+- Starting to libify things, via `libtsdp` and `libbolo`
