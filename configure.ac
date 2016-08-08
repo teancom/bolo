@@ -17,7 +17,7 @@
 #  with Bolo.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-AC_PREREQ(2.63)
+AC_PREREQ(2.59)
 AC_INIT([Bolo], [m4_esyscmd([./version.sh package])], [bolo@niftylogic.com],, [http://bolo.niftylogic.com])
 
 AC_CONFIG_SRCDIR([src/bolo.h])
@@ -35,6 +35,7 @@ LT_INIT
 AX_TEST_COVERAGE
 
 AC_PROG_CC
+AM_PROG_CC_C_O
 AC_CHECK_HEADERS(stdint.h)
 
 BOLO_WITH([postgres], [the PostgreSQL libraries (libpq) and header files])
