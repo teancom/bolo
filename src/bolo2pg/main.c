@@ -507,6 +507,9 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 				pdu_send_and_free(pdu_dup(pdu, "STATE"), dispatcher->inserts);
 
+			} else if (strcmp(pdu_type(pdu), "EVENT") == 0 && pdu_size(pdu) == 4) {
+				pdu_send_and_free(pdu_dup(pdu, "EVENT"), dispatcher->inserts);
+
 			} else {
 #ifdef BOLO2PG_DEBUG
 				logger(LOG_DEBUG, "dispatcher: skipping broadcast [%s] PDU (%i frames)",
