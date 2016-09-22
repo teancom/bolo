@@ -80,6 +80,7 @@ typedef struct PACKED {
 
 #define binf_record_type(b) ((b)->flags & RECORD_TYPE_MASK)
 
+#ifndef htonll
 static uint64_t htonll(uint64_t x)
 {
 	union {
@@ -92,7 +93,9 @@ static uint64_t htonll(uint64_t x)
 	n.u32[1] = htonl(h.u32[0]);
 	return n.u64;
 }
+#endif
 
+#ifndef ntohll
 static uint64_t ntohll(uint64_t x)
 {
 	union {
@@ -105,6 +108,7 @@ static uint64_t ntohll(uint64_t x)
 	h.u32[1] = ntohl(n.u32[0]);
 	return h.u64;
 }
+#endif
 
 static int s_write_record(void *addr, size_t *len, uint8_t type, void *_)
 {
