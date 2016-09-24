@@ -100,5 +100,5 @@ else
 	AC_DEFINE([HAVE_PCRE_FREE_STUDY], 0, [PCRE library exports pcre_free_study()])
 fi
 
-AC_CONFIG_FILES([Makefile redhat/rpm.spec include/bolo.h])
+AC_CONFIG_FILES([Makefile include/bolo.h])
 AC_OUTPUT

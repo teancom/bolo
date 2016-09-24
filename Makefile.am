@@ -30,7 +30,6 @@ EXTRA_DIST += README.md
 EXTRA_DIST += PROTO
 EXTRA_DIST += bootstrap
 EXTRA_DIST += man examples
-EXTRA_DIST += redhat
 
 include_HEADERS = include/bolo.h include/tsdp.h
 lib_LTLIBRARIES = libbolo.la libtsdp.la
