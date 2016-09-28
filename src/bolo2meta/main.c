@@ -97,6 +97,13 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 				metric = "bogon.event";
 			}
 
+		} else if (strcmp(pdu_type(pdu), "SET.KEYS") == 0) {
+			if (pdu_size(pdu) % 2 == 0) {
+				metric = "setkeys";
+			} else {
+				metric = "bogon.setkeys";
+			}
+
 		} else {
 			metric = "bogon.unknown";
 		}

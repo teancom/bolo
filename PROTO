@@ -35,7 +35,7 @@
            ----------------.            | [STATE]
  client <--                 \           | [COUNTER]
                PUBLISHER     \          | [SAMPLE]
- client <--                   <---------'
+ client <--                   <---------' [SET.KEYS]
               tcp://*:2997   /
  client <--                 /
            ----------------'
@@ -160,6 +160,15 @@
      <TS>                                     ; is received.
      <NAME>
      <EXTRA>
+
+     ---------------------------------------------------------------------------
+
+     SET.KEYS                                ; broadcast all known keys, in groups
+     <KEY 1>                                 ; of up to 30 key/value pairs.
+     <VALUE 1>
+     ...
+     <KEY N>
+     <VALUE N>
 
      ---------------------------------------------------------------------------
 
