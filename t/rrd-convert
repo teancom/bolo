@@ -1,0 +1,55 @@
+#!/bin/bash
+source ${srcdir:-.}/t/lib
+[[ -x bolo2rrd ]]                || skip
+[[ -n "$(command -v rrdtool)" ]] || skip
+need_command z{pub,pull}
+tmpfs
+
+LISTENER="ipc://${ROOT}/bolo.listener.sock"
+BROADCAST="ipc://${ROOT}/bolo.broadcast.sock"
+
+while true; do
+	echo "COUNTER|$(date +%s)|a.random.counter|42"
+	echo "SAMPLE|$(date +%s)|a.random.sample|4|10|200|900|100|20"
+	echo "RATE|$(date +%s)|a.random.rate|1|67"
+	sleep 1
+done | zpub --bind ${BROADCAST} --timeout 200 >${ROOT}/broadcast.out 2>&1 &
+BROADCAST_PID=$!
+clean_pid ${BROADCAST_PID}
+diag_file ${ROOT}/broadcast.out
+
+zpull --bind ${LISTENER} >${ROOT}/submitted.out 2>&1 &
+PULL_PID=$!
+clean_pid ${PULL_PID}
+diag_file ${ROOT}/submitted.out
+
+mkdir ${ROOT}/rrd
+echo -e "7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca a.random.counter
+66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd a.random.rate
+66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0 a.random.sample" > ${ROOT}/rrd/map
+sleep 1
+cat > ${ROOT}/expect <<EOF
+7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca a.random.counter
+66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd a.random.rate
+66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0 a.random.sample
+EOF
+file_is ${ROOT}/rrd/map ${ROOT}/expect \
+	"No metrics yet"
+
+./bolo2rrd -Fvvvvvvvv -P x -U1 -c1 --root ${ROOT}/rrd -e ${BROADCAST} -S ${LISTENER} >${ROOT}/bolo2rrd.out 2>&1 &
+BOLO2RRD_PID=$!
+clean_pid ${BOLO2RRD_PID}
+diag_file ${ROOT}/bolo2rrd.out
+
+sleep 90
+kill -TERM ${BROADCAST_PID} ${PULL_PID} ${BOLO2RRD_PID}
+
+cat > ${ROOT}/expect <<EOF
+7a/f1/7af1460160c7819f822c0efbfed90206ffbbcbca a.random.counter COUNTER
+66/97/6697c8ba90a8257703dd702b07189f3b8443a8fd a.random.rate RATE
+66/d1/66d1067c2bd5743d98b2f262d3a1550f38995cb0 a.random.sample SAMPLE
+EOF
+file_is ${ROOT}/rrd/map ${ROOT}/expect \
+	"We should now have metric types"
+
+exit 0

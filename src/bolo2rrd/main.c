@@ -42,11 +42,12 @@ typedef struct {
 	char *abspath;         /* absolute path to the RRD file */
 	char *relpath;         /* "aa/bb/aabbccdd..." (without the .rrd suffix) */
 	char *name;            /* metric name */
+	char *type;            /* the type of metric */
 } rrdfile_t;
 
 void rrdfile_free(rrdfile_t *file);
-rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *sha1);
-rrdfile_t *rrd_filename(const char *root, const char *metric);
+rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *type, const char *sha1);
+rrdfile_t *rrd_filename(const char *root, const char *metric, const char *type);
 
 typedef struct {
 	hash_t  hash;
@@ -103,10 +104,16 @@ int rrdmap_read(rrdmap_t *map, const char *root) /* {{{ */
 	char buf[8192];
 	while (fgets(buf, 8192, io) != NULL) {
 		char *x;
-		char *sha1, *name;
+		char *sha1, *name, *type;
 
 		x = strrchr(buf, '\n');
 		if (x) *x = '\0';
+
+		x = strrchr(buf, ' ');
+		if (!x) continue;
+
+		*x++ = '\0';
+		type = x;
 
 		x = strchr(buf, ' ');
 		if (!x) continue;
@@ -114,11 +121,14 @@ int rrdmap_read(rrdmap_t *map, const char *root) /* {{{ */
 		*x++ = '\0';
 		name = x;
 
+		if (strcmp(name, type) == 0)
+			type = strdup("UNDEFINED");
+
 		x = strrchr(buf, '/');
 		if (!x) continue;
 		sha1 = ++x;
 
-		hash_set(&map->hash, name, rrdfile_parse(root, name, sha1));
+		hash_set(&map->hash, name, rrdfile_parse(root, name, type, sha1));
 	}
 
 	fclose(io);
@@ -133,7 +143,7 @@ int rrdmap_write(rrdmap_t *map) /* {{{ */
 
 	char *_; rrdfile_t *file;
 	for_each_key_value(&map->hash, _, file)
-		fprintf(io, "%s %s\n", file->relpath, file->name);
+		fprintf(io, "%s %s %s\n", file->relpath, file->name, file->type);
 	fclose(io);
 
 	return rename(map->tmpfile, map->file);
@@ -147,13 +157,15 @@ void rrdfile_free(rrdfile_t *file) /* {{{ */
 	free(file->relpath);
 	free(file->abspath);
 	free(file->name);
+	free(file->type);
 	free(file);
 }
 /* }}} */
-rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *sha1) /* {{{ */
+rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *type, const char *sha1) /* {{{ */
 {
 	rrdfile_t *file = vmalloc(sizeof(rrdfile_t));
 	file->name = strdup(name);
+	file->type = strdup(type);
 
 	file->parents[0] = string("%s/%c%c",      root, sha1[0], sha1[1]);
 
@@ -168,11 +180,11 @@ rrdfile_t *rrdfile_parse(const char *root, const char *name, const char *sha1) /
 	return file;
 }
 /* }}} */
-rrdfile_t *rrd_filename(const char *root, const char *metric) /* {{{ */
+rrdfile_t *rrd_filename(const char *root, const char *metric, const char *type) /* {{{ */
 {
 	sha1_t sha1;
 	sha1_data(&sha1, metric, strlen(metric));
-	return rrdfile_parse(root, metric, sha1.hex);
+	return rrdfile_parse(root, metric, type, sha1.hex);
 }
 /* }}} */
 
@@ -275,9 +287,11 @@ static int _dispatcher_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			rrdfile_t *file = hash_get(&dispatcher->map->hash, name);
 			if (!file) {
-				file = rrd_filename(dispatcher->root, name);
+				file = rrd_filename(dispatcher->root, name, pdu_type(pdu));
 				hash_set(&dispatcher->map->hash, name, file);
-			}
+			} else if (strcmp(file->type, "UNDEFINED") == 0)
+				file->type = pdu_type(pdu);
+
 			free(name);
 
 			struct stat st;
