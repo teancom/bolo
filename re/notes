@@ -1,3 +1,8 @@
+# Improvements
+
+- The `bolo2rrd` RRD map file now indicates the type of data for each DS,
+  to make it easier to dynamically generate graphs.  (#84)
+
 # Bug Fixes
 
 - `bolo2pg` subscriber now handles broadcast `EVENT` PDUs (#88)
