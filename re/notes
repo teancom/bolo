@@ -1,15 +1,1 @@
-# Improvements
-
-- The `bolo2rrd` RRD map file now indicates the type of data for each DS,
-  to make it easier to dynamically generate graphs.  (#84)
-
-# Bug Fixes
-
-- `bolo2pg` subscriber now handles broadcast `EVENT` PDUs (#88)
-- `bolo2meta` now properly recognizes the `SET.KEYS` broadcast PDU, and
-  tracks it under the appropriate (new) metric.  This fixes a bug
-  whereby lots of unknown bogon PDUs would be reported.
-
-# Developer Stuff
-
-- Packaging is now handled exclusively over at https://github.com/bolo/builds.
+(none yet)
