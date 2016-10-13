@@ -90,6 +90,12 @@ bolo2console_SOURCES   = src/bolo2console/main.c
 bolo2console_LDADD     = $(LDADD) -lncursesw
 endif
 
+if build_influxdb_subscriber
+sbin_PROGRAMS         += bolo2influxdb
+bolo2influxdb_SOURCES  = src/bolo2influxdb/main.c
+bolo2influxdb_LDADD    = $(LDADD)
+endif
+
 bin_PROGRAMS = bolo_nsca
 bolo_nsca_SOURCES = src/bolo_nsca/main.c
 
@@ -128,6 +134,9 @@ dist_man_MANS += man/bolo2redis.8
 endif
 if build_console_subscriber
 dist_man_MANS += man/bolo2console.8
+endif
+if build_influxdb_subscriber
+dist_man_MANS += man/bolo2influxdb.8
 endif
 dist_man_MANS += man/bolo.conf.5
 dist_man_MANS += man/bolo.1

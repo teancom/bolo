@@ -1,0 +1,132 @@
+=head1 NAME
+
+bolo2influxdb - Bolo InfluxDB Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2influxdb> -e tcp://bolo:port -H influx-ip:port
+
+B<bolo2influxdb> -F
+
+B<bolo2influxdb> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2influxdb> is a subscriber that listens to SAMPLE, RATE and COUNTER
+data broadcast by B<bolo> and transmits the values to an InfluxDB UDP
+listener.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-S>, B<--submit> I<tcp://host:port>
+
+The bolo listener endpoint.  Metrics collected by B<bolo2influxdb> will be
+submitted here, for storage and aggregation.  Defaults to
+I<tcp://127.0.0.1:2999>.  Supports DNS resolution for both IPv4 and IPv6
+endpoints.
+
+=item B<-H>, B<--influxdb> I<ip:port>
+
+The IP address and port of the InfluxDB UDP listener.  Hostnames cannot
+presently be used for this.  If not specified, the port defaults to I<8089>.
+
+=item B<-P>, B<--prefix> I<PREFIX>
+
+A string that will be used to prefix all submitted metric names.
+Defaults to I<$fqdn:sys:bolo2influxdb>, where I<$fqdn> is the fully-qualified
+domain name of the local host.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2influxdb> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2influxdb> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2influxdb.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2influxdb> will run as
+root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 COLLECTED METRICS
+
+The following metrics are tracked and submitted back to bolo:
+
+=over
+
+=item B<dispatch.time.s>
+
+How long it took the main thread to determine which worker pool (i.e.,
+creators or updaters) to submit an inbound metric PDU to.  This includes the
+time taken to generate the SHA1 checksum of the metric name, and the trip to
+the filesystem cache to determine if the RRD file already exists.  The
+median value of all collected samples will be submitted to the bolo core as
+a SAMPLE metric.
+
+=back
+
+=head1 METRIC NAMES
+
+Normally, B<bolo> collectors submit metrics with names like C<host1:cpu:free>.
+InfluxDB, however, prefers to deal with attributes as first-class objects,
+like C<host=host1,type=cpu>.
+
+To that end, B<bolo2influxdb> classifies all metric names into the following
+two patterns:
+
+=over
+
+=item B<host:type:metric>
+
+=item B<host:type:item:metric>
+
+=back
+
+The C<host> and C<type> fields will be passed to InfluxDB as C<host=> and
+C<type=> tags.  If present, the C<item> field will also be passed as a tag.
+
+Note that C<item> may contain multiple colons.  These will be preserved.
+
+If you want to see exactly how data is being sent to InfluxDB, you can
+always set up a UDP listener with B<nc>(1), and point the subscriber at
+that:
+
+    $ nc -ul 8089
+    $ bolo2influxdb -F -e tcp://$BOLO:2997 -H 127.0.0.1:8089
+
+Whatever gets printed to the terminal where B<nc>(1) is running is what
+will be seen by InfluxDB.
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR
