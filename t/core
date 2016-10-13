@@ -98,7 +98,7 @@ string_is "$(echo 'SAVESTATE' | zdealer ${ZTK_OPTS} -c ${CONTROLLER})" \
           "OK" \
           "SAVESTATE via controller"
 
-./bolo spy ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
+./bolo spy -c ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb | \
     sed -e 's/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/{{timestamp}}/g' > ${ROOT}/got
 cat <<EOF > ${ROOT}/expect
 counter :: counter1 = 5
@@ -123,6 +123,60 @@ state :: test.state.1
   [2] CRITICAL - critically-ness
   last seen {{timestamp}} / expires {{timestamp}}
   freshness 60
+
+EOF
+file_is ${ROOT}/got ${ROOT}/expect \
+        "state saved properly"
+
+./bolo spy -c ${ROOT}/etc/bolo.conf ${ROOT}/var/savedb --yaml | \
+    sed -e 's/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]/{{timestamp}}/g' > ${ROOT}/got
+cat <<EOF > ${ROOT}/expect
+counter1:
+  type:      counter
+  value:     5
+  window:    60
+  last_seen: {{timestamp}}
+
+rate1:
+  type:        rate
+  first_value: 1000
+  last_value:  1347
+  window:      60
+  first_seen:  {{timestamp}}
+  last_seen:   {{timestamp}}
+
+res.df:/:
+  type:      sample
+  n:         1
+  min:       4.200000e+01
+  max:       4.200000e+01
+  mean:      4.200000e+01
+  sum:       4.200000e+01
+  var:       0.000000e+00
+  window:    3600
+  last_seen: {{timestamp}}
+
+test.state.0:
+  type:      state
+  status:    OK
+  code:      0
+  stale:     no
+  freshness: 60
+  last_seen: {{timestamp}}
+  expiry:    {{timestamp}}
+  summary: |-
+    all good
+
+test.state.1:
+  type:      state
+  status:    CRITICAL
+  code:      2
+  stale:     no
+  freshness: 60
+  last_seen: {{timestamp}}
+  expiry:    {{timestamp}}
+  summary: |-
+    critically-ness
 
 EOF
 file_is ${ROOT}/got ${ROOT}/expect \

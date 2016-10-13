@@ -18,6 +18,16 @@
  */
 
 #include "../bolo.h"
+#include <getopt.h>
+
+#define FORMAT_PLAIN 0
+#define FORMAT_YAML  1
+
+static struct {
+	char *config_file;
+	char *savedb;
+	int   format;
+} OPTIONS = { 0 };
 
 typedef struct {
 	int   type;
@@ -43,10 +53,52 @@ static void box(int type, void *ptr, char *key, strings_t *sort, hash_t *index)
 
 int cmd_spy(int off, int argc, char **argv)
 {
-	if (argc - off != 3) {
-		fprintf(stderr, "USAGE: bolo spy bolo.cfg /path/to/save.db\n");
+	OPTIONS.config_file = strdup(DEFAULT_CONFIG_FILE);
+
+	struct option long_opts[] = {
+		{ "help",         no_argument, NULL, 'h' },
+		{ "config", required_argument, NULL, 'c' },
+		{ "yaml",         no_argument, NULL, 'Y' },
+		{ 0, 0, 0, 0 },
+	};
+	for (;;) {
+		int c, idx = 1;
+
+		c = getopt_long(argc - off, argv + off, "h?c:Y", long_opts, &idx);
+		if (c == -1) break;
+
+		switch (c) {
+		case 'h':
+		case '?':
+			printf("bolo-spy v%s\n", BOLO_VERSION);
+			printf("USAGE: bolo-spy [-h?] [-c /path/to/confi] /path/to/savedb\n\n");
+			printf("Options:\n");
+			printf("  -?, -h               show this help screen\n");
+			printf("  -c, --config         path to the bolo configuration\n");
+			printf("  -Y, --yaml           dump the savedb as a YAML file\n");
+			return 0;
+
+		case 'c':
+			free(OPTIONS.config_file);
+			OPTIONS.config_file = strdup(optarg);
+			break;
+
+		case 'Y':
+			OPTIONS.format = FORMAT_YAML;
+			break;
+
+		default:
+			fprintf(stderr, "unhandled option flag %#02x\n", c);
+			return 1;
+		}
+	}
+
+	off += optind;
+	if (argc - off != 1) {
+		fprintf(stderr, "USAGE: bolo spy [OPTIONS] /path/to/save.db\n");
 		return 1;
 	}
+	OPTIONS.savedb = argv[off];
 
 	server_t s;
 	memset(&s, 0, sizeof(s));
@@ -61,12 +113,12 @@ int cmd_spy(int off, int argc, char **argv)
 	s.config.savefile     = strdup(DEFAULT_SAVEFILE);
 	s.config.save_size    = DEFAULT_SAVE_SIZE;
 
-	if (configure(argv[off + 1], &s) != 0) {
-		perror(argv[off + 1]);
+	if (configure(OPTIONS.config_file, &s) != 0) {
+		perror(OPTIONS.config_file);
 		return 2;
 	}
-	if (binf_read(&s.db, argv[off + 2], s.config.save_size) != 0) {
-		fprintf(stderr, "%s: %s\n", argv[off + 2],
+	if (binf_read(&s.db, OPTIONS.savedb, s.config.save_size) != 0) {
+		fprintf(stderr, "%s: %s\n", OPTIONS.savedb,
 			errno == 0 ? "corrupt savefile" : strerror(errno));
 		return 2;
 	}
@@ -102,39 +154,86 @@ int cmd_spy(int off, int argc, char **argv)
 		switch (box->type) {
 		case BOXED_STATE:
 			state = (state_t*)(box->ptr);
-			printf("state :: %s\n", state->name);
-			printf("  [%u] %s%s - %s\n", state->status, state->stale ? "(stale) " : "",
-			                             STATUS[state->status], state->summary);
-			printf("  last seen %i / expires %i\n", state->last_seen, state->expiry);
-			printf("  freshness %i\n", state->type->freshness);
-			printf("\n");
+			if (OPTIONS.format == FORMAT_YAML) {
+				printf("%s:\n", state->name);
+				printf("  type:      state\n");
+				printf("  status:    %s\n", STATUS[state->status]);
+				printf("  code:      %u\n", state->status);
+				printf("  stale:     %s\n", state->stale ? "yes" : "no");
+				printf("  freshness: %i\n", state->type->freshness);
+				printf("  last_seen: %i\n", state->last_seen);
+				printf("  expiry:    %i\n", state->expiry);
+				printf("  summary: |-\n    %s\n", state->summary);
+				printf("\n");
+			} else {
+				printf("state :: %s\n", state->name);
+				printf("  [%u] %s%s - %s\n", state->status, state->stale ? "(stale) " : "",
+											 STATUS[state->status], state->summary);
+				printf("  last seen %i / expires %i\n", state->last_seen, state->expiry);
+				printf("  freshness %i\n", state->type->freshness);
+				printf("\n");
+			}
 			break;
 
 		case BOXED_SAMPLE:
 			sample = (sample_t*)(box->ptr);
-			printf("sample :: %s\n", sample->name);
-			printf("  n=%lu min=%e max=%e sum=%e mean=%e var=%e\n",
-			          sample->n, sample->min, sample->max, sample->sum,
-			          sample->mean, sample->var);
-			printf("  window %i\n", sample->window->time);
-			printf("  last seen %i\n", sample->last_seen);
-			printf("\n");
+			if (OPTIONS.format == FORMAT_YAML) {
+				printf("%s:\n", sample->name);
+				printf("  type:      sample\n");
+				printf("  n:         %lu\n", sample->n);
+				printf("  min:       %e\n", sample->min);
+				printf("  max:       %e\n", sample->min);
+				printf("  mean:      %e\n", sample->mean);
+				printf("  sum:       %e\n", sample->sum);
+				printf("  var:       %e\n", sample->var);
+				printf("  window:    %i\n", sample->window->time);
+				printf("  last_seen: %i\n", sample->last_seen);
+				printf("\n");
+			} else {
+				printf("sample :: %s\n", sample->name);
+				printf("  n=%lu min=%e max=%e sum=%e mean=%e var=%e\n",
+						  sample->n, sample->min, sample->max, sample->sum,
+						  sample->mean, sample->var);
+				printf("  window %i\n", sample->window->time);
+				printf("  last seen %i\n", sample->last_seen);
+				printf("\n");
+			}
 			break;
 
 		case BOXED_COUNTER:
 			counter = (counter_t*)(box->ptr);
-			printf("counter :: %s = %lu\n", counter->name, counter->value);
-			printf("  window %i\n", counter->window->time);
-			printf("  last seen %i\n", counter->last_seen);
-			printf("\n");
+			if (OPTIONS.format == FORMAT_YAML) {
+				printf("%s:\n", counter->name);
+				printf("  type:      counter\n");
+				printf("  value:     %lu\n", counter->value);
+				printf("  window:    %i\n", counter->window->time);
+				printf("  last_seen: %i\n", counter->last_seen);
+				printf("\n");
+			} else {
+				printf("counter :: %s = %lu\n", counter->name, counter->value);
+				printf("  window %i\n", counter->window->time);
+				printf("  last seen %i\n", counter->last_seen);
+				printf("\n");
+			}
 			break;
 
 		case BOXED_RATE:
 			rate = (rate_t*)(box->ptr);
-			printf("rate :: %s ( %lu : %lu )\n", rate->name, rate->first, rate->last);
-			printf("  window %i\n", rate->window->time);
-			printf("  first seen %i / last seen %i\n", rate->first_seen, rate->last_seen);
-			printf("\n");
+			if (OPTIONS.format == FORMAT_YAML) {
+				printf("%s:\n", rate->name);
+				printf("  type:        rate\n");
+				printf("  first_value: %lu\n", rate->first);
+				printf("  last_value:  %lu\n", rate->last);
+				printf("  window:      %i\n",  rate->window->time);
+				printf("  first_seen:  %i\n",  rate->first_seen);
+				printf("  last_seen:   %i\n",  rate->last_seen);
+				printf("\n");
+			} else {
+				printf("rate :: %s ( %lu : %lu )\n", rate->name, rate->first, rate->last);
+				printf("  window %i\n", rate->window->time);
+				printf("  first seen %i / last seen %i\n", rate->first_seen, rate->last_seen);
+				printf("\n");
+			}
 			break;
 
 		default:

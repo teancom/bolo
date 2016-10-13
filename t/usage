@@ -14,10 +14,10 @@ for bin in bolo \
 done
 
 ./bolo spy 2>&1 | grep -iq usage: || bail "bolo spy (no args) did not show Usage example"
-./bolo spy $ROOT/missing $ROOT/missing 2>&1 | grep -iq 'no such file' || bail "bolo spy didn't complain about missing file"
+./bolo spy -c $ROOT/missing $ROOT/missing 2>&1 | grep -iq 'no such file' || bail "bolo spy didn't complain about missing file"
 touch $ROOT/present
 echo "CORRUPT" > $ROOT/corrupt
-./bolo spy $ROOT/present $ROOT/corrupt 2>&1 | grep -iq 'corrupt savefile' \
+./bolo spy -c $ROOT/present $ROOT/corrupt 2>&1 | grep -iq 'corrupt savefile' \
 	|| bail "bolo spy didn't complain about corrupt savefile"
 
 ./bolo aggr -Fc $ROOT/bolo.conf 2>&1 | grep -iq "failed to read configuration" \
