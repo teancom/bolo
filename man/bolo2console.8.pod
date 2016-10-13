@@ -1,0 +1,71 @@
+=head1 NAME
+
+bolo2console - Bolo Console Terminal
+
+=head1 SYNOPSIS
+
+B<bolo2console>
+
+B<bolo2console> -e tcp://host:port
+
+B<bolo2console> -TRACES -m '(cpu|memory).*0'
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2console> is a subscriber that listens to all data broadcast by B<bolo>
+and prints it out in a rogue-like terminal, drawing as pretty of graphs for
+data as can be managed.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=item B<-T>, B<--transitions>
+
+=item B<-R>, B<--rates>
+
+=item B<-A>, B<--states>
+
+=item B<-C>, B<--counters>
+
+=item B<-E>, B<--events>
+
+=item B<-S>, B<--samples>
+
+Show TRANSITION, RATE, STATE, COUNTER, EVENT and/or SAMPLE data.
+
+=item B<-m>, B<--match> I<REGEX>
+
+Constrain displayed results to metrics, states and events with names
+matching the given regular expression.
+
+=item B<-u>, B<--user-message> I<MESSAGE>
+
+A custom message to display in the console title bar.  This can be
+helpful when you want to run several console instances, with different
+type / matching parameters, and need to keep them straight.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

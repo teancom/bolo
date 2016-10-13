@@ -1,0 +1,113 @@
+=head1 NAME
+
+bolo2log - A Logging Bolo Subscriber
+
+=head1 SYNOPSIS
+
+B<bolo2log>
+
+B<bolo2log> -e tcp://host:port
+
+B<bolo2log> -L /var/log/bolo -m 'net:eth[012]:'
+
+B<bolo2log> -I monitoring -S local3 -l info
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2log> is a subscriber that listens to STATE (with B<-A>) and TRANSITION
+data broadcast by B<bolo> and either writes it to a log file (via B<-L>), or
+sends it to syslog.
+
+=head1 OPTIONS
+
+This subscriber can either log to a file, or log via syslog, but not both.
+Whenever B<--logfile> is seen, the subscriber flips into file-based mode.
+Whenever one of the syslog options (B<--facility>, B<--ident>, B<--level>) is
+seen, the subscriber flips into syslog mode.
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-L>, B<--logfile> I<PATH>
+
+Log messages to a single file, on-disk.D  Syslog options will be ignored.
+
+Presently, C<-> is not treated as standard output (as in some programs), but
+as a file named with a single hyphen.  This may change in a future release.
+
+=cut
+FIXME Handle `-L - ` and add it to SYNOPSIS.
+=pod
+
+=item B<-S>, B<--facility> I<FACILITY>
+
+Log to syslog using the given facility.
+
+Valid values for I<FACILITY> are usually local0 - local9, daemon, and user.
+Check the documentation with your syslog server for more concrete details.
+
+Defaults to I<daemon>.
+
+=item B<-m>, B<--match> I<REGEX>
+
+Only log messages for states with names matching the given pattern.
+
+=item B<-I>, B<--ident> I<IDENTITY>
+
+Log to syslog using the given identity.  This can be used to differentiate
+different logging subscribers with different matching (B<-m>) parameters.
+
+Defaults to I<bolo2log>.
+
+=item B<-l>, B<--level> I<(alert|error|warning|info|notice|debug)>
+
+Log to syslog at the given level.
+
+Defaults to I<alert>.
+
+=item B<-A>, B<--all>
+
+Include STATE data in the logs.  By default, only TRANSITION data is logged.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2log> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2log> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2log.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2log> will run as
+root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

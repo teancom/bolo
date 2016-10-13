@@ -1,6 +1,6 @@
 =head1 NAME
 
-bolo forget - Bolo forget utility
+bolo-forget - Bolo forget utility
 
 =head1 SYNOPSIS
 
@@ -16,7 +16,7 @@ B<bolo forget> -t all --ignore <pattern>
 
 #INTRO
 
-B<bolo forget> is a utility that sends controll messages to the
+B<bolo forget> is a utility that sends control messages to the
 B<bolo> core to forget matching data patterns.
 
 =head1 OPTIONS

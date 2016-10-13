@@ -1,6 +1,6 @@
 =head1 NAME
 
-bolo name - Bolo Monitoring System Qualified Name Utility
+bolo-name - Bolo Monitoring System Qualified Name Utility
 
 =head1 SYNOPSIS
 
@@ -14,7 +14,7 @@ B<bolo name> match NAME1 NAME2
 
 #INTRO
 
-B<bolo query> is a small utility that parses and analyzes TSDP Qualified
+B<bolo name> is a small utility that parses and analyzes TSDP Qualified
 Names (i.e. B<type=sys,host=example01,m=cpu>).  It provides sub-comands for
 checking name equivalence (including wildcard matching semantics),
 canonicalization (via B<fix>), validation (B<check>) and debugging.

@@ -1,6 +1,6 @@
 =head1 NAME
 
-bolo aggr - Bolo Monitoring System Daemon
+bolo-aggr - Bolo Monitoring System Daemon
 
 =head1 SYNOPSIS
 

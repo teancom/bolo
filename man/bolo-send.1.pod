@@ -1,6 +1,6 @@
 =head1 NAME
 
-bolo send - Bolo Monitoring System Client
+bolo-send - Bolo Monitoring System Client
 
 =head1 SYNOPSIS
 

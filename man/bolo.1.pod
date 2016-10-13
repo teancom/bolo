@@ -1,0 +1,53 @@
+=head1 NAME
+
+bolo - A Monitoring System Toolkit
+
+=head1 SYNOPSIS
+
+B<bolo> [COMMAND] [ARGMENTS]
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo> is also the primary command-line tool for the pieces and parts
+of bolo, including client utilities and the aggregator daemon.
+
+=head1 COMMANDS
+
+=over
+
+=item B<bolo-aggr>(1)
+
+The aggregator daemon, which accepts metrics, summarizes, and re-broadcasts.
+
+=item B<bolo-cache>(1)
+
+A cachine daemon for the data broadcast by B<bolo-aggr>(1), best used with
+realtime subscribers like B<bolo2console>(8).
+
+=item B<bolo-forget>(1)
+
+A small utility to make bolo forget about a metric or state.
+
+=item B<bolo-query>(1)
+
+Command-line interface for querying an aggregator via its control port.
+
+=item B<bolo-send>(1)
+
+Data submission client.
+
+=item B<bolo-spy>(1)
+
+A small administrative tool for viewing the contents of the bolo savedb.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

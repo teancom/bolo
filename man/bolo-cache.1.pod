@@ -1,6 +1,6 @@
 =head1 NAME
 
-bolo cache - Bolo Caching Daemon
+bolo-cache - Bolo Caching Daemon
 
 =head1 SYNOPSIS
 
