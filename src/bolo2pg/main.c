@@ -157,9 +157,9 @@ static int _inserter_reactor(void *socket, pdu_t *pdu, void *_) /* {{{ */
 
 			STOPWATCH(&watch, spent) {
 				char* params[] = {
-					pdu_string(pdu, 1), /* name  */
+					pdu_string(pdu, 2), /* name  */
 					pdu_string(pdu, 3), /* extra */
-					pdu_string(pdu, 2), /* ts    */
+					pdu_string(pdu, 1), /* ts    */
 				};
 #ifdef BOLO2PG_DEBUG
 				logger(LOG_DEBUG, "inserter[%i]: INSERTING event %s @%s %s",
