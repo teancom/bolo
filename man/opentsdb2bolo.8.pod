@@ -1,0 +1,86 @@
+=head1 NAME
+
+opentsdb2bolo - OpenTSDB receiver for Bolo
+
+=head1 SYNOPSIS
+
+B<opentsdb2bolo> -S tcp://bolo:2999 -l '10.244.0.6:13381'
+
+B<opentsdb2bolo> -F
+
+B<opentsdb2bolo> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<opentsdb2bolo> is a receiver that translates non-HTTP OpenTSDB protocol
+messages of the following form:
+
+    put METRIC TIMESTAMP VALUE TAG[,TAG...]
+
+into SAMPLE metrics and submits them to an upstream bolo aggregator.
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-S>, B<--submit> I<tcp://host:port>
+
+The bolo data submission endpoint.  Defaults to I<tcp://127.0.0.1:2999>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-l>, B<--listen> I<host[:port]>
+
+The IP address and (optional) port to bind to and listen on for inbound
+OpenTSDB messages.  If the port is not specified, the standard port 13321
+will be used.  To bind all interfaces, pass the host component as C<*>, and
+note that this may require quoting to avoid shell glob expansion.
+
+Defaults to C<*:13321>.
+
+=item B<-m>, B<--max-connections> I<N>
+
+The maximum number of concurrent client connections that this receiver is
+willing to service.  Defaults ti I<1024>.
+
+=item B<-P>, B<--prefix> I<PREFIX>
+
+If specified, prefix all translated metric names with the given prefix.
+
+=item B<-F>, B<--foreground>
+
+By default, B<opentsdb2bolo> will fork into the background, detach its
+terminal and daemonize itself.  This option inhibits that behavior, and also
+stops its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<opentsdb2bolo> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/opentsdb2bolo.pid>.  Has no effect if B<-F>
+is given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<opentsdb2bolo> will run
+as root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

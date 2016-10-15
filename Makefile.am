@@ -54,16 +54,17 @@ libtsdp_la_SOURCES = tsdp/internal.h \
                      tsdp/unpack.c
 libtsdp_la_LDFLAGS = -version-info $(TSDP_SOVERSION)
 
-sbin_PROGRAMS = bolo2log bolo2meta dbolo
+sbin_PROGRAMS = bolo2log bolo2meta dbolo opentsdb2bolo
 bolo2log_SOURCES        = src/bolo2log/main.c
 bolo2meta_SOURCES       = src/bolo2meta/main.c
 bolo2meta_LDADD         = $(LDADD)
+dbolo_SOURCES           = src/dbolo/main.c
+opentsdb2bolo_SOURCES   = src/opentsdb2bolo/main.c
 
 if build_slack_subscriber
 sbin_PROGRAMS          += bolo2slack
 bolo2slack_SOURCES      = src/bolo2slack/main.c
 bolo2slack_LDADD        = -lcurl
-dbolo_SOURCES           = src/dbolo/main.c
 endif
 
 if build_rrd_subscriber
@@ -159,6 +160,7 @@ dist_man_MANS += man/bolo-name.1
 dist_man_MANS += man/bolo-query.1
 dist_man_MANS += man/bolo-send.1
 dist_man_MANS += man/bolo-spy.1
+dist_man_MANS += man/opentsdb2bolo.8
 yaml_manpages  = $(dist_man_MANS:%=%.yml)
 CLEANFILES = $(yaml_manpages)
 
