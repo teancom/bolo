@@ -14,7 +14,7 @@ B<bolo2redis> -u nobody -g nogroup --pidfile /var/run/my.pid
 
 #INTRO
 
-B<bolo2redis> is a subscriber that lists for KEY data and forwards it onto
+B<bolo2redis> is a subscriber that listens for KEY data and forwards it onto
 a Redis key-value store.
 
 =head1 OPTIONS
