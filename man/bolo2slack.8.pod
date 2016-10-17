@@ -1,0 +1,84 @@
+=head1 NAME
+
+bolo2slack - Bolo Slack Notifier
+
+=head1 SYNOPSIS
+
+B<bolo2slack> -e tcp://host:port -C '#monitoring' -U <webhook>
+
+B<bolo2slack> -F
+
+B<bolo2slack> -u nobody -g nogroup --pidfile /var/run/my.pid
+
+=head1 DESCRIPTION
+
+#INTRO
+
+B<bolo2slack> is a subscriber that listens for TRANSITIONs and sends
+notifications to a given Slack channel or user (via DM).
+
+=head1 OPTIONS
+
+=over
+
+=item B<-V>, B<--version>
+
+Print version and copyright information.
+
+=item B<-e>, B<--endpoint> I<tcp://host:port>
+
+The bolo broadcast endpoint.  Defaults to I<tcp://127.0.0.1:2997>.
+Supports DNS resolution for both IPv4 and IPv6 endpoints.
+
+=item B<-U>, B<--webhook> I<SLACK-WEBHOOK>
+
+The Slack webhook you got when you set up the Incoming WebHook integration.
+This option is B<required>.
+
+=item B<-C>, B<--channel> I<CHANNEL-OR-USERNAME>
+
+The channel (in the form C<#name>) or user (as C<@name>) to send the notification
+messages to.  This option is B<required>.
+
+=item B<-N>, B<--botname> I<NAME>
+
+Username to use when sending messages.  This will appear before the C<BOT> tag
+in the attribution of the message.  Defaults to I<bolo>.
+
+=item B<-A>, B<--avatar> I<EMOJI-OR-URL>
+
+The emoji (in the form C<:name:>), or the URL to use as the avatar image for the
+bot in Slack.  Defaults to I<:robot_face:>, which seems rather appropriate.
+
+=item B<-F>, B<--foreground>
+
+By default, B<bolo2slack> will fork into the background, detach its terminal
+and daemonize itself.  This option inhibits that behavior, and also stops
+its from setting the effective UID / GID (see B<-u> and B<-g>).
+
+=item B<-p>, B<--pidfile> I</path/to/pidfile>
+
+Specify where B<bolo2slack> should write its PID to, for control by init
+scripts.  Defaults to B</var/run/bolo2slack.pid>.  Has no effect if B<-F> is
+given.
+
+=item B<-u>, B<--user> I<USERNAME>
+
+=item B<-g>, B<--group> I<GROUP NAME>
+
+User and group to drop privileges to.  By default, B<bolo2slack> will run as
+root:root, which is probably not what you want.
+
+=item B<-v>, B<--verbose>
+
+Enable verbose mode, printing debugging information to standard error.
+
+=back
+
+=head1 SEE ALSO
+
+#SEEALSO
+
+=head1 AUTHOR
+
+#AUTHOR

@@ -91,6 +91,11 @@ BOLO_SUBSCRIBER([influxdb], [auto], [stores sample and state data in InfluxDB],
 	 int main() { return 0; }
 	], [])
 
+BOLO_SUBSCRIBER([slack], [auto], [sends TRANSITION notifications to Slack],
+	[#include <curl/curl.h>
+	 int main() { return 0; }
+	], [-lcurl])
+
 x=0
 AC_CHECK_LIB(pcre, pcre_free_study, [x=1], [x=0])
 if test $x == 1
